@@ -1,0 +1,7 @@
+#
+# Copyright (c) <team name here>
+#
+
+mainmenu "Kionix Zephyr Driver Demo"
+
+source "Kconfig.zephyr"
