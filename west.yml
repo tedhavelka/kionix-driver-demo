@@ -1,0 +1,19 @@
+manifest:
+  remotes:
+    - name: nrfconnect
+      url-base: https://github.com/nrfconnect
+  projects:
+    - name: nrf
+      repo-path: sdk-nrf
+      remote: nrfconnect
+      revision: v1.6.1
+      import: true
+    # Drivers repository
+    - name: zephyr-driver-work-v2
+      path: kionix-drivers
+      revision: main
+      url: git@github.com:circuitdojo/zephyr-driver-work-v2
+      import: true
+  self:
+    # This repository should be cloned to 
+    path: kionix-driver-demo
