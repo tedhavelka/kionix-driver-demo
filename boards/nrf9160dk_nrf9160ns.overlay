@@ -1,0 +1,17 @@
+/*
+ *  https://community.jaredwolff.com/d/73-accelerometer-example-failing-to-compile-on-feather-v2/2
+ *  https://www.youtube.com/watch?v=sWaxQyIgEBY  --- Device Tree Deep Dive
+ */
+
+&i2c1 {
+        compatible = "nordic,nrf-twim";
+        status = "okay";
+        sda-pin = <26>;
+        scl-pin = <27>;
+        kionix_sensor: kx132-1211@1f {
+                compatible = "kionix,kx132-1211"; 
+                reg = <0x1F>;
+                label = "KX132-1211";
+        };  
+};
+
