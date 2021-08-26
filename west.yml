@@ -12,7 +12,7 @@ manifest:
     - name: zephyr-driver-work-v2
       path: kionix-drivers
       revision: main
-      url: git@github.com:circuitdojo/zephyr-driver-work-v2
+      url: git@github.com:tedhavelka/zephyr-driver-work-v2
       import: true
   self:
     # This repository should be cloned to 
