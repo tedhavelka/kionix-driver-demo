@@ -8,12 +8,14 @@
 #include <device.h>
 #include <devicetree.h>
 #include <drivers/gpio.h>
+// 2021-08-26 - air-quality-wing-zephyr-demo by Jared Wolff includes this Zephyr project header:
+#include <drivers/sensor.h>
 
 // 2021-08-06 - blink-custom first addition of Zephyr functionality:
 #include <sys/printk.h>
 
-// 2021-08-24
-#include "kx132-1211.h"
+// 2021-08-24, 2021-08-26 losing double quotes in favor of arrow brackets:
+#include <kx132-1211.h>
 
 
 
