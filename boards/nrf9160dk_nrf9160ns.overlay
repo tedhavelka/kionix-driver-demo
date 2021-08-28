@@ -8,10 +8,10 @@
         status = "okay";
         sda-pin = <26>;
         scl-pin = <27>;
-        kionix_sensor: kx132-1211@1f {
-                compatible = "kionix,kx132-1211"; 
+        kionix_sensor: kx132_1211@1f {
+                compatible = "kionix,kx132_1211"; 
                 reg = <0x1F>;
-                label = "KX132-1211";
+                label = "KX132_1211";
         };  
 };
 

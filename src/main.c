@@ -8,14 +8,36 @@
 #include <device.h>
 #include <devicetree.h>
 #include <drivers/gpio.h>
+// 2021-08-26 - air-quality-wing-zephyr-demo by Jared Wolff includes this Zephyr project header:
+#include <drivers/sensor.h>
 
 // 2021-08-06 - blink-custom first addition of Zephyr functionality:
 #include <sys/printk.h>
 
-// 2021-08-24
-#include "kx132-1211.h"
+// 2021-08-24, 2021-08-26 losing double quotes in favor of arrow brackets:
+// ( We can arrow bracket this included file's name thanks to out-of-tree,
+//  KX132_1211 driver CMakeLists.txt file and zephyr_include_directories()
+//  stanza, which points to the path from top dir of driver to this
+//  header file. )
+#include <kx132-1211.h>
 
 
+// 2021-08-26 Blindly borrowing next four active lines from Jared Wolff's
+//  air-quality-wing-zephyr-demo project:
+#include <logging/log.h>
+LOG_MODULE_REGISTER(demo);
+
+/* Device name defintions*/
+//#define SHTC3 DT_INST(0, sensirion_shtc3)
+#define KX132_1211 DT_INST(0, kionix_kx132_1211)
+#define CONFIG_KX132_1211_DEV_NAME DT_LABEL(KX132_1211)
+
+
+
+
+//----------------------------------------------------------------------
+// - SECTION - defines from Nordic ncs Zephyr sample apps
+//----------------------------------------------------------------------
 
 /* 1000 msec = 1 sec */
 #define SLEEP_TIME_MS   1500 // 1000
@@ -36,7 +58,7 @@
 #endif
 
 // 2021-08-17 - adding symbol to allow for enabling local driver under development:
-#define KX132_1211
+// #define KX132_1211
 
 
 

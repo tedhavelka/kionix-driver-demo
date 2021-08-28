@@ -14,7 +14,7 @@ manifest:
       revision: main
 #      revision: 299b507b8eb372771aa543f315fc95178cb80029
       url: git@github.com:tedhavelka/zephyr-driver-work-v2
-#      import: true
+#      import: true   ...2021-08-26 for some reason this should be commented out - TMH
   self:
     # This repository should be cloned to 
     path: kionix-driver-demo
