@@ -32,6 +32,8 @@ LOG_MODULE_REGISTER(demo);
 #define KX132_1211 DT_INST(0, kionix_kx132_1211)
 #define CONFIG_KX132_1211_DEV_NAME DT_LABEL(KX132_1211)
 
+// https://docs.zephyrproject.org/latest/guides/dts/howtos.html#get-a-struct-device-from-a-devicetree-node
+#define KIONIX_ACCELEROMETER DT_NODELABEL(kionix_sensor)
 
 
 
@@ -91,16 +93,27 @@ void main(void)
     }
 
 
-    const struct device *dev_accelerometer;
-    dev_accelerometer = DEVICE_DT_GET(DT_NODELABEL(kionix_sensor));
+//    const struct device *dev_accelerometer;
+//    dev_accelerometer = DEVICE_DT_GET(DT_NODELABEL(kionix_sensor));
+//    const struct device *dev_accelerometer = DEVICE_DT_GET(DT_NODELABEL(kionix_sensor));
+    const struct device *dev_accelerometer = device_get_binding(DT_LABEL(KIONIX_ACCELEROMETER));
+
     if (dev_accelerometer == NULL) {
         printk("Failed to init Kionix sensor device pointer!\n");
         printk("firmware exiting early, done.\n\n");
         return;
     }
-    else
+
+#if 1
+    if (!device_is_ready(dev_accelerometer))
     {
-        printk("- SUCCESS - assigned Kionix accelerometer device to pointer,\n");
+        printk("Device %s is not ready\n", dev_accelerometer->name);
+        return;
+    }
+    else
+#endif
+    {
+        printk("- SUCCESS - found Kionix accelerometer and device is ready\n");
     }
 
 
