@@ -106,7 +106,7 @@ void main(void)
 
 // 2021-08-11 WED - 
 //    query_kx132_id(dev_accelerometer, 0);
-    kx132_device_id_fetch(dev_accelerometer, 0);  // second parameter is 'channel', not yet used - TMH
+//    kx132_device_id_fetch(dev_accelerometer, 0);  // second parameter is 'channel', not yet used - TMH
 
 
     while (1) {
