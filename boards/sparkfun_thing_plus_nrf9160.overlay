@@ -9,10 +9,17 @@
         status = "okay";
         sda-pin = <26>;
         scl-pin = <27>;
+/* See TN027-Power-On-Procedure.pdf for purpose of 0x1F and 0x1D
+   Kionix sensor addresses here:   */
         kionix_sensor: kx132_1211@1f {
-                compatible = "kionix,kx132_1211"; 
+                compatible = "kionix,kx132_1211";
                 reg = <0x1F>;
                 label = "KX132_1211";
-        };  
+        };
+        kionix_sensor_flipped_i2c_addr: kx132_1211@1d {
+                compatible = "kionix,kx132_1211";
+                reg = <0x1D>;
+                label = "KX132_1211";
+        };
 };
 
