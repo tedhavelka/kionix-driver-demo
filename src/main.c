@@ -137,6 +137,8 @@ void main(void)
             printk("Hello World! %s\n", CONFIG_BOARD);
         }
 
+        sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID);
+
         ++main_loop_count;
     }
 }
