@@ -98,6 +98,8 @@ void main(void)
 //    const struct device *dev_accelerometer = DEVICE_DT_GET(DT_NODELABEL(kionix_sensor));
     const struct device *dev_accelerometer = device_get_binding(DT_LABEL(KIONIX_ACCELEROMETER));
 
+    struct sensor_value value;
+
     if (dev_accelerometer == NULL) {
         printk("Failed to init Kionix sensor device pointer!\n");
         printk("firmware exiting early, done.\n\n");
@@ -127,18 +129,28 @@ void main(void)
         led_is_on = !led_is_on;
         k_msleep(SLEEP_TIME_MS);
 
-//        if ( led_is_on == 0 )
-//        if ( (main_loop_count % 3) == 0 )
-        if (((main_loop_count % 3) == 0 ) || ( (main_loop_count % 5) == 0 ))
-        {
-            printk("Hello World! %s\n\n", CONFIG_BOARD);
-        }
-        else
-        {
-            printk("Hello World! %s\n", CONFIG_BOARD);
-        }
+        printk("Hello World! %s\n", CONFIG_BOARD);
 
+// Calls to KX132-1211 driver API:
+// NOTE:  these routines do not appear by these names in Zephyr RTOS project,
+//  but rather they are generated at build time by Python or other scripts
+//  of the build process, and are in part (or full) compiled from developer's
+//  project code.  Scratch-the-surface documentation on this at:
+// *  https://docs.zephyrproject.org/1.14.1/reference/peripherals/sensor.html
         sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID);
+        sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID, &value);
+
+        printk("main.c - Kionix sensor reports its ID, as 32-bit integer %d\n", value.val1);
+        printk("main.c - sensor_value.val2 holds %d\n\n", value.val2);
+
+// Output periodic or multi-phasic blank line to highlight scrolling in terminal window:
+
+//        if ( led_is_on == 0 )
+        if ( (main_loop_count % 3) == 0 )
+//        if (((main_loop_count % 3) == 0 ) || ( (main_loop_count % 5) == 0 ))
+        {
+            printk("\n\n");
+        }
 
         ++main_loop_count;
     }
