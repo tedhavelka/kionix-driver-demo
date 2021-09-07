@@ -59,21 +59,23 @@ LOG_MODULE_REGISTER(demo);
 #define FLAGS    0
 #endif
 
-// 2021-08-17 - adding symbol to allow for enabling local driver under development:
-// #define KX132_1211
 
 
 
+//----------------------------------------------------------------------
+// - SECTION - defines, data structures in Kionix driver dev work
+//----------------------------------------------------------------------
 
-void query_kx132_id(const struct device *dev_ptr_accelerometer, unsigned int options)
-{
+union generic_data_four_bytes_union_t {
+    char as_string[sizeof(int)];
+    uint8_t as_bytes[sizeof(int)];
+    uint32_t as_32_bit_integer;
+};
 
-    if ( dev_ptr_accelerometer != NULL ) { }
 
-    if ( options > 0 ) { }
-
-}
-
+//----------------------------------------------------------------------
+// - SECTION - routine definitions
+//----------------------------------------------------------------------
 
 void main(void)
 {
@@ -97,8 +99,10 @@ void main(void)
 //    dev_accelerometer = DEVICE_DT_GET(DT_NODELABEL(kionix_sensor));
 //    const struct device *dev_accelerometer = DEVICE_DT_GET(DT_NODELABEL(kionix_sensor));
     const struct device *dev_accelerometer = device_get_binding(DT_LABEL(KIONIX_ACCELEROMETER));
-
     struct sensor_value value;
+    union generic_data_four_bytes_union_t data_from_sensor;
+    uint32_t i = 0;
+
 
     if (dev_accelerometer == NULL) {
         printk("Failed to init Kionix sensor device pointer!\n");
@@ -141,7 +145,22 @@ void main(void)
         sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID, &value);
 
         printk("main.c - Kionix sensor reports its ID, as 32-bit integer %d\n", value.val1);
-        printk("main.c - sensor_value.val2 holds %d\n\n", value.val2);
+        printk("main.c - sensor_value.val2 holds %d\n", value.val2);
+//        memcpy(data_from_sensor.as_32_bit_integer, value.val1, sizeof(value.val1));
+        data_from_sensor.as_32_bit_integer = value.val1;
+
+        printk("main.c - value.val1 as bytes:  ");
+        for ( i = 0; i < sizeof(int); i++ )
+        {
+            printk("0x%2X ", data_from_sensor.as_bytes[i]);
+        }
+        printk("  \"");
+        for ( i = 0; i < sizeof(int); i++ )
+        {
+            printk(" %c ", data_from_sensor.as_bytes[i]);
+        }
+        printk("\"\n");
+
 
 // Output periodic or multi-phasic blank line to highlight scrolling in terminal window:
 
