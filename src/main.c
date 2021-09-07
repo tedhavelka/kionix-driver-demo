@@ -128,7 +128,8 @@ void main(void)
         k_msleep(SLEEP_TIME_MS);
 
 //        if ( led_is_on == 0 )
-        if ( (main_loop_count % 3) == 0 )
+//        if ( (main_loop_count % 3) == 0 )
+        if (((main_loop_count % 3) == 0 ) || ( (main_loop_count % 5) == 0 ))
         {
             printk("Hello World! %s\n\n", CONFIG_BOARD);
         }
