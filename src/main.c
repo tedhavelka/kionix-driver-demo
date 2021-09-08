@@ -144,7 +144,7 @@ void main(void)
         sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID);
         sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID, &value);
 
-        printk("main.c - Kionix sensor reports its ID, as 32-bit integer %d\n", value.val1);
+        printk("main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer %d\n", value.val1);
         printk("main.c - sensor_value.val2 holds %d\n", value.val2);
 //        memcpy(data_from_sensor.as_32_bit_integer, value.val1, sizeof(value.val1));
         data_from_sensor.as_32_bit_integer = value.val1;
@@ -160,6 +160,11 @@ void main(void)
             printk(" %c ", data_from_sensor.as_bytes[i]);
         }
         printk("\"\n");
+
+
+        sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_PART_ID);
+        sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_PART_ID, &value);
+        printk("main.c - Kionix sensor reports part ID of %d\n", value.val1);
 
 
 // Output periodic or multi-phasic blank line to highlight scrolling in terminal window:
