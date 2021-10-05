@@ -1,0 +1,18 @@
+/*
+ *
+ * @file   sparkfun_thing_plus_nrf9160_common_kionix_demo.overlay
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+//----------------------------------------------------------------------
+// Purpose:  enable second UART on nRF9160, for communications separate
+//   from CP2102N USB-to-serial interface on UART0:
+//----------------------------------------------------------------------
+
+&uart2 {
+        status = "okay";
+        current-speed = <9600>;
+        tx-pin = <24>;
+        rx-pin = <23>;
+};
+
