@@ -6,10 +6,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+
+#define KIONIX_DRIVER_REV_MAJOR 0
+#define KIONIX_DRIVER_REV_MINOR 2
+// revision updated 2021-10-06
+
+//----------------------------------------------------------------------
+// - SECTION - includes
+//----------------------------------------------------------------------
+
+// Zephyr RTOS includes:
+
 #include <zephyr.h>
 #include <device.h>
 #include <devicetree.h>
 #include <drivers/gpio.h>
+
 // 2021-08-26 - air-quality-wing-zephyr-demo by Jared Wolff includes this Zephyr project header:
 #include <drivers/sensor.h>
 
@@ -19,6 +31,20 @@
 // 2021-10-05 - CLI incorporation work, see Zephyr v2.6.0 file "zephyr/subsys/console/tty.c"
 #include <drivers/uart.h>   // to provide uart_poll_in()
 
+// 2021-08-26 Blindly borrowing next four active lines from Jared Wolff's
+//  air-quality-wing-zephyr-demo project:
+// REF https://docs.zephyrproject.org/2.6.0/reference/logging/index.html?highlight=log_module_register#c.LOG_MODULE_REGISTER
+#include <logging/log.h>
+LOG_MODULE_REGISTER(demo);
+
+
+// newlib C includes:
+
+#include <stdio.h> // to provide snprintf()
+
+
+// Out-Of-Tree driver includes:
+
 // 2021-08-24, 2021-08-26 losing double quotes in favor of arrow brackets:
 // ( We can arrow bracket this included file's name thanks to out-of-tree,
 //  KX132_1211 driver CMakeLists.txt file and zephyr_include_directories()
@@ -26,13 +52,9 @@
 //  header file. )
 #include <kx132-1211.h>
 
-// 2021-08-26 Blindly borrowing next four active lines from Jared Wolff's
-//  air-quality-wing-zephyr-demo project:
-// REF https://docs.zephyrproject.org/2.6.0/reference/logging/index.html?highlight=log_module_register#c.LOG_MODULE_REGISTER
-#include <logging/log.h>
-LOG_MODULE_REGISTER(demo);
+// Local project includes:
 
-// 2021-10-06
+// 2021-10-06 - to add wrapper about Zephyr printk(), for early CLI development work:
 #include "diagnostic.h"
 
 
@@ -69,11 +91,14 @@ LOG_MODULE_REGISTER(demo);
 #define FLAGS    0
 #endif
 
+// Development flags:
+#define DEV_TEST__ENABLE_KX132_1211_ASYNCHRONOUS_READINGS (1)
+#define DEV_TEST__SET_KX132_1211_OUTPUT_DATA_RATE         (0)
 
 
 
 //----------------------------------------------------------------------
-// - SECTION - defines, data structures in Kionix driver dev work
+// - SECTION - data structures in Kionix driver dev work
 //----------------------------------------------------------------------
 
 union generic_data_four_bytes_union_t {
@@ -83,16 +108,35 @@ union generic_data_four_bytes_union_t {
 };
 
 
+
+void banner(const char* caller)
+{
+    char banner_msg[128];
+    snprintf(banner_msg, sizeof(banner_msg), "+++ Kionix Driver Demo version %up%u",
+      KIONIX_DRIVER_REV_MAJOR, KIONIX_DRIVER_REV_MINOR);
+    dmsg(banner_msg, DIAG_NORMAL);
+
+    (void)caller;
+}
+
+
+
 //----------------------------------------------------------------------
 // - SECTION - routine definitions
 //----------------------------------------------------------------------
 
 void main(void)
 {
+// --- LOCAL VAR BEGIN ---
     const struct device *dev;
     bool led_is_on = true;
     int ret;
     int main_loop_count = 0;
+
+    int sensor_api_status = 0;
+    struct sensor_value requested_config;
+// --- LOCAL VAR END ---
+
 
 // 2021-10-05
 // REF https://lists.zephyrproject.org/g/devel/topic/help_required_on_reading_uart/16760425
@@ -101,7 +145,8 @@ void main(void)
     uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
     if ( uart_for_cli == NULL )
     {
-        printk("Failed to assign pointer to UART2 device!\n");
+//        printk("Failed to assign pointer to UART2 device!\n");
+        dmsg("Failed to assign pointer to UART2 device!\n", DIAG_NORMAL);
     }
 
     dev = device_get_binding(LED0);
@@ -143,9 +188,43 @@ void main(void)
     }
 
 
-// 2021-08-11 WED - 
-//    query_kx132_id(dev_accelerometer, 0);
-//    kx132_device_id_fetch(dev_accelerometer, 0);  // second parameter is 'channel', not yet used - TMH
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// In following sensor configuration tests first three parameters
+//  1 device pointer, 2 sensor channel, 3 sensor attribute stay the same
+//  to honor two sensor API enumerations in Zephyr v2.6.0.  These enums
+//  do not in any obvious way support arbitrary sensor channels and
+//  attributes.  Thus to stay with Zephyr's API way, and pass custom
+//  settings to configuring routines of our out-of-tree driver those
+//  values we pass in the final parameter.
+//
+//  Zephyr 2.6.0 project header of interest in this matter is:
+//  zephyr/include/drivers/sensor.h.
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    if ( DEV_TEST__ENABLE_KX132_1211_ASYNCHRONOUS_READINGS == 1 )
+    {
+        requested_config.val1 = KX132_ENABLE_ASYNC_READINGS;
+
+        sensor_api_status = sensor_attr_set(
+          dev_accelerometer,
+          SENSOR_CHAN_ALL,
+          SENSOR_ATTR_PRIV_START,          
+          &requested_config
+        );
+    }
+
+    if ( DEV_TEST__SET_KX132_1211_OUTPUT_DATA_RATE == 1 )
+    {
+        requested_config.val1 = KX132_ENABLE_ASYNC_READINGS;
+        requested_config.val2 = KX132_ODR_3200_HZ;
+
+        sensor_api_status = sensor_attr_set(
+          dev_accelerometer,
+          SENSOR_CHAN_ALL,
+          SENSOR_ATTR_PRIV_START,          
+          &requested_config
+        );
+    }
 
 
     while (1) {
@@ -155,12 +234,15 @@ void main(void)
 
         printk("Hello World! %s - built via Segger Nordic Edition v5.60\n", CONFIG_BOARD);
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Calls to KX132-1211 driver API:
 // NOTE:  these routines do not appear by these names in Zephyr RTOS project,
 //  but rather they are generated at build time by Python or other scripts
 //  of the build process, and are in part (or full) compiled from developer's
 //  project code.  Scratch-the-surface documentation on this at:
 // *  https://docs.zephyrproject.org/1.14.1/reference/peripherals/sensor.html
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
         sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID);
         sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID, &value);
 
@@ -187,11 +269,9 @@ void main(void)
         printk("main.c - Kionix sensor reports part ID of %d\n", value.val1);
 
 
-// Output periodic or multi-phasic blank line to highlight scrolling in terminal window:
+// Output periodic or multi-phasic blank line to highlight scrolling in terminal window (note 1):
 
-//        if ( led_is_on == 0 )
         if ( (main_loop_count % 3) == 0 )
-//        if (((main_loop_count % 3) == 0 ) || ( (main_loop_count % 5) == 0 ))
         {
             printk("\n\n");
         }
@@ -211,3 +291,25 @@ void main(void)
         ++main_loop_count;
     }
 }
+
+
+
+//----------------------------------------------------------------------
+// - SECTION - Notes
+//----------------------------------------------------------------------
+
+/*
+
+(1)  Output periodic or multi-phasic blank line to highlight scrolling in terminal window:
+
+//        if ( led_is_on == 0 )
+//        if ( (main_loop_count % 3) == 0 )
+//        if (((main_loop_count % 3) == 0 ) || ( (main_loop_count % 5) == 0 ))
+
+
+
+
+
+*/
+
+// --- EOF --
