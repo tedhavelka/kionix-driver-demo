@@ -14,6 +14,9 @@
 // 2021-08-06 - blink-custom first addition of Zephyr functionality:
 #include <sys/printk.h>
 
+// 2021-10-05 - CLI incorporation work, see Zephyr v2.6.0 file "zephyr/subsys/console/tty.c"
+#include <drivers/uart.h>   // to provide uart_poll_in()
+
 // 2021-08-24, 2021-08-26 losing double quotes in favor of arrow brackets:
 // ( We can arrow bracket this included file's name thanks to out-of-tree,
 //  KX132_1211 driver CMakeLists.txt file and zephyr_include_directories()
@@ -86,9 +89,13 @@ void main(void)
 
 // 2021-10-05
 // REF https://lists.zephyrproject.org/g/devel/topic/help_required_on_reading_uart/16760425
-    struct device *uart_for_cli;
-    uart_for_cli = device_get_binding(DT_LABEL(UART_2));
-
+    const struct device *uart_for_cli;
+//    uart_for_cli = device_get_binding(DT_LABEL(UART_2));
+    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
+    if ( uart_for_cli == NULL )
+    {
+        printk("Failed to assign pointer to UART2 device!\n");
+    }
 
     dev = device_get_binding(LED0);
     if (dev == NULL) {
@@ -184,10 +191,14 @@ void main(void)
 
 
 // --- UART_2 CLI work begin ---
-unsigned char* msg;
-uart_poll_in(uart_for_cli, msg);
+        if ( uart_for_cli != NULL )
+        {
+            char lbuf[160];
+            unsigned char* msg = lbuf;
+            uart_poll_in(uart_for_cli, msg);
 
-printk("%s", msg);
+            printk("%s", msg);
+        }
 // --- UART_2 CLI work end ---
 
         ++main_loop_count;
