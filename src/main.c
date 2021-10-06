@@ -156,7 +156,8 @@ void main(void)
 // REF https://lists.zephyrproject.org/g/devel/topic/help_required_on_reading_uart/16760425
     const struct device *uart_for_cli;
 //    uart_for_cli = device_get_binding(DT_LABEL(UART_2));
-    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
+//    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
+    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart0)));
     if ( uart_for_cli == NULL )
     {
         dmsg("Failed to assign pointer to UART2 device!\n", PROJECT_DIAG_LEVEL);
