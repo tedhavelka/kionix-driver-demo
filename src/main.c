@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 2016 Intel Corporation
+ * Copyright (c) 2021 Neela Nurseries
+ *
+ * Based on 2016 Intel Corporation sample Zephyr app, "basic/blinky"
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -24,11 +26,19 @@
 //  header file. )
 #include <kx132-1211.h>
 
-
 // 2021-08-26 Blindly borrowing next four active lines from Jared Wolff's
 //  air-quality-wing-zephyr-demo project:
+// REF https://docs.zephyrproject.org/2.6.0/reference/logging/index.html?highlight=log_module_register#c.LOG_MODULE_REGISTER
 #include <logging/log.h>
 LOG_MODULE_REGISTER(demo);
+
+// 2021-10-06
+#include "diagnostic.h"
+
+
+//----------------------------------------------------------------------
+// - SECTION - symbol defines
+//----------------------------------------------------------------------
 
 /* Device name defintions*/
 //#define SHTC3 DT_INST(0, sensirion_shtc3)
@@ -39,10 +49,7 @@ LOG_MODULE_REGISTER(demo);
 #define KIONIX_ACCELEROMETER DT_NODELABEL(kionix_sensor)
 
 
-
-//----------------------------------------------------------------------
-// - SECTION - defines from Nordic ncs Zephyr sample apps
-//----------------------------------------------------------------------
+// defines from Nordic sdk-nrf sample apps:
 
 /* 1000 msec = 1 sec */
 #define SLEEP_TIME_MS   1500 // 1000
