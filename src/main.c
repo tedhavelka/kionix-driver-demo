@@ -84,6 +84,12 @@ void main(void)
     int ret;
     int main_loop_count = 0;
 
+// 2021-10-05
+// REF https://lists.zephyrproject.org/g/devel/topic/help_required_on_reading_uart/16760425
+    struct device *uart_for_cli;
+    uart_for_cli = device_get_binding(DT_LABEL(UART_2));
+
+
     dev = device_get_binding(LED0);
     if (dev == NULL) {
         return;
@@ -133,7 +139,7 @@ void main(void)
         led_is_on = !led_is_on;
         k_msleep(SLEEP_TIME_MS);
 
-        printk("Hello World! %s\n", CONFIG_BOARD);
+        printk("Hello World! %s - built via Segger Nordic Edition v5.60\n", CONFIG_BOARD);
 
 // Calls to KX132-1211 driver API:
 // NOTE:  these routines do not appear by these names in Zephyr RTOS project,
@@ -175,6 +181,14 @@ void main(void)
         {
             printk("\n\n");
         }
+
+
+// --- UART_2 CLI work begin ---
+unsigned char* msg;
+uart_poll_in(uart_for_cli, msg);
+
+printk("%s", msg);
+// --- UART_2 CLI work end ---
 
         ++main_loop_count;
     }
