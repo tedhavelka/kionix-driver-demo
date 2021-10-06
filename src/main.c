@@ -92,8 +92,15 @@ LOG_MODULE_REGISTER(demo);
 #endif
 
 // Development flags:
+#define PROJECT_DIAG_LEVEL DIAG_NORMAL // DIAG_OFF
+//#define PROJECT_DIAG_LEVEL DIAG_OFF // DIAG_NORMAL
+// Configuration:
 #define DEV_TEST__ENABLE_KX132_1211_ASYNCHRONOUS_READINGS (1)
 #define DEV_TEST__SET_KX132_1211_OUTPUT_DATA_RATE         (0)
+// Readings:
+#define DEV_TEST__FETCH_AND_GET_MANUFACTURER_ID           (1)
+#define DEV_TEST__FETCH_AND_GET_PART_ID                   (1)
+#define DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ        (1)
 
 
 
@@ -107,12 +114,18 @@ union generic_data_four_bytes_union_t {
     uint32_t as_32_bit_integer;
 };
 
+// Statically declare banner message string allows us to memset once at start of int main():
+static char banner_msg[128];
 
+
+
+//----------------------------------------------------------------------
+// - SECTION - routine definitions
+//----------------------------------------------------------------------
 
 void banner(const char* caller)
 {
-    char banner_msg[128];
-    snprintf(banner_msg, sizeof(banner_msg), "+++ Kionix Driver Demo version %up%u",
+    snprintf(banner_msg, sizeof(banner_msg), "+++ Kionix Driver Demo version %up%u +++\n",
       KIONIX_DRIVER_REV_MAJOR, KIONIX_DRIVER_REV_MINOR);
     dmsg(banner_msg, DIAG_NORMAL);
 
@@ -120,10 +133,6 @@ void banner(const char* caller)
 }
 
 
-
-//----------------------------------------------------------------------
-// - SECTION - routine definitions
-//----------------------------------------------------------------------
 
 void main(void)
 {
@@ -135,8 +144,13 @@ void main(void)
 
     int sensor_api_status = 0;
     struct sensor_value requested_config;
+
+    char dev_msg[256];
 // --- LOCAL VAR END ---
 
+
+    memset(banner_msg, 0, sizeof(banner_msg));
+    banner("main");
 
 // 2021-10-05
 // REF https://lists.zephyrproject.org/g/devel/topic/help_required_on_reading_uart/16760425
@@ -145,8 +159,7 @@ void main(void)
     uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
     if ( uart_for_cli == NULL )
     {
-//        printk("Failed to assign pointer to UART2 device!\n");
-        dmsg("Failed to assign pointer to UART2 device!\n", DIAG_NORMAL);
+        dmsg("Failed to assign pointer to UART2 device!\n", PROJECT_DIAG_LEVEL);
     }
 
     dev = device_get_binding(LED0);
@@ -159,10 +172,6 @@ void main(void)
         return;
     }
 
-
-//    const struct device *dev_accelerometer;
-//    dev_accelerometer = DEVICE_DT_GET(DT_NODELABEL(kionix_sensor));
-//    const struct device *dev_accelerometer = DEVICE_DT_GET(DT_NODELABEL(kionix_sensor));
     const struct device *dev_accelerometer = device_get_binding(DT_LABEL(KIONIX_ACCELEROMETER));
     struct sensor_value value;
     union generic_data_four_bytes_union_t data_from_sensor;
@@ -170,21 +179,22 @@ void main(void)
 
 
     if (dev_accelerometer == NULL) {
-        printk("Failed to init Kionix sensor device pointer!\n");
-        printk("firmware exiting early, done.\n\n");
+        dmsg("Failed to init Kionix sensor device pointer!\n", PROJECT_DIAG_LEVEL);
+        dmsg("firmware exiting early, done.\n\n", PROJECT_DIAG_LEVEL);
         return;
     }
 
 #if 1
     if (!device_is_ready(dev_accelerometer))
     {
-        printk("Device %s is not ready\n", dev_accelerometer->name);
+        snprintf(dev_msg, sizeof(dev_msg), "Device %s is not ready\n", dev_accelerometer->name);
+        dmsg(dev_msg, PROJECT_DIAG_LEVEL);
         return;
     }
     else
 #endif
     {
-        printk("- SUCCESS - found Kionix accelerometer and device is ready\n");
+        dmsg("- SUCCESS - found Kionix accelerometer and device is ready\n", PROJECT_DIAG_LEVEL);
     }
 
 
@@ -227,12 +237,10 @@ void main(void)
     }
 
 
-    while (1) {
+    while ( 1 )
+    {
         gpio_pin_set(dev, PIN, (int)led_is_on);
         led_is_on = !led_is_on;
-        k_msleep(SLEEP_TIME_MS);
-
-        printk("Hello World! %s - built via Segger Nordic Edition v5.60\n", CONFIG_BOARD);
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Calls to KX132-1211 driver API:
@@ -243,37 +251,52 @@ void main(void)
 // *  https://docs.zephyrproject.org/1.14.1/reference/peripherals/sensor.html
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-        sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID);
-        sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID, &value);
-
-        printk("main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer %d\n", value.val1);
-        printk("main.c - sensor_value.val2 holds %d\n", value.val2);
-//        memcpy(data_from_sensor.as_32_bit_integer, value.val1, sizeof(value.val1));
-        data_from_sensor.as_32_bit_integer = value.val1;
-
-        printk("main.c - value.val1 as bytes:  ");
-        for ( i = 0; i < sizeof(int); i++ )
+        if ( DEV_TEST__FETCH_AND_GET_MANUFACTURER_ID )
         {
-            printk("0x%2X ", data_from_sensor.as_bytes[i]);
+            sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID);
+            sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID, &value);
+
+            snprintf(dev_msg, sizeof(dev_msg), "main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer %d\n", value.val1);
+            dmsg(dev_msg, PROJECT_DIAG_LEVEL);
+            snprintf(dev_msg, sizeof(dev_msg), "main.c - sensor_value.val2 holds %d\n", value.val2);
+            dmsg(dev_msg, PROJECT_DIAG_LEVEL);
+            data_from_sensor.as_32_bit_integer = value.val1;
+
+            dmsg("main.c - value.val1 as bytes:  ", PROJECT_DIAG_LEVEL);
+            for ( i = 0; i < sizeof(int); i++ )
+            {
+                snprintf(dev_msg, sizeof(dev_msg), "0x%2X ", data_from_sensor.as_bytes[i]);
+                dmsg(dev_msg, PROJECT_DIAG_LEVEL);
+            }
+            dmsg("  \"", PROJECT_DIAG_LEVEL);
+            for ( i = 0; i < sizeof(int); i++ )
+            {
+                snprintf(dev_msg, sizeof(dev_msg), " %c ", data_from_sensor.as_bytes[i]);
+                dmsg(dev_msg, PROJECT_DIAG_LEVEL);
+            }
+            dmsg("\"\n", PROJECT_DIAG_LEVEL);
         }
-        printk("  \"");
-        for ( i = 0; i < sizeof(int); i++ )
+
+        if ( DEV_TEST__FETCH_AND_GET_PART_ID )
         {
-            printk(" %c ", data_from_sensor.as_bytes[i]);
+            sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_PART_ID);
+            sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_PART_ID, &value);
+            snprintf(dev_msg, sizeof(dev_msg), "main.c - Kionix sensor reports part ID of %d\n", value.val1);
+            dmsg(dev_msg, PROJECT_DIAG_LEVEL);
         }
-        printk("\"\n");
 
-
-        sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_PART_ID);
-        sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_PART_ID, &value);
-        printk("main.c - Kionix sensor reports part ID of %d\n", value.val1);
+        if ( DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ )
+        {
+            sensor_api_status = sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_ACCEL_XYZ);
+        }
 
 
 // Output periodic or multi-phasic blank line to highlight scrolling in terminal window (note 1):
 
         if ( (main_loop_count % 3) == 0 )
         {
-            printk("\n\n");
+            dmsg("\n\n", PROJECT_DIAG_LEVEL);
+            banner("main");
         }
 
 
@@ -281,13 +304,16 @@ void main(void)
         if ( uart_for_cli != NULL )
         {
             char lbuf[160];
+            memset(lbuf, 0, sizeof(lbuf));
             unsigned char* msg = lbuf;
             uart_poll_in(uart_for_cli, msg);
 
-            printk("%s", msg);
+            snprintf(dev_msg, sizeof(dev_msg), "zzz - %s - zzz\n", msg);
+            dmsg(dev_msg, DIAG_NORMAL);
         }
 // --- UART_2 CLI work end ---
 
+        k_msleep(SLEEP_TIME_MS);
         ++main_loop_count;
     }
 }
@@ -307,6 +333,11 @@ void main(void)
 //        if (((main_loop_count % 3) == 0 ) || ( (main_loop_count % 5) == 0 ))
 
 
+(2)  Could not successfully compile when using Zephr DEVICE_DT_GET(...) macro:
+//    const struct device *dev_accelerometer;
+//    dev_accelerometer = DEVICE_DT_GET(DT_NODELABEL(kionix_sensor));
+//    const struct device *dev_accelerometer = DEVICE_DT_GET(DT_NODELABEL(kionix_sensor));
+    const struct device *dev_accelerometer = device_get_binding(DT_LABEL(KIONIX_ACCELEROMETER));
 
 
 
