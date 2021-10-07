@@ -134,6 +134,32 @@ void banner(const char* caller)
 
 
 
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+// - DEV BEGIN - 2021-10-06 thread addition work
+// https://docs.zephyrproject.org/latest/reference/kernel/threads/index.html#spawning-a-thread
+
+#define CLI_STACK_SIZE 500
+#define CLI_THREAD_PRIORITY 5
+
+// Zephyr required signature for Zephyr thread entry point routines:
+// extern void my_entry_point(void *, void *, void *);
+
+// https://docs.zephyrproject.org/latest/reference/kernel/threads/index.html#c.K_THREAD_STACK_DEFINE
+
+K_THREAD_STACK_DEFINE(cli_stack_area, CLI_STACK_SIZE);
+struct k_thread cli_thread_data;
+
+void cli_entry_point(void* arg1, void* arg2, void* arg3)
+{
+// stub function
+}
+
+
+// - DEV END -
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+
+
 void main(void)
 {
 // --- LOCAL VAR BEGIN ---
@@ -157,7 +183,10 @@ void main(void)
     const struct device *uart_for_cli;
 //    uart_for_cli = device_get_binding(DT_LABEL(UART_2));
 //    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
-    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart0)));
+
+// Selecting between UART instances prior to additonal wiring:
+    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
+//    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart0)));
     if ( uart_for_cli == NULL )
     {
         dmsg("Failed to assign pointer to UART2 device!\n", PROJECT_DIAG_LEVEL);
@@ -236,6 +265,27 @@ void main(void)
           &requested_config
         );
     }
+
+
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+// - DEV START -
+
+// 2021-10-06 - work to add and test Zephyr thread:
+// - DEV THREAD WORK BEGIN -
+        int thread_set_up_status = 0;
+
+// Set up first development thread, code for this one entirely in main.c:
+        k_tid_t cli_tid = k_thread_create(&cli_thread_data, cli_stack_area,
+                                          K_THREAD_STACK_SIZEOF(cli_stack_area),
+                                          cli_entry_point,
+                                          NULL, NULL, NULL,
+                                          CLI_THREAD_PRIORITY, 0, K_NO_WAIT);
+// - DEV END -
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+
+// - DEV THREAD WORK END -
 
 
     while ( 1 )
