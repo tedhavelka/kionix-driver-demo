@@ -23,5 +23,10 @@
                 reg = <0x1D>;
                 label = "KX132_1211";
         };
+        stmicro_sensor: iis2dh@18 {
+                compatible = "st,iis2dh";
+                reg = <0x18>;
+                label = "IIS2DH";
+        };
 };
 
