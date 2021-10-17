@@ -57,6 +57,10 @@ LOG_MODULE_REGISTER(demo);
 // 2021-10-06 - to add wrapper about Zephyr printk(), for early CLI development work:
 #include "diagnostic.h"
 
+// 2021-10-16 -
+#include "thread_iis2dh.h"
+
+
 
 //----------------------------------------------------------------------
 // - SECTION - symbol defines
@@ -74,7 +78,7 @@ LOG_MODULE_REGISTER(demo);
 // defines from Nordic sdk-nrf sample apps:
 
 /* 1000 msec = 1 sec */
-#define SLEEP_TIME_MS   1500 // 1000
+#define SLEEP_TIME_MS   10000 // 1000
 
 /* The devicetree node identifier for the "led0" alias. */
 #define LED0_NODE DT_ALIAS(led0)
