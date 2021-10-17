@@ -91,16 +91,25 @@ LOG_MODULE_REGISTER(demo);
 #define FLAGS    0
 #endif
 
-// Development flags:
+
+
+//----------------------------------------------------------------------
+// - SECTION - DEVELOPMENT FLAGS
+//----------------------------------------------------------------------
+
 #define PROJECT_DIAG_LEVEL DIAG_NORMAL // DIAG_OFF
 //#define PROJECT_DIAG_LEVEL DIAG_OFF // DIAG_NORMAL
-// Configuration:
+
+// KX132-1211 Configuration:
 #define DEV_TEST__ENABLE_KX132_1211_ASYNCHRONOUS_READINGS (1)
 #define DEV_TEST__SET_KX132_1211_OUTPUT_DATA_RATE         (0)
-// Readings:
+
+// KX132-1211 Readings:
 #define DEV_TEST__FETCH_AND_GET_MANUFACTURER_ID           (1)
 #define DEV_TEST__FETCH_AND_GET_PART_ID                   (1)
 #define DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ        (1)
+
+#define NN_DEV__ENABLE_THREAD_IIS2DH_SENSOR (1)
 
 
 
@@ -284,8 +293,12 @@ void main(void)
 // - DEV END -
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
-
 // - DEV THREAD WORK END -
+
+
+#ifdef NN_DEV__ENABLE_THREAD_IIS2DH_SENSOR
+    thread_set_up_status = initialize_thread_iis2dh_task();
+#endif
 
 
     while ( 1 )

@@ -22,6 +22,10 @@ set(ZEPHYR_TOOLCHAIN_VARIANT zephyr)
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 
+## This zephyr-include-directories stanza makes work pound inclusion of iis2dh.h using < > braces:
+## (Unsure how zephyr/samples/sensor/lis2dh finds its corresponding driver sources - TMH)
+zephyr_include_directories($ENV{ZEPHYR_BASE}/drivers/sensor/iis2dh)
+
 project(kionix-driver-demo)
 
 target_sources(app PRIVATE src/main.c)
