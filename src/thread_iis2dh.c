@@ -63,7 +63,7 @@
 #define IIS2DH_THREAD_PRIORITY 7
 
 // defines for application or task implemented by this thread:
-#define SLEEP_TIME__IIS2DH_TASK__MS (3000)
+#define SLEEP_TIME__IIS2DH_TASK__MS (6000)
 
 // defines to connect with STMicro IIS2DH out-of-tree driver API:
 //#define KX132_1211 DT_INST(0, kionix_kx132_1211)
@@ -100,7 +100,9 @@ int initialize_thread_iis2dh_task(void)
                                             K_THREAD_STACK_SIZEOF(iis2dh_thread_stack_area),
                                             iis2dh_thread_entry_point,
                                             NULL, NULL, NULL,
-                                            IIS2DH_THREAD_PRIORITY, 0, K_NO_WAIT);
+                                            IIS2DH_THREAD_PRIORITY,
+                                            0,
+                                            K_MSEC(1300)); // K_NO_WAIT);
     return (int)iis2dh_task_tid;
 }
 
@@ -138,7 +140,10 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 // member element:
     struct iis2dh_data *iis2dh = sensor->data; // dev->data;
     uint32_t whoami_check_status = 0;
+// Defined in [WEST_WORKSPACE]/modules/hal/st/sensor/stmemsc/iis2dh_STdC/driver/iis2dh_reg.h:716:} iis2dh_odr_t;
+// (an enumeration with elements equal 0..9)
     iis2dh_odr_t sensor_data_rate = 0;
+
 // --- VAR END ---
 
 
@@ -209,8 +214,22 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
         if (rc != 0) {
             printf("Failed to set odr: %d\n", rc);
 //            return;
+
+// 10/17 test:
+// In [ZEPHYR_WORKSPACE]/modules/hal/st/sensor/stmemsc/iis2dh_STdC/driver/iis2dh_reg.c:
+// 371 int32_t iis2dh_data_rate_set(stmdev_ctx_t *ctx, iis2dh_odr_t val)
+
+            printf("- DEV001 - calling iis2dh_data_rate_set() directly...\n");
+            uint32_t a = iis2dh_data_rate_set(iis2dh->ctx, 16);
+            printf("got return value of %d,\n", a);
+
+            printf("- DEV001 - calling iis2dh_data_rate_get()...\n");
+            uint32_t b = 0;
+            a = iis2dh_data_rate_get(iis2dh->ctx, (iis2dh_odr_t*)&b);
+            printf("got return value of %d,\n", a);
+            printf("read back data rate of value %d,\n", b);
         }
-        printf("Sampling at %u Hz (asuuming so as sensor_attr_set returns 0 status - success\n", odr.val1);
+        printf("Sampling at %u Hz (assuming so as sensor_attr_set returns 0 status - success\n", odr.val1);
 }
 
         rc = sensor_attr_get(sensor,
@@ -278,7 +297,7 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
             printk("routine to set output data rate returns %u,\n", rc);
         }
 
-        printk("\n");
+        printk("\n\n");
         k_msleep(SLEEP_TIME__IIS2DH_TASK__MS);
         loop_count++;
     }
