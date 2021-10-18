@@ -59,6 +59,7 @@ LOG_MODULE_REGISTER(demo);
 
 // 2021-10-16 -
 #include "thread_iis2dh.h"
+#include "thread_lis2dh.h"
 
 
 
@@ -113,7 +114,8 @@ LOG_MODULE_REGISTER(demo);
 #define DEV_TEST__FETCH_AND_GET_PART_ID                   (1)
 #define DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ        (1)
 
-#define NN_DEV__ENABLE_THREAD_IIS2DH_SENSOR (1)
+#define NN_DEV__ENABLE_THREAD_IIS2DH_SENSOR (0)
+#define NN_DEV__ENABLE_THREAD_LIS2DH_SENSOR (1)
 
 
 
@@ -302,6 +304,10 @@ void main(void)
 
 #ifdef NN_DEV__ENABLE_THREAD_IIS2DH_SENSOR
     thread_set_up_status = initialize_thread_iis2dh_task();
+#endif
+
+#ifdef NN_DEV__ENABLE_THREAD_LIS2DH_SENSOR
+    thread_set_up_status = initialize_thread_lis2dh_task();
 #endif
 
 
