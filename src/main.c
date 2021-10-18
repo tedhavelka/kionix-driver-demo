@@ -79,7 +79,7 @@ LOG_MODULE_REGISTER(demo);
 // defines from Nordic sdk-nrf sample apps:
 
 /* 1000 msec = 1 sec */
-#define SLEEP_TIME_MS   10000 // 1000
+#define SLEEP_TIME_MS   1000 // 1000
 
 /* The devicetree node identifier for the "led0" alias. */
 #define LED0_NODE DT_ALIAS(led0)
@@ -114,6 +114,8 @@ LOG_MODULE_REGISTER(demo);
 #define DEV_TEST__FETCH_AND_GET_PART_ID                   (1)
 #define DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ        (1)
 
+
+#define NN_DEV__ENABLE_INT_MAIN_TESTS (0)
 #define NN_DEV__ENABLE_THREAD_IIS2DH_SENSOR (0)
 #define NN_DEV__ENABLE_THREAD_LIS2DH_SENSOR (1)
 
@@ -302,11 +304,13 @@ void main(void)
 // - DEV THREAD WORK END -
 
 
-#ifdef NN_DEV__ENABLE_THREAD_IIS2DH_SENSOR
+#if NN_DEV__ENABLE_THREAD_IIS2DH_SENSOR == 1
+    dmsg("- DEV - starting IIS2DH test thread . . .", DIAG_NORMAL);
     thread_set_up_status = initialize_thread_iis2dh_task();
 #endif
 
-#ifdef NN_DEV__ENABLE_THREAD_LIS2DH_SENSOR
+#if NN_DEV__ENABLE_THREAD_LIS2DH_SENSOR == 1
+    dmsg("- DEV - starting comparative LIS2DH test thread . . .", DIAG_NORMAL);
     thread_set_up_status = initialize_thread_lis2dh_task();
 #endif
 
@@ -324,6 +328,8 @@ void main(void)
 //  project code.  Scratch-the-surface documentation on this at:
 // *  https://docs.zephyrproject.org/1.14.1/reference/peripherals/sensor.html
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+#if NN_DEV__ENABLE_INT_MAIN_TESTS == 1
 
         if ( DEV_TEST__FETCH_AND_GET_MANUFACTURER_ID )
         {
@@ -372,6 +378,8 @@ void main(void)
             dmsg("\n\n", PROJECT_DIAG_LEVEL);
             banner("main");
         }
+
+#endif // NN_DEV__ENABLE_INT_MAIN_TESTS 
 
 
 // --- UART_2 CLI work begin ---
