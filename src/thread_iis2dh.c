@@ -29,6 +29,8 @@
 // - SECTION - includes
 //----------------------------------------------------------------------
 
+#define DT_DRV_COMPAT st_iis2dh
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>   // to provide memset(),
@@ -51,6 +53,9 @@
 // Work to utilize IIS2DH driver structures and routines from STMicro:
 // ( Note https://github.com/STMicroelectronics/iis2dh )
 #include <iis2dh.h>  // to include iis2dh_reg.h, to provide stmdev_ctx_t and related
+
+// For tests of hand-rolled IIS2DH register config routines:
+#include <drivers/i2c.h>
 
 
 
@@ -106,6 +111,42 @@ int initialize_thread_iis2dh_task(void)
     return (int)iis2dh_task_tid;
 }
 
+
+#define ROUTINE_OK 0
+static uint32_t read_of_iis2dh_whoami_register(const struct device *dev, struct sensor_value value)
+{
+    int status = ROUTINE_OK;
+    uint8_t cmd[] = { 0x0F };
+    struct iis2dh_data *data_struc_ptr = (struct iis2dh_data *)dev->data;
+    uint8_t scratch_pad_byte = 0;
+//    uint8_t odcntl_as_found = 0;
+
+    status = i2c_write_read(data_struc_ptr->bus,   // data_struc_ptr->i2c_dev,
+                            DT_INST_REG_ADDR(0),
+                            cmd, sizeof(cmd),
+                            &scratch_pad_byte, sizeof(scratch_pad_byte));
+
+    value.val1 = scratch_pad_byte;
+
+    return status;
+}
+
+static uint32_t read_of_iis2dh_temperature_registers(const struct device *dev, struct sensor_value value)
+{
+    int status = ROUTINE_OK;
+    uint8_t cmd[] = { 0x0C };
+    struct iis2dh_data *data_struc_ptr = (struct iis2dh_data *)dev->data;
+    uint8_t scratch_pad_bytes[] = {0, 0};
+
+    status = i2c_write_read(data_struc_ptr->bus,   // data_struc_ptr->i2c_dev,
+                            DT_INST_REG_ADDR(0),
+                            cmd, sizeof(cmd),
+                            &scratch_pad_bytes, sizeof(scratch_pad_bytes));
+
+    value.val1 = ((scratch_pad_bytes[0] << 8) | scratch_pad_bytes[0]);
+
+    return status;
+}
 
 
 void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
@@ -215,6 +256,7 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
             printf("Failed to set odr: %d\n", rc);
 //            return;
 
+        printf("Sampling at %u Hz (assuming so as sensor_attr_set returns 0 status - success\n", odr.val1);
 // 10/17 test:
 // In [ZEPHYR_WORKSPACE]/modules/hal/st/sensor/stmemsc/iis2dh_STdC/driver/iis2dh_reg.c:
 // 371 int32_t iis2dh_data_rate_set(stmdev_ctx_t *ctx, iis2dh_odr_t val)
@@ -228,8 +270,18 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
             a = iis2dh_data_rate_get(iis2dh->ctx, (iis2dh_odr_t*)&b);
             printf("got return value of %d,\n", a);
             printf("read back data rate of value %d,\n", b);
+
+            odr.val1 = 0;
+            odr.val2 = 0;
+            a = read_of_iis2dh_whoami_register(sensor, odr);
+            printf("- DEV002 - hand-rolled whoami query returns manu' id of %u,\n", odr.val1);
+            printf("- DEV002 - and routine status of %u,\n", a);
+
+            a = read_of_iis2dh_temperature_registers(sensor, odr);
+            printf("- DEV002 - local temperature query returns temperature of %u,\n", odr.val1);
+            printf("- DEV002 - and routine status of %u,\n", a);
+
         }
-        printf("Sampling at %u Hz (assuming so as sensor_attr_set returns 0 status - success\n", odr.val1);
 }
 
         rc = sensor_attr_get(sensor,
