@@ -165,12 +165,11 @@ static uint32_t read_of_iis2dh_temperature_registers(const struct device *dev, s
 static uint32_t kd_write_peripheral_register(const struct device *dev, const uint8_t* device_register_and_data)
 {
     int status = ROUTINE_OK;
-    int len = sizeof(device_register_and_data);
     struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
 
     status = i2c_write(device_data_ptr->bus,
                        device_register_and_data,
-                       len,
+                       sizeof(device_register_and_data),
                        DT_INST_REG_ADDR(0)
                       );
     return status;
@@ -178,21 +177,69 @@ static uint32_t kd_write_peripheral_register(const struct device *dev, const uin
 
 
 
-static uint8_t iis2dh_ctrl_reg1 = 0;
-#define ODR_0_POWERED_DOWN             ( 0 << 4 )
-#define ODR_1_HZ                       ( 1 << 4 )
-#define ODR_10_HZ                      ( 2 << 4 )
-#define ODR_25_HZ                      ( 3 << 4 )
-#define ODR_50_HZ                      ( 4 << 4 )
-#define ODR_100_HZ                     ( 5 << 4 )
-#define ODR_200_HZ                     ( 6 << 4 )
-#define ODR_400_HZ                     ( 7 << 4 )
+static uint32_t kd_read_peripheral_register(const struct device *dev, const uint8_t* device_register, uint8_t* data)
+{
+    int status = ROUTINE_OK;
+    struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
 
-#define ODR_5p376_HZ_IN_LOW_POWER_MODE ( 9 << 4 )
-#define LOW_POWER_ENABLE               ( 1 << 3 )
-#define AXIS_Z_ENABLE                  ( 1 << 2 )
-#define AXIS_Y_ENABLE                  ( 1 << 1 )
-#define AXIS_X_ENABLE                  ( 1 << 0 )
+    status = i2c_write_read(
+                         device_data_ptr->bus,
+                         DT_INST_REG_ADDR(0),
+                         device_register, sizeof(device_register),
+                         data, sizeof(uint8_t)
+                        );
+    return status;
+}
+
+//----------------------------------------------------------------------
+// - SECTION - IIS2DH configuration register defines
+//----------------------------------------------------------------------
+
+static uint8_t iis2dh_ctrl_reg1 = 0;
+#define ODR_0_POWERED_DOWN                      ( 0 << 4 )
+#define ODR_1_HZ                                ( 1 << 4 )
+#define ODR_10_HZ                               ( 2 << 4 )
+#define ODR_25_HZ                               ( 3 << 4 )
+#define ODR_50_HZ                               ( 4 << 4 )
+#define ODR_100_HZ                              ( 5 << 4 )
+#define ODR_200_HZ                              ( 6 << 4 )
+#define ODR_400_HZ                              ( 7 << 4 )
+
+#define ODR_5p376_HZ_IN_LOW_POWER_MODE          ( 9 << 4 )
+#define LOW_POWER_ENABLE                        ( 1 << 3 )
+#define AXIS_Z_ENABLE                           ( 1 << 2 )
+#define AXIS_Y_ENABLE                           ( 1 << 1 )
+#define AXIS_X_ENABLE                           ( 1 << 0 )
+
+static uint8_t iis2dh_ctrl_reg2 = 0;
+// HPF - HIGH PASS FILTER MODES (bits 7:6 in this iis2dh register)
+#define HPF_NORMAL_RESET_BY_REG_0X26_READ       ( 0 << 6 )
+#define HPF_REFERENCE_SIGNAL_FOR_FILTERING      ( 1 << 6 )
+#define HPF_NORMAL_MODE                         ( 2 << 6 )
+#define HPF_AUTORESET_ON_INTERRUPT_EVENT        ( 3 << 6 )
+// HPFC - HIGH PASS FILTER CUT-OFF (bits 5:4, see iis2dh.pdf table 32 for cut-off frequencies)
+#define HPFC_HIGH                               ( 0 << 4 )
+#define HPFC_MIDDLE_HIGH                        ( 1 << 4 )
+#define HPFC_MIDDLE_LOW                         ( 2 << 4 )
+#define HPFC_LOW                                ( 3 << 4 )
+// FDS - FILTER DATA SELECTION
+#define FDS_FILTER_DATA_SELECTION_ENABLE        ( 1 << 3 )
+#define FDS_FILTER_DATA_SELECTION_DISABLE            ( 0 )
+// HPCLICK - HIGH PASS FILTER EN FOR CLICK FUNCTION
+#define HIGH_PASS_EN_FOR_CLICK_FUNCTION         ( 1 << 2 )
+#define HIGH_PASS_CLICK_DISABLE                      ( 0 )
+// HIGH PASS FILTER EN FOR AOI FUNCTION ON INTERRUPT 2
+#define HIGH_PASS_EN_FOR_AOI_FN_ON_INT2         ( 1 << 1 ) 
+#define HIGH_PASS_AOI_INT2_DISABLE                   ( 0 )
+// HIGH PASS FILTER EN FOR AOI FUNCTION ON INTERRUPT 1
+#define HIGH_PASS_EN_FOR_AOI_FN_ON_INT1         ( 1 << 1 )
+#define HIGH_PASS_AOI_INT1_DISABLE                   ( 0 )
+
+
+static uint8_t iis2dh_ctrl_reg3 = 0;
+#define FIFO_WATERMARK_INTERRUPT_ON_INT1_ENABLE ( 1 << 1 )
+#define FIFO_OVERRUN_INTERRUPT_ON_INT1_ENABLE   ( 1 << 0 )
+
 
 // Details of IIS2DH register 0x24 in iis2dh.pdf page 36 of 49, DocID027668 Rev 2 . . .
 static uint8_t iis2dh_ctrl_reg4 = 0;
@@ -204,57 +251,109 @@ static uint8_t iis2dh_ctrl_reg4 = 0;
 #define ACC_FULL_SCALE_8G                       ( 2 << 4 )
 #define ACC_FULL_SCALE_16G                      ( 3 << 4 )
 // page 16 of 49:  low power means 8-bit readings, normal power means 10-bit readings, high-resolution means 12-bit readings
-#define ACC_OPERATING_MODE_NORMAL                  ( 0 )
-#define ACC_OPERATING_MODE_HIGH_RES                ( 1 )
-#define ACC_OPERATING_MODE_LOW_POWER               ( 2 )
-#define KX132_1211_SELF_TEST_NORMAL_MODE           ( 0 )
-#define KX132_1211_SELF_TEST_0                     ( 1 )
-#define KX132_1211_SELF_TEST_1                     ( 2 )
-#define SPI_MODE_FOUR_WIRE                         ( 0 )
-#define SPI_MODE_THREE_WIRE                        ( 1 )
+#define ACC_OPERATING_MODE_NORMAL                    ( 0 )
+#define ACC_OPERATING_MODE_HIGH_RES                  ( 1 )
+#define ACC_OPERATING_MODE_LOW_POWER                 ( 2 )
+#define KX132_1211_SELF_TEST_NORMAL_MODE             ( 0 )
+#define KX132_1211_SELF_TEST_0                       ( 1 )
+#define KX132_1211_SELF_TEST_1                       ( 2 )
+#define SPI_MODE_FOUR_WIRE                           ( 0 )
+#define SPI_MODE_THREE_WIRE                          ( 1 )
 
 static uint8_t iis2dh_ctrl_reg5 = 0;
 #define FIFO_ENABLE ( 1 << 6 )
 
 static uint8_t iis2dh_fifo_ctrl_reg = 0;
-#define FIFO_CTRL_FM_BYPASS ( 0 << 6 )
+// FIFO MODES:
+#define FIFO_MODE_BYPASS                        ( 0 << 6 )
+#define FIFO_MODE_FIFO                          ( 1 << 6 )
+#define FIFO_MODE_STREAM                        ( 2 << 6 )
+#define FIFO_MODE_STREAM_TO_FIFO                ( 3 << 6 )
+// FIFO TRIGGER INTERRUPT SELECTION:
+#define FIFO_TRIGGER_ON_INT_1                   ( 0 << 5 )
+#define FIFO_TRIGGER_ON_INT_2                   ( 1 << 5 )
+// FIFO TRIGGER THRESHHOLD IN BITS [4:0], NOT REALLY EXPLAINED IN iis2dh.pdf - TMH
+// (Can represent values from 0 to 31, number of elements the FIFO holds)
+#define FIFO_TRIGGER_THRESHHOLD                      ( 0 )
+
 
 static uint32_t kd_initialize_sensor_kx132_1211(const struct device *dev)
 {
 
-// Disable KX132-1211 FIFO:
+// (1) Disable KX132-1211 FIFO:
     uint8_t cmd[] = { IIS2DH_CTRL_REG5, (iis2dh_ctrl_reg5 &= ~FIFO_ENABLE), 0 };
     kd_write_peripheral_register(dev, cmd);
 // *** NEED to clear accelerator fifo overrun flag here ***
 
-// Reset FIFO by briefly setting bypass mode:
-    cmd[0] = IIS2DH_FIFO_CTRL_REG;  cmd[1] = FIFO_CTRL_FM_BYPASS; 
+// (2) Reset FIFO by briefly setting bypass mode:
+    cmd[0] = IIS2DH_FIFO_CTRL_REG;
+    cmd[1] = FIFO_MODE_BYPASS; 
     kd_write_peripheral_register(dev, cmd);
 
-// Set full scale (+/- 2g, 4g, 8g, 16g), normal versus high resolution, block update mode:
+// (3) Set full scale (+/- 2g, 4g, 8g, 16g), normal versus high resolution, block update mode:
     cmd[0] = IIS2DH_CTRL_REG4;
     cmd[1] = ( 
-               BLOCK_DATA_UPDATE_NON_CONTINUOUS
-             | BLE_LSB_IN_LOWER_BYTE_IN_HIGH_RES_MODE 
-             | ACC_FULL_SCALE_8G
-             | ACC_OPERATING_MODE_NORMAL
-             | KX132_1211_SELF_TEST_NORMAL_MODE
-             | SPI_MODE_THREE_WIRE
+               BLOCK_DATA_UPDATE_NON_CONTINUOUS         // ...
+             | BLE_LSB_IN_LOWER_BYTE_IN_HIGH_RES_MODE   // BLE Big | Little Endian high res readings storage
+             | ACC_FULL_SCALE_8G                        // 2G, 4G, 8G, 16G
+             | ACC_OPERATING_MODE_NORMAL                // low power, normal, high-resolution modes
+             | KX132_1211_SELF_TEST_NORMAL_MODE         // normal (no test), test 0, test 1
+             | SPI_MODE_THREE_WIRE                      // 3-wire | 4-wire
              );
     kd_write_peripheral_register(dev, cmd);
 
-// Set data rate, normal or low-power (did we not do this above?), enable all three axes:
+// (4) Set data rate, normal or low-power (did we not do this above?), enable all three axes:
     cmd[0] = IIS2DH_CTRL_REG1;
     cmd[1] = (
-               ODR_5p376_HZ_IN_LOW_POWER_MODE,
-             | LOW_POWER_ENABLE
-             | AXIS_Z_ENABLE
-             | AXIS_Y_ENABLE
+               ODR_5p376_HZ_IN_LOW_POWER_MODE           // ...
+             | LOW_POWER_ENABLE                         //
+             | AXIS_Z_ENABLE 
+             | AXIS_Y_ENABLE 
              | AXIS_X_ENABLE
              );
     kd_write_peripheral_register(dev, cmd);
 
+// (5) Set high pass filter:
+    cmd[0] = IIS2DH_CTRL_REG2;
+    cmd[1] = (
+               HPF_NORMAL_MODE                          // see iis2dh.pdf table 31
+             | HPFC_HIGH                                // see iis2dh.pdf table 32
+             | FDS_FILTER_DATA_SELECTION_DISABLE 
+             | HIGH_PASS_CLICK_DISABLE 
+             | HIGH_PASS_AOI_INT2_DISABLE 
+             | HIGH_PASS_AOI_INT1_DISABLE
+             );
+    kd_write_peripheral_register(dev, cmd);
 
+
+// (6) Set FIFO mode to stream, and FIFO trigger threshhold:
+    cmd[0] = IIS2DH_FIFO_CTRL_REG;
+    cmd[1] = (
+               FIFO_MODE_STREAM                         // see iis2dh.pdf table 48
+             | FIFO_TRIGGER_ON_INT_2 
+             | FIFO_TRIGGER_THRESHHOLD
+             );
+    kd_write_peripheral_register(dev, cmd);
+
+
+// (7) Enable interrupt (may not make sense yet with sparkfun_thing_plus_nrf9160 hardware):
+    cmd[0] = IIS2DH_CTRL_REG3;
+    cmd[1] = (
+               iis2dh_ctrl_reg3 
+             | FIFO_WATERMARK_INTERRUPT_ON_INT1_ENABLE
+             | FIFO_OVERRUN_INTERRUPT_ON_INT1_ENABLE
+             );
+    kd_write_peripheral_register(dev, cmd);
+
+
+// (8) Clear interrupt by reading status register:
+    cmd[0] = IIS2DH_CTRL_REG3;
+    cmd[1] = 0;
+    uint8_t config_register = 0;
+    kd_read_peripheral_register(dev, cmd, &config_register);
+
+
+// (9) Enable FIFO:
 
 
     return 0;
@@ -283,8 +382,9 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 // From LIS2DH sample app:
     int rc = 0;
     struct sensor_value odr;
-    struct sensor_value accel[3];
-    const char *overrun = "";
+//    struct sensor_value accel[3];
+//    const char *overrun = "";
+
 // DEV tests:
 //    extern stmdev_ctx_t iis2dh_i2c_ctx;  // Should not need to declare data structure as 'extern'
                                          // now that we include iis2dh.h.
