@@ -159,7 +159,7 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
     const struct device *sensor = DEVICE_DT_GET_ANY(st_iis2dh);
 //    const struct device *sensor = device_get_binding(DT_LABEL(IIS2DH_ACCELEROMETER));
 
-//    static uint16_t iis2ds12_i2c_slave_addr = DT_INST_REG_ADDR(0);   <-- 2021-10-17 not available at build time - TMH
+    static uint16_t iis2ds12_i2c_periph_addr = DT_INST_REG_ADDR(0);   //<-- 2021-10-17 not available at build time - TMH
 
     struct sensor_value acceleration_readings;
 //#include <iis2dh_reg.h>
@@ -169,9 +169,9 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 
 // From LIS2DH sample app:
     int rc = 0;
+    struct sensor_value odr;
     struct sensor_value accel[3];
     const char *overrun = "";
-
 // DEV tests:
 //    extern stmdev_ctx_t iis2dh_i2c_ctx;  // Should not need to declare data structure as 'extern'
                                          // now that we include iis2dh.h.
@@ -232,7 +232,9 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 
     while (1)
     {
-        printk("iis2dh task at loop iteration 0x%08X\n", loop_count);
+//        printk("iis2dh task at loop iteration 0x%08X\n", loop_count);
+        printk("iis2dh task at loop iteration 0x%08X\n IIS2DH sensor at I2C addr %02X\n",
+          loop_count, iis2ds12_i2c_periph_addr);
 
 // DEV TEST WHOAMI
         whoami_check_status = iis2dh_device_id_get(iis2dh->ctx, buff);
@@ -241,15 +243,14 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
         printk("sensor who-am-i check returns '%s',\n", buff);
 // DEV TEST WHOAMI
 
+        if ( (loop_count % 2) == 0 )
+            { odr.val1 = 5; }
+        else
+            { odr.val1 = 6; }
 
-        struct sensor_value odr = {
-                  .val1 = 1,
-        };
-{
- 
         rc = sensor_attr_set(sensor,
                              SENSOR_CHAN_ACCEL_XYZ, //trig.chan,
-                             5, // SENSOR_ATTR_SAMPLING_FREQUENCY,
+                             SENSOR_ATTR_SAMPLING_FREQUENCY,
                              &odr
                             );
         if (rc != 0) {
@@ -261,6 +262,7 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 // In [ZEPHYR_WORKSPACE]/modules/hal/st/sensor/stmemsc/iis2dh_STdC/driver/iis2dh_reg.c:
 // 371 int32_t iis2dh_data_rate_set(stmdev_ctx_t *ctx, iis2dh_odr_t val)
 
+#if 0
             printf("- DEV001 - calling iis2dh_data_rate_set() directly...\n");
             uint32_t a = iis2dh_data_rate_set(iis2dh->ctx, 16);
             printf("got return value of %d,\n", a);
@@ -280,28 +282,35 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
             a = read_of_iis2dh_temperature_registers(sensor, odr);
             printf("- DEV002 - local temperature query returns temperature of %u,\n", odr.val1);
             printf("- DEV002 - and routine status of %u,\n", a);
-
+#endif
         }
-}
+        else
+        {
+            printf("- DEV003 - successfully updated ODR at runtime!\n");
+        }
 
         rc = sensor_attr_get(sensor,
                              SENSOR_CHAN_ACCEL_XYZ,
                              SENSOR_ATTR_SAMPLING_FREQUENCY,
                              &odr
                             );
-        printf("sampling at %u Hz, per call to sensor_attr_get(),\n", odr.val1);
+        printf("sampling at Output Data Rate (ODR) setting %u,\n", odr.val1);
 
-
+#if 0
+        printf("- DEV004 - requesting sensor fetch of all available readings...\n");
         rc = sensor_sample_fetch(sensor);
 
-        if (rc == -EBADMSG) {
+        if (rc == -EBADMSG)
+        {
                 /* Sample overrun.  Ignore in polled mode. */
                 if (IS_ENABLED(CONFIG_LIS2DH_TRIGGER)) {
                         overrun = "[OVERRUN] ";
-                }
-                rc = 0;
+            }
+            rc = 0;
         }
-        if (rc == 0) {
+
+        if (rc == 0)
+        {
                 rc = sensor_channel_get(sensor,
                                         SENSOR_CHAN_ACCEL_XYZ,
                                         accel);
@@ -315,10 +324,15 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
                        sensor_value_to_double(&accel[1]),
                        sensor_value_to_double(&accel[2]));
         }
-
+#endif
 
 // *** review 6cd823d21eeaa begin ******************
-        rc = sensor_channel_get(sensor, SENSOR_CHAN_ACCEL_XYZ, &acceleration_readings);
+        k_msleep(20);
+        printf("- DEV004 - fetching readings just after 20ms delay...\n");
+        rc = sensor_sample_fetch(sensor);
+
+        printf("- DEV004 - getting X axis reading only...\n");
+        rc = sensor_channel_get(sensor, SENSOR_CHAN_ACCEL_X, &acceleration_readings);
         if ( rc == 0 )
         {
             printk("fetched and got acceleration readings %u, %u\n",
@@ -333,21 +347,6 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 // *** review 6cd823d21eeaa end ******************
 
 
-// TEST of getting sensor data rate:
-//392:int32_t iis2dh_data_rate_get(stmdev_ctx_t *ctx, iis2dh_odr_t *val)
-
-//        rc = iis2dh_data_rate_get(&iis2dh_i2c_ctx, &sensor_data_rate);
-        rc = iis2dh_data_rate_get(iis2dh->ctx, &sensor_data_rate);
-        if ( rc == 0 )
-        {
-            printk("sensor reports data rate set at %u,\n", (unsigned int)sensor_data_rate);
-        }
-
-        rc = iis2dh_data_rate_set(iis2dh->ctx, 8);
-        if ( rc == 0 )
-        {
-            printk("routine to set output data rate returns %u,\n", rc);
-        }
 
         printk("\n\n");
         k_msleep(SLEEP_TIME__IIS2DH_TASK__MS);
