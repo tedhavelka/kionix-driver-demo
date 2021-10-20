@@ -135,10 +135,10 @@ static uint32_t read_of_iis2dh_temperature_registers(const struct device *dev, s
 {
     int status = ROUTINE_OK;
     uint8_t cmd[] = { 0x0C };
-    struct iis2dh_data *data_struc_ptr = (struct iis2dh_data *)dev->data;
+    struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
     uint8_t scratch_pad_bytes[] = {0, 0};
 
-    status = i2c_write_read(data_struc_ptr->bus,   // data_struc_ptr->i2c_dev,
+    status = i2c_write_read(device_data_ptr->bus,   // data_struc_ptr->i2c_dev,
                             DT_INST_REG_ADDR(0),
                             cmd, sizeof(cmd),
                             &scratch_pad_bytes, sizeof(scratch_pad_bytes));
@@ -147,6 +147,119 @@ static uint32_t read_of_iis2dh_temperature_registers(const struct device *dev, s
 
     return status;
 }
+
+
+
+// 2021-10-19 - Adding general Kionix driver 'write register' routine:
+
+/*
+ * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ *  @Description   Routine to write one eight-bit register per call,
+ *                 in peripheral passed as 'device *dev'.
+ *
+ *  @Note          Peripheral device I2C adderss obtained from Zephyr
+ *                 project macro at build time.
+ * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ */
+
+static uint32_t kd_write_peripheral_register(const struct device *dev, const uint8_t* device_register_and_data)
+{
+    int status = ROUTINE_OK;
+    int len = sizeof(device_register_and_data);
+    struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
+
+    status = i2c_write(device_data_ptr->bus,
+                       device_register_and_data,
+                       len,
+                       DT_INST_REG_ADDR(0)
+                      );
+    return status;
+}
+
+
+
+static uint8_t iis2dh_ctrl_reg1 = 0;
+#define ODR_0_POWERED_DOWN             ( 0 << 4 )
+#define ODR_1_HZ                       ( 1 << 4 )
+#define ODR_10_HZ                      ( 2 << 4 )
+#define ODR_25_HZ                      ( 3 << 4 )
+#define ODR_50_HZ                      ( 4 << 4 )
+#define ODR_100_HZ                     ( 5 << 4 )
+#define ODR_200_HZ                     ( 6 << 4 )
+#define ODR_400_HZ                     ( 7 << 4 )
+
+#define ODR_5p376_HZ_IN_LOW_POWER_MODE ( 9 << 4 )
+#define LOW_POWER_ENABLE               ( 1 << 3 )
+#define AXIS_Z_ENABLE                  ( 1 << 2 )
+#define AXIS_Y_ENABLE                  ( 1 << 1 )
+#define AXIS_X_ENABLE                  ( 1 << 0 )
+
+// Details of IIS2DH register 0x24 in iis2dh.pdf page 36 of 49, DocID027668 Rev 2 . . .
+static uint8_t iis2dh_ctrl_reg4 = 0;
+#define BLOCK_DATA_UPDATE_NON_CONTINUOUS        ( 1 << 7 )
+#define BLE_LSB_IN_LOWER_BYTE_IN_HIGH_RES_MODE  ( 0 << 6 )
+#define BLE_MSB_IN_LOWER_BYTE_IN_HIGH_RES_MODE  ( 1 << 6 )
+#define ACC_FULL_SCALE_2G                       ( 0 << 4 ) 
+#define ACC_FULL_SCALE_4G                       ( 1 << 4 )
+#define ACC_FULL_SCALE_8G                       ( 2 << 4 )
+#define ACC_FULL_SCALE_16G                      ( 3 << 4 )
+// page 16 of 49:  low power means 8-bit readings, normal power means 10-bit readings, high-resolution means 12-bit readings
+#define ACC_OPERATING_MODE_NORMAL                  ( 0 )
+#define ACC_OPERATING_MODE_HIGH_RES                ( 1 )
+#define ACC_OPERATING_MODE_LOW_POWER               ( 2 )
+#define KX132_1211_SELF_TEST_NORMAL_MODE           ( 0 )
+#define KX132_1211_SELF_TEST_0                     ( 1 )
+#define KX132_1211_SELF_TEST_1                     ( 2 )
+#define SPI_MODE_FOUR_WIRE                         ( 0 )
+#define SPI_MODE_THREE_WIRE                        ( 1 )
+
+static uint8_t iis2dh_ctrl_reg5 = 0;
+#define FIFO_ENABLE ( 1 << 6 )
+
+static uint8_t iis2dh_fifo_ctrl_reg = 0;
+#define FIFO_CTRL_FM_BYPASS ( 0 << 6 )
+
+static uint32_t kd_initialize_sensor_kx132_1211(const struct device *dev)
+{
+
+// Disable KX132-1211 FIFO:
+    uint8_t cmd[] = { IIS2DH_CTRL_REG5, (iis2dh_ctrl_reg5 &= ~FIFO_ENABLE), 0 };
+    kd_write_peripheral_register(dev, cmd);
+// *** NEED to clear accelerator fifo overrun flag here ***
+
+// Reset FIFO by briefly setting bypass mode:
+    cmd[0] = IIS2DH_FIFO_CTRL_REG;  cmd[1] = FIFO_CTRL_FM_BYPASS; 
+    kd_write_peripheral_register(dev, cmd);
+
+// Set full scale (+/- 2g, 4g, 8g, 16g), normal versus high resolution, block update mode:
+    cmd[0] = IIS2DH_CTRL_REG4;
+    cmd[1] = ( 
+               BLOCK_DATA_UPDATE_NON_CONTINUOUS
+             | BLE_LSB_IN_LOWER_BYTE_IN_HIGH_RES_MODE 
+             | ACC_FULL_SCALE_8G
+             | ACC_OPERATING_MODE_NORMAL
+             | KX132_1211_SELF_TEST_NORMAL_MODE
+             | SPI_MODE_THREE_WIRE
+             );
+    kd_write_peripheral_register(dev, cmd);
+
+// Set data rate, normal or low-power (did we not do this above?), enable all three axes:
+    cmd[0] = IIS2DH_CTRL_REG1;
+    cmd[1] = (
+               ODR_5p376_HZ_IN_LOW_POWER_MODE,
+             | LOW_POWER_ENABLE
+             | AXIS_Z_ENABLE
+             | AXIS_Y_ENABLE
+             | AXIS_X_ENABLE
+             );
+    kd_write_peripheral_register(dev, cmd);
+
+
+
+
+    return 0;
+}
+
 
 
 void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
@@ -205,6 +318,8 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 
     printf("Device name found to be '%s'\n", sensor->name);
 
+// 2021-10-19 Tuesday work to initialize Kionix sensor:
+    rc = kd_initialize_sensor_kx132_1211(sensor);
 
 /*
 // From file zephyr/drivers/sensor/iis2dh/iis2dh.c:
@@ -351,7 +466,8 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
         printk("\n\n");
         k_msleep(SLEEP_TIME__IIS2DH_TASK__MS);
         loop_count++;
-    }
+
+    } // end while (1) loop
 
 }
 
