@@ -2,7 +2,7 @@
 //
 //   Project:  Kionix Driver Work v2 (Zephyr RTOS sensor driver)
 //
-//  Repo URL:  https://github.com/kionix-driver-demo/tree/iis2dh-driver-integration-work-001
+//  Repo URL:  https://github.com/tedhavelka/kionix-driver-demo
 //
 //      File:  thread_iis2dh.c
 //
@@ -16,7 +16,7 @@
  *
  *   +  https://docs.zephyrproject.org/2.6.0/reference/timing_functions/index.html?highlight=kernel%20timing
  *
- *   +  z4-sandbox-kionix-work/zephyr/samples/sensor/lis2dh/src/main.c
+ *   +  [west_workspace]/zephyr/samples/sensor/lis2dh/src/main.c
  *
  *   +  https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.7.0/kconfig/CONFIG_IIS2DH_ODR.html
  *
@@ -28,8 +28,6 @@
 //----------------------------------------------------------------------
 // - SECTION - includes
 //----------------------------------------------------------------------
-
-#define DT_DRV_COMPAT st_iis2dh
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,11 +55,19 @@
 // For tests of hand-rolled IIS2DH register config routines:
 #include <drivers/i2c.h>
 
+#include "iis2dh-registers.h"
+
 
 
 //----------------------------------------------------------------------
 // - SECTION - defines
 //----------------------------------------------------------------------
+
+// To provide for device specific Zephyr macros, some or all of which
+// generated at project build time:
+
+#define DT_DRV_COMPAT st_iis2dh
+
 
 // defines thread related:
 #define IIS2DH_THREAD_STACK_SIZE 1024
@@ -177,189 +183,42 @@ static uint32_t kd_write_peripheral_register(const struct device *dev, const uin
 
 
 
-static uint32_t kd_read_peripheral_register(const struct device *dev, const uint8_t* device_register, uint8_t* data)
+/*
+ * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ *  #Note:  following simple hand-rolled I2C read routine in Zephyr
+ *   based app expects caller to provide count of bytes to read from
+ *   presently referenced, passed peripheral device.
+ * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ */
+
+static uint32_t kd_read_peripheral_register(const struct device *dev,
+                                            const uint8_t* device_register,
+                                            uint8_t* data,
+                                            const uint8_t count_bytes_to_read)
 {
     int status = ROUTINE_OK;
     struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
+
+    printk("kd_read - asked to read %u bytes,\n", count_bytes_to_read);
 
     status = i2c_write_read(
                          device_data_ptr->bus,
                          DT_INST_REG_ADDR(0),
                          device_register, sizeof(device_register),
-                         data, sizeof(uint8_t)
+                         data,
+                         count_bytes_to_read
                         );
     return status;
 }
 
+
+
+
+//
 //----------------------------------------------------------------------
-// - SECTION - IIS2DH configuration register defines
+// - SECTION - int main or entry point
 //----------------------------------------------------------------------
-
-static uint8_t iis2dh_ctrl_reg1 = 0;
-#define ODR_0_POWERED_DOWN                      ( 0 << 4 )
-#define ODR_1_HZ                                ( 1 << 4 )
-#define ODR_10_HZ                               ( 2 << 4 )
-#define ODR_25_HZ                               ( 3 << 4 )
-#define ODR_50_HZ                               ( 4 << 4 )
-#define ODR_100_HZ                              ( 5 << 4 )
-#define ODR_200_HZ                              ( 6 << 4 )
-#define ODR_400_HZ                              ( 7 << 4 )
-
-#define ODR_5p376_HZ_IN_LOW_POWER_MODE          ( 9 << 4 )
-#define LOW_POWER_ENABLE                        ( 1 << 3 )
-#define AXIS_Z_ENABLE                           ( 1 << 2 )
-#define AXIS_Y_ENABLE                           ( 1 << 1 )
-#define AXIS_X_ENABLE                           ( 1 << 0 )
-
-static uint8_t iis2dh_ctrl_reg2 = 0;
-// HPF - HIGH PASS FILTER MODES (bits 7:6 in this iis2dh register)
-#define HPF_NORMAL_RESET_BY_REG_0X26_READ       ( 0 << 6 )
-#define HPF_REFERENCE_SIGNAL_FOR_FILTERING      ( 1 << 6 )
-#define HPF_NORMAL_MODE                         ( 2 << 6 )
-#define HPF_AUTORESET_ON_INTERRUPT_EVENT        ( 3 << 6 )
-// HPFC - HIGH PASS FILTER CUT-OFF (bits 5:4, see iis2dh.pdf table 32 for cut-off frequencies)
-#define HPFC_HIGH                               ( 0 << 4 )
-#define HPFC_MIDDLE_HIGH                        ( 1 << 4 )
-#define HPFC_MIDDLE_LOW                         ( 2 << 4 )
-#define HPFC_LOW                                ( 3 << 4 )
-// FDS - FILTER DATA SELECTION
-#define FDS_FILTER_DATA_SELECTION_ENABLE        ( 1 << 3 )
-#define FDS_FILTER_DATA_SELECTION_DISABLE            ( 0 )
-// HPCLICK - HIGH PASS FILTER EN FOR CLICK FUNCTION
-#define HIGH_PASS_EN_FOR_CLICK_FUNCTION         ( 1 << 2 )
-#define HIGH_PASS_CLICK_DISABLE                      ( 0 )
-// HIGH PASS FILTER EN FOR AOI FUNCTION ON INTERRUPT 2
-#define HIGH_PASS_EN_FOR_AOI_FN_ON_INT2         ( 1 << 1 ) 
-#define HIGH_PASS_AOI_INT2_DISABLE                   ( 0 )
-// HIGH PASS FILTER EN FOR AOI FUNCTION ON INTERRUPT 1
-#define HIGH_PASS_EN_FOR_AOI_FN_ON_INT1         ( 1 << 1 )
-#define HIGH_PASS_AOI_INT1_DISABLE                   ( 0 )
-
-
-static uint8_t iis2dh_ctrl_reg3 = 0;
-#define FIFO_WATERMARK_INTERRUPT_ON_INT1_ENABLE ( 1 << 1 )
-#define FIFO_OVERRUN_INTERRUPT_ON_INT1_ENABLE   ( 1 << 0 )
-
-
-// Details of IIS2DH register 0x24 in iis2dh.pdf page 36 of 49, DocID027668 Rev 2 . . .
-static uint8_t iis2dh_ctrl_reg4 = 0;
-#define BLOCK_DATA_UPDATE_NON_CONTINUOUS        ( 1 << 7 )
-#define BLE_LSB_IN_LOWER_BYTE_IN_HIGH_RES_MODE  ( 0 << 6 )
-#define BLE_MSB_IN_LOWER_BYTE_IN_HIGH_RES_MODE  ( 1 << 6 )
-#define ACC_FULL_SCALE_2G                       ( 0 << 4 ) 
-#define ACC_FULL_SCALE_4G                       ( 1 << 4 )
-#define ACC_FULL_SCALE_8G                       ( 2 << 4 )
-#define ACC_FULL_SCALE_16G                      ( 3 << 4 )
-// page 16 of 49:  low power means 8-bit readings, normal power means 10-bit readings, high-resolution means 12-bit readings
-#define ACC_OPERATING_MODE_NORMAL                    ( 0 )
-#define ACC_OPERATING_MODE_HIGH_RES                  ( 1 )
-#define ACC_OPERATING_MODE_LOW_POWER                 ( 2 )
-#define KX132_1211_SELF_TEST_NORMAL_MODE             ( 0 )
-#define KX132_1211_SELF_TEST_0                       ( 1 )
-#define KX132_1211_SELF_TEST_1                       ( 2 )
-#define SPI_MODE_FOUR_WIRE                           ( 0 )
-#define SPI_MODE_THREE_WIRE                          ( 1 )
-
-static uint8_t iis2dh_ctrl_reg5 = 0;
-#define FIFO_ENABLE ( 1 << 6 )
-
-static uint8_t iis2dh_fifo_ctrl_reg = 0;
-// FIFO MODES:
-#define FIFO_MODE_BYPASS                        ( 0 << 6 )
-#define FIFO_MODE_FIFO                          ( 1 << 6 )
-#define FIFO_MODE_STREAM                        ( 2 << 6 )
-#define FIFO_MODE_STREAM_TO_FIFO                ( 3 << 6 )
-// FIFO TRIGGER INTERRUPT SELECTION:
-#define FIFO_TRIGGER_ON_INT_1                   ( 0 << 5 )
-#define FIFO_TRIGGER_ON_INT_2                   ( 1 << 5 )
-// FIFO TRIGGER THRESHHOLD IN BITS [4:0], NOT REALLY EXPLAINED IN iis2dh.pdf - TMH
-// (Can represent values from 0 to 31, number of elements the FIFO holds)
-#define FIFO_TRIGGER_THRESHHOLD                      ( 0 )
-
-
-static uint32_t kd_initialize_sensor_kx132_1211(const struct device *dev)
-{
-
-// (1) Disable KX132-1211 FIFO:
-    uint8_t cmd[] = { IIS2DH_CTRL_REG5, (iis2dh_ctrl_reg5 &= ~FIFO_ENABLE), 0 };
-    kd_write_peripheral_register(dev, cmd);
-// *** NEED to clear accelerator fifo overrun flag here ***
-
-// (2) Reset FIFO by briefly setting bypass mode:
-    cmd[0] = IIS2DH_FIFO_CTRL_REG;
-    cmd[1] = FIFO_MODE_BYPASS; 
-    kd_write_peripheral_register(dev, cmd);
-
-// (3) Set full scale (+/- 2g, 4g, 8g, 16g), normal versus high resolution, block update mode:
-    cmd[0] = IIS2DH_CTRL_REG4;
-    cmd[1] = ( 
-               BLOCK_DATA_UPDATE_NON_CONTINUOUS         // ...
-             | BLE_LSB_IN_LOWER_BYTE_IN_HIGH_RES_MODE   // BLE Big | Little Endian high res readings storage
-             | ACC_FULL_SCALE_8G                        // 2G, 4G, 8G, 16G
-             | ACC_OPERATING_MODE_NORMAL                // low power, normal, high-resolution modes
-             | KX132_1211_SELF_TEST_NORMAL_MODE         // normal (no test), test 0, test 1
-             | SPI_MODE_THREE_WIRE                      // 3-wire | 4-wire
-             );
-    kd_write_peripheral_register(dev, cmd);
-
-// (4) Set data rate, normal or low-power (did we not do this above?), enable all three axes:
-    cmd[0] = IIS2DH_CTRL_REG1;
-    cmd[1] = (
-               ODR_5p376_HZ_IN_LOW_POWER_MODE           // ...
-             | LOW_POWER_ENABLE                         //
-             | AXIS_Z_ENABLE 
-             | AXIS_Y_ENABLE 
-             | AXIS_X_ENABLE
-             );
-    kd_write_peripheral_register(dev, cmd);
-
-// (5) Set high pass filter:
-    cmd[0] = IIS2DH_CTRL_REG2;
-    cmd[1] = (
-               HPF_NORMAL_MODE                          // see iis2dh.pdf table 31
-             | HPFC_HIGH                                // see iis2dh.pdf table 32
-             | FDS_FILTER_DATA_SELECTION_DISABLE 
-             | HIGH_PASS_CLICK_DISABLE 
-             | HIGH_PASS_AOI_INT2_DISABLE 
-             | HIGH_PASS_AOI_INT1_DISABLE
-             );
-    kd_write_peripheral_register(dev, cmd);
-
-
-// (6) Set FIFO mode to stream, and FIFO trigger threshhold:
-    cmd[0] = IIS2DH_FIFO_CTRL_REG;
-    cmd[1] = (
-               FIFO_MODE_STREAM                         // see iis2dh.pdf table 48
-             | FIFO_TRIGGER_ON_INT_2 
-             | FIFO_TRIGGER_THRESHHOLD
-             );
-    kd_write_peripheral_register(dev, cmd);
-
-
-// (7) Enable interrupt (may not make sense yet with sparkfun_thing_plus_nrf9160 hardware):
-    cmd[0] = IIS2DH_CTRL_REG3;
-    cmd[1] = (
-               iis2dh_ctrl_reg3 
-             | FIFO_WATERMARK_INTERRUPT_ON_INT1_ENABLE
-             | FIFO_OVERRUN_INTERRUPT_ON_INT1_ENABLE
-             );
-    kd_write_peripheral_register(dev, cmd);
-
-
-// (8) Clear interrupt by reading status register:
-    cmd[0] = IIS2DH_CTRL_REG3;
-    cmd[1] = 0;
-    uint8_t config_register = 0;
-    kd_read_peripheral_register(dev, cmd, &config_register);
-
-
-// (9) Enable FIFO:
-
-
-    return 0;
-}
-
-
+//
 
 void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 {
@@ -374,7 +233,6 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
     static uint16_t iis2ds12_i2c_periph_addr = DT_INST_REG_ADDR(0);   //<-- 2021-10-17 not available at build time - TMH
 
     struct sensor_value acceleration_readings;
-//#include <iis2dh_reg.h>
 
     uint8_t buff[10];
     memset(buff, 0, sizeof(buff));
@@ -394,7 +252,7 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 // member element:
     struct iis2dh_data *iis2dh = sensor->data; // dev->data;
     uint32_t whoami_check_status = 0;
-// Defined in [WEST_WORKSPACE]/modules/hal/st/sensor/stmemsc/iis2dh_STdC/driver/iis2dh_reg.h:716:} iis2dh_odr_t;
+// Defined in [WEST_WORKSPACE]/modules/hal/st/sensor/stmemsc/iis2dh_STdC/driver/iis2dh_reg.h:716: <<closing_curly_brace>> iis2dh_odr_t;
 // (an enumeration with elements equal 0..9)
     iis2dh_odr_t sensor_data_rate = 0;
 
@@ -419,7 +277,7 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
     printf("Device name found to be '%s'\n", sensor->name);
 
 // 2021-10-19 Tuesday work to initialize Kionix sensor:
-    rc = kd_initialize_sensor_kx132_1211(sensor);
+//    rc = kd_initialize_sensor_kx132_1211(sensor);
 
 /*
 // From file zephyr/drivers/sensor/iis2dh/iis2dh.c:
@@ -433,76 +291,39 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 229 };
 */
 
-// Note, looks like IIS2DH sensor is already configured at compmile time,
-// the initialization routine in IIS2DH in-tree driver is static and
-// not available for us to call directly, nor available through the
-// public facing API of this driver.
 
-//    whoami_check_status = iis2dh_device_id_get(&iis2dh_i2c_ctx, buff);
-    whoami_check_status = iis2dh_device_id_get(iis2dh->ctx, buff);
-
-// Unsafe, unbounded print string type call:   - TMH
-    printk("sensor who-am-i check returns '%s',\n", buff);
-    printk("(However this value of three returned even when sensor not attached - need to investigate)\n");
 
     while (1)
     {
-//        printk("iis2dh task at loop iteration 0x%08X\n", loop_count);
         printk("iis2dh task at loop iteration 0x%08X\n IIS2DH sensor at I2C addr %02X\n",
           loop_count, iis2ds12_i2c_periph_addr);
 
-// DEV TEST WHOAMI
-        whoami_check_status = iis2dh_device_id_get(iis2dh->ctx, buff);
-
-// Unsafe, unbounded print string type call:   - TMH
-        printk("sensor who-am-i check returns '%s',\n", buff);
-// DEV TEST WHOAMI
-
+// BLOCK BEGIN
         if ( (loop_count % 2) == 0 )
             { odr.val1 = 5; }
         else
             { odr.val1 = 6; }
 
+// A Zephyr mid-level IIS2DH driver call, effectively a wrapper to STMicro modules/hal driver code:
         rc = sensor_attr_set(sensor,
                              SENSOR_CHAN_ACCEL_XYZ, //trig.chan,
                              SENSOR_ATTR_SAMPLING_FREQUENCY,
                              &odr
                             );
         if (rc != 0) {
-            printf("Failed to set odr: %d\n", rc);
-//            return;
+            printk("Failed to set odr: %d\n", rc);
+        }
+        else
+        {
+            printk("- DEV003 - successfully updated ODR at runtime!\n");
+        }
+// BLOCK END
 
-        printf("Sampling at %u Hz (assuming so as sensor_attr_set returns 0 status - success\n", odr.val1);
+
 // 10/17 test:
 // In [ZEPHYR_WORKSPACE]/modules/hal/st/sensor/stmemsc/iis2dh_STdC/driver/iis2dh_reg.c:
 // 371 int32_t iis2dh_data_rate_set(stmdev_ctx_t *ctx, iis2dh_odr_t val)
 
-#if 0
-            printf("- DEV001 - calling iis2dh_data_rate_set() directly...\n");
-            uint32_t a = iis2dh_data_rate_set(iis2dh->ctx, 16);
-            printf("got return value of %d,\n", a);
-
-            printf("- DEV001 - calling iis2dh_data_rate_get()...\n");
-            uint32_t b = 0;
-            a = iis2dh_data_rate_get(iis2dh->ctx, (iis2dh_odr_t*)&b);
-            printf("got return value of %d,\n", a);
-            printf("read back data rate of value %d,\n", b);
-
-            odr.val1 = 0;
-            odr.val2 = 0;
-            a = read_of_iis2dh_whoami_register(sensor, odr);
-            printf("- DEV002 - hand-rolled whoami query returns manu' id of %u,\n", odr.val1);
-            printf("- DEV002 - and routine status of %u,\n", a);
-
-            a = read_of_iis2dh_temperature_registers(sensor, odr);
-            printf("- DEV002 - local temperature query returns temperature of %u,\n", odr.val1);
-            printf("- DEV002 - and routine status of %u,\n", a);
-#endif
-        }
-        else
-        {
-            printf("- DEV003 - successfully updated ODR at runtime!\n");
-        }
 
         rc = sensor_attr_get(sensor,
                              SENSOR_CHAN_ACCEL_XYZ,
@@ -511,35 +332,6 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
                             );
         printf("sampling at Output Data Rate (ODR) setting %u,\n", odr.val1);
 
-#if 0
-        printf("- DEV004 - requesting sensor fetch of all available readings...\n");
-        rc = sensor_sample_fetch(sensor);
-
-        if (rc == -EBADMSG)
-        {
-                /* Sample overrun.  Ignore in polled mode. */
-                if (IS_ENABLED(CONFIG_LIS2DH_TRIGGER)) {
-                        overrun = "[OVERRUN] ";
-            }
-            rc = 0;
-        }
-
-        if (rc == 0)
-        {
-                rc = sensor_channel_get(sensor,
-                                        SENSOR_CHAN_ACCEL_XYZ,
-                                        accel);
-        }
-        if (rc < 0) {
-                printf("ERROR: Update failed: %d\n", rc);
-        } else {
-                printf("#%u @ %u ms: %sx %f , y %f , z %f\n",
-                       loop_count, k_uptime_get_32(), overrun,
-                       sensor_value_to_double(&accel[0]),
-                       sensor_value_to_double(&accel[1]),
-                       sensor_value_to_double(&accel[2]));
-        }
-#endif
 
 // *** review 6cd823d21eeaa begin ******************
         k_msleep(20);
@@ -562,14 +354,13 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 // *** review 6cd823d21eeaa end ******************
 
 
-
         printk("\n\n");
         k_msleep(SLEEP_TIME__IIS2DH_TASK__MS);
         loop_count++;
 
     } // end while (1) loop
 
-}
+} // end routine iis2dh_thread_entry_point
 
 
 
