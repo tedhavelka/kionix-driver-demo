@@ -21,6 +21,8 @@
  *   +  https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.7.0/kconfig/CONFIG_IIS2DH_ODR.html
  *
  *   +  https://docs.zephyrproject.org/latest/guides/dts/howtos.html#get-a-struct-device-from-a-devicetree-node
+ *
+ *   +  [west_workspace]/modules/hal/st/sensor/stmemsc/iis2dh_STdC/driver/iis2dh.h, iis2dh.c
  */
 
 
@@ -87,6 +89,10 @@
 #define IIS2DH_ACCELEROMETER DT_NODELABEL(stmicro_sensor)
 
 
+#define ROUTINE_OK 0  // <-- NEED TO PULL IN LOCAL PROJECT HEADER WITH ENUMERATION OF ROUTINE RETURN VALUES - TMH
+
+
+
 //----------------------------------------------------------------------
 // - SECTION - prototypes
 //----------------------------------------------------------------------
@@ -118,7 +124,71 @@ int initialize_thread_iis2dh_task(void)
 }
 
 
-#define ROUTINE_OK 0
+
+//----------------------------------------------------------------------
+// General I2C multi-byte write and read routines:
+//----------------------------------------------------------------------
+
+/*
+ * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ *  @Description   Wrapper function around Zephyr RTOS 2.6.0 I2C write
+ *                 API function.  In place in part to prepare for
+ *                 a more flexible IC2/SPI/other-protocol wrapper
+ *                 framework in the future.
+ *
+ *  @Note          Peripheral device I2C adderss obtained from Zephyr
+ *                 project macro at build time.
+ * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ */
+
+static uint32_t kd_write_peripheral_register(const struct device *dev,
+                                             const uint8_t* device_register_and_data,
+                                             const uint32_t count_bytes_to_write)
+{
+    int status = ROUTINE_OK;
+    struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
+
+    status = i2c_write(device_data_ptr->bus,
+                       device_register_and_data,
+                       count_bytes_to_write,
+                       DT_INST_REG_ADDR(0)
+                      );
+    return status;
+}
+
+
+
+/*
+ * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ *  #Note:  following wrapper to Zephyr RTOS I2C read function
+ *   expects caller to provide count of bytes to read from passed
+ *   peripheral device.
+ * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ */
+
+static uint32_t kd_read_peripheral_register(const struct device *dev,
+                                            const uint8_t* device_register,
+                                            uint8_t* data,
+                                            const uint8_t count_bytes_to_read)
+{
+    int status = ROUTINE_OK;
+    struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
+
+    printk("kd_read - asked to read %u bytes,\n", count_bytes_to_read);
+
+    status = i2c_write_read(
+                         device_data_ptr->bus,
+                         DT_INST_REG_ADDR(0),
+                         device_register, sizeof(device_register),
+                         data,
+                         count_bytes_to_read
+                        );
+    return status;
+}
+
+
+
+
 static uint32_t read_of_iis2dh_whoami_register(const struct device *dev, struct sensor_value value)
 {
     int status = ROUTINE_OK;
@@ -155,61 +225,72 @@ static uint32_t read_of_iis2dh_temperature_registers(const struct device *dev, s
 }
 
 
-
-// 2021-10-19 - Adding general Kionix driver 'write register' routine:
-
 /*
- * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- *  @Description   Routine to write one eight-bit register per call,
- *                 in peripheral passed as 'device *dev'.
- *
- *  @Note          Peripheral device I2C adderss obtained from Zephyr
- *                 project macro at build time.
- * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ *  @Note:  this routine returns an 8-bit register value to caller.
  */
 
-static uint32_t kd_write_peripheral_register(const struct device *dev, const uint8_t* device_register_and_data)
+static uint8_t read_of_iis2dh_acc_status_register(const struct device *dev)
 {
     int status = ROUTINE_OK;
+    uint8_t cmd[] = { IIS2DH_STATUS_REG };
     struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
+    uint8_t acc_status_register_value = 0;
 
-    status = i2c_write(device_data_ptr->bus,
-                       device_register_and_data,
-                       sizeof(device_register_and_data),
-                       DT_INST_REG_ADDR(0)
-                      );
-    return status;
+    status = i2c_write_read(device_data_ptr->bus,
+                            DT_INST_REG_ADDR(0),
+                            cmd, sizeof(cmd),
+                            &acc_status_register_value, 1
+                           );
+
+    return acc_status_register_value;
+}
+
+
+/*
+ *  @Note:  assign values to several iis2dh registers, for data acquisition.
+ */
+
+static uint32_t accelerator_start_acquisition_no_fifo(const struct device* dev, const uint16_t output_data_rate)
+{
+    uint8_t cmd[] = { 0, 0, 0 };
+    uint8_t register_value = 0;
+    uint32_t rstatus = 0;  // status of this routine, OR'd sum of register read and write calls
+
+
+
+// Prepare accelerometer for data acquisition without FIFO:
+
+// (1) Disable IIS2DH FIFO:
+// [ REBOOT | FIFO_EN |   --   |   --   | LIR_INT1 | D4D_INT1 | LIR_INT2 | D4D_INT2 ]  <-- IIS2DH_CTRL_REG5
+    cmd[0] = IIS2DH_CTRL_REG5;
+    iis2dh_ctrl_reg5 &= ~(FIFO_ENABLE);
+    cmd[1] = iis2dh_ctrl_reg5;
+    rstatus |= kd_write_peripheral_register(dev, cmd, 2);  // magic number '2' here refers to reg' addr and value to write
+
+// (2) Reset FIFO by briefly setting bypass mode:
+// [   FM1  |   FM0   |   TR   |  FTH4  |   FTH3   |   FTH2   |   FTH1   |   FTH0   ]  <-- IIS2DH_FIFO_CTRL_REG
+    cmd[0] = IIS2DH_FIFO_CTRL_REG;
+    cmd[1] = FIFO_MODE_BYPASS; 
+    rstatus |= kd_write_peripheral_register(dev, cmd, 2);
+
+// (3) Set full scale (+/- 2g, 4g, 8g, 16g), normal versus high resolution, block update mode:
+// [   BDU  |   BLE   |   FS1  |   FS0  |    HR    |    ST1   |    ST0   |    SIM   ]  <-- IIS2DH_CTRL_REG4
+    cmd[0] = IIS2DH_CTRL_REG4;
+    cmd[1] = ( 
+               BLOCK_DATA_UPDATE_NON_CONTINUOUS         // ...
+             | BLE_LSB_IN_LOWER_BYTE_IN_HIGH_RES_MODE   // BLE Big | Little Endian high res readings storage
+             | ACC_FULL_SCALE_2G                        // 2G, 4G, 8G, 16G
+             | POWER_MODE                               // low power, normal, high-resolution modes (see table 9 for cross reg' mut exc setting)
+             | IIS2DH_SELF_TEST_NORMAL_MODE             // normal (no test), test 0, test 1
+             | SPI_MODE_THREE_WIRE                      // 3-wire | 4-wire
+             );
+    rstatus |= kd_write_peripheral_register(dev, cmd, 2);
+
+
 }
 
 
 
-/*
- * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- *  #Note:  following simple hand-rolled I2C read routine in Zephyr
- *   based app expects caller to provide count of bytes to read from
- *   presently referenced, passed peripheral device.
- * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- */
-
-static uint32_t kd_read_peripheral_register(const struct device *dev,
-                                            const uint8_t* device_register,
-                                            uint8_t* data,
-                                            const uint8_t count_bytes_to_read)
-{
-    int status = ROUTINE_OK;
-    struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
-
-    printk("kd_read - asked to read %u bytes,\n", count_bytes_to_read);
-
-    status = i2c_write_read(
-                         device_data_ptr->bus,
-                         DT_INST_REG_ADDR(0),
-                         device_register, sizeof(device_register),
-                         data,
-                         count_bytes_to_read
-                        );
-    return status;
-}
 
 
 

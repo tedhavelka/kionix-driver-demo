@@ -16,16 +16,24 @@
 // - SECTION - IIS2DH configuration register defines
 //----------------------------------------------------------------------
 
-static uint8_t iis2dh_ctrl_reg1 = 0;
-static uint8_t iis2dh_ctrl_reg2 = 0;
-static uint8_t iis2dh_ctrl_reg3 = 0;
-static uint8_t iis2dh_ctrl_reg4 = 0;
-static uint8_t iis2dh_ctrl_reg5 = 0;
-static uint8_t iis2dh_fifo_ctrl_reg = 0;
+static uint8_t iis2dh_ctrl_reg1 = 0;      // 0x20
+static uint8_t iis2dh_ctrl_reg2 = 0;      // 0x21
+static uint8_t iis2dh_ctrl_reg3 = 0;      // 0x22
+static uint8_t iis2dh_ctrl_reg4 = 0;      // 0x23
+static uint8_t iis2dh_ctrl_reg5 = 0;      // 0x24
+static uint8_t iis2dh_acc_status = 0;      // 0x27
+static uint8_t iis2dh_fifo_ctrl_reg = 0;   // 0x2F
 
 //
 // IIS2DH_CTRL_REG1     (0x20)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+// iis2dh.pdf page 33:
+// [  ODR3  |   ODR2  |  ODR1  |  ODR1  |   LPEN   |    ZEN   |    YEN   |    XEN   ]  <-- IIS2DH_CTRL_REG1
+//
+//  +  ODR    Output Data Rate
+//  +  LPEN   Low Power Enable
+//  +  ZEN    Z-axis Enable, Y-axis Enable, X-axis Enable
 
 #define ODR_0_POWERED_DOWN                      ( 0 << 4 )
 #define ODR_1_HZ                                ( 1 << 4 )
@@ -91,6 +99,8 @@ static uint8_t iis2dh_fifo_ctrl_reg = 0;
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 // Details of IIS2DH register 0x24 in iis2dh.pdf page 36 of 49, DocID027668 Rev 2:
+// [   BDU  |   BLE   |   FS1  |   FS0  |    HR    |    ST1   |    ST0   |    SIM   ]  <-- IIS2DH_CTRL_REG4
+
 #define BLOCK_DATA_UPDATE_NON_CONTINUOUS        ( 1 << 7 )
 #define BLE_LSB_IN_LOWER_BYTE_IN_HIGH_RES_MODE  ( 0 << 6 )
 #define BLE_MSB_IN_LOWER_BYTE_IN_HIGH_RES_MODE  ( 1 << 6 )
@@ -123,6 +133,8 @@ static uint8_t iis2dh_fifo_ctrl_reg = 0;
 // IIS2DH_CTRL_REG5     (0x24)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+// [ REBOOT | FIFO_EN |   --   |   --   | LIR_INT1 | D4D_INT1 | LIR_INT2 | D4D_INT2 ]  <-- IIS2DH_CTRL_REG5
+
 #define FIFO_ENABLE                             ( 1 << 6 )
 
 
@@ -143,6 +155,12 @@ static uint8_t iis2dh_fifo_ctrl_reg = 0;
 //
 // IIS2DH_FIFO_CTRL_REG (0x2E)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+// [   FM1  |   FM0   |   TR   |  FTH4  |   FTH3   |   FTH2   |   FTH1   |   FTH0   ]  <-- IIS2DH_FIFO_CTRL_REG
+//
+//  + FM[1:0]    FIFO Mode selection - 00 Bypass, 01 FIFO, 10 Stream, 11 Stream-to-FIFO
+//  + TR         Trigger selection   - 0 trigger on interrupt 1, 1 trigger on interrupt 2
+//  + FTH[4:0]   ???
 
 // FIFO MODES:
 #define FIFO_MODE_BYPASS                        ( 0 << 6 )
