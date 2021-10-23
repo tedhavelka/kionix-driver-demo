@@ -250,7 +250,7 @@ static uint8_t read_of_iis2dh_acc_status_register(const struct device *dev)
  *  @Note:  assign values to several iis2dh registers, for data acquisition.
  */
 
-static uint32_t accelerator_start_acquisition_no_fifo(const struct device* dev, const uint16_t output_data_rate)
+static uint32_t accelerator_start_acquisition_no_fifo(const struct device* dev, const uint8_t output_data_rate)
 {
     uint8_t cmd[] = { 0, 0, 0 };
     uint8_t register_value = 0;
@@ -262,6 +262,7 @@ static uint32_t accelerator_start_acquisition_no_fifo(const struct device* dev, 
 
 // (1) Disable IIS2DH FIFO:
 // [ REBOOT | FIFO_EN |   --   |   --   | LIR_INT1 | D4D_INT1 | LIR_INT2 | D4D_INT2 ]  <-- IIS2DH_CTRL_REG5
+
     cmd[0] = IIS2DH_CTRL_REG5;
     iis2dh_ctrl_reg5 &= ~(FIFO_ENABLE);
     cmd[1] = iis2dh_ctrl_reg5;
@@ -269,15 +270,17 @@ static uint32_t accelerator_start_acquisition_no_fifo(const struct device* dev, 
 
 // (2) Reset FIFO by briefly setting bypass mode:
 // [   FM1  |   FM0   |   TR   |  FTH4  |   FTH3   |   FTH2   |   FTH1   |   FTH0   ]  <-- IIS2DH_FIFO_CTRL_REG
+
     cmd[0] = IIS2DH_FIFO_CTRL_REG;
     cmd[1] = FIFO_MODE_BYPASS; 
     rstatus |= kd_write_peripheral_register(dev, cmd, 2);
 
 // (3) Set full scale (+/- 2g, 4g, 8g, 16g), normal versus high resolution, block update mode:
 // [   BDU  |   BLE   |   FS1  |   FS0  |    HR    |    ST1   |    ST0   |    SIM   ]  <-- IIS2DH_CTRL_REG4
+
     cmd[0] = IIS2DH_CTRL_REG4;
     cmd[1] = ( 
-               BLOCK_DATA_UPDATE_NON_CONTINUOUS         // ...
+               BLOCK_DATA_UPDATE_NON_CONTINUOUS         //
              | BLE_LSB_IN_LOWER_BYTE_IN_HIGH_RES_MODE   // BLE Big | Little Endian high res readings storage
              | ACC_FULL_SCALE_2G                        // 2G, 4G, 8G, 16G
              | POWER_MODE                               // low power, normal, high-resolution modes (see table 9 for cross reg' mut exc setting)
@@ -286,8 +289,22 @@ static uint32_t accelerator_start_acquisition_no_fifo(const struct device* dev, 
              );
     rstatus |= kd_write_peripheral_register(dev, cmd, 2);
 
+// (4) Set data rate, enable accelerometer axes x, y, z:
+// [  ODR3  |   ODR2  |  ODR1  |  ODR1  |   LPEN   |    ZEN   |    YEN   |    XEN   ]  <-- IIS2DH_CTRL_REG1
 
-}
+    cmd[0] = IIS2DH_CTRL_REG1;
+    cmd[1] = (
+               output_data_rate                         //
+             | LOW_POWER_ENABLE                         // when low power enabled, high resolution readings not available.  iis2dh.pdf page 16.
+             | AXIS_Z_ENABLE
+             | AXIS_Y_ENABLE
+             | AXIS_X_ENABLE
+             );
+    rstatus |= kd_write_peripheral_register(dev, cmd, 2);
+
+
+
+} // end routine accelerator_start_acquisition_no_fifo()
 
 
 
