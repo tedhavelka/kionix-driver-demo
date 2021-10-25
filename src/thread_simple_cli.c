@@ -134,8 +134,8 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
         dmsg("Failed to assign pointer to UART2 device!\n", PROJECT_DIAG_LEVEL);
     } 
 
-
-// --- UART_2 CLI work begin ---
+    while (1)
+    {
         if ( uart_for_cli != NULL )
         {
             char lbuf[160];
@@ -149,10 +149,9 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
                 dmsg(dev_msg, DIAG_NORMAL);
             }
         }
-// --- UART_2 CLI work end ---
 
         k_msleep(SLEEP_TIME__SIMPLE_CLI__MS);
-//        ++loop_count;
+    }
 
 } // end of thread entry point routine
 
