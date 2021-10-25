@@ -60,6 +60,7 @@ LOG_MODULE_REGISTER(demo);
 // 2021-10-16 -
 #include "thread_iis2dh.h"
 #include "thread_lis2dh.h"
+#include "thread_simple_cli.h"
 
 
 
@@ -118,6 +119,7 @@ LOG_MODULE_REGISTER(demo);
 #define NN_DEV__ENABLE_INT_MAIN_TESTS                     (0)
 #define NN_DEV__ENABLE_THREAD_IIS2DH_SENSOR               (1)
 #define NN_DEV__ENABLE_THREAD_LIS2DH_SENSOR               (0)
+#define NN_DEV__ENABLE_THREAD_SIMPLE_CLI                  (1)
 
 #define NN_DEV__ENABLE_IIS2DH_TEMPERATURE_READGINGS       (0)
 
@@ -153,6 +155,7 @@ void banner(const char* caller)
 
 
 
+#if 0
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 // - DEV BEGIN - 2021-10-06 thread addition work
 // https://docs.zephyrproject.org/latest/reference/kernel/threads/index.html#spawning-a-thread
@@ -176,6 +179,7 @@ void cli_entry_point(void* arg1, void* arg2, void* arg3)
 
 // - DEV END -
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+#endif
 
 
 
@@ -197,6 +201,8 @@ void main(void)
     memset(banner_msg, 0, sizeof(banner_msg));
     banner("main");
 
+
+#if 0
 // 2021-10-05
 // REF https://lists.zephyrproject.org/g/devel/topic/help_required_on_reading_uart/16760425
     const struct device *uart_for_cli;
@@ -210,6 +216,8 @@ void main(void)
     {
         dmsg("Failed to assign pointer to UART2 device!\n", PROJECT_DIAG_LEVEL);
     }
+#endif
+
 
     dev = device_get_binding(LED0);
     if (dev == NULL) {
@@ -285,14 +293,14 @@ void main(void)
         );
     }
 
+    int thread_set_up_status = 0;
 
-
+#if 0
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 // - DEV START -
 
 // 2021-10-06 - work to add and test Zephyr thread:
 // - DEV THREAD WORK BEGIN -
-        int thread_set_up_status = 0;
 
 // Set up first development thread, code for this one entirely in main.c:
         k_tid_t cli_tid = k_thread_create(&cli_thread_data, cli_stack_area,
@@ -302,6 +310,7 @@ void main(void)
                                           CLI_THREAD_PRIORITY, 0, K_NO_WAIT);
 // - DEV END -
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+#endif
 
 // - DEV THREAD WORK END -
 
@@ -316,6 +325,10 @@ void main(void)
     thread_set_up_status = initialize_thread_lis2dh_task();
 #endif
 
+#if NN_DEV__ENABLE_THREAD_SIMPLE_CLI == 1
+    dmsg("- DEV - starting simple Zephyr based CLI thread . . .", DIAG_NORMAL);
+    thread_set_up_status = initialize_thread_simple_cli_task();
+#endif
 
     while ( 1 )
     {
@@ -384,6 +397,7 @@ void main(void)
 #endif // NN_DEV__ENABLE_INT_MAIN_TESTS 
 
 
+#if 0
 // --- UART_2 CLI work begin ---
         if ( uart_for_cli != NULL )
         {
@@ -396,6 +410,7 @@ void main(void)
             dmsg(dev_msg, DIAG_NORMAL);
         }
 // --- UART_2 CLI work end ---
+#endif
 
         k_msleep(SLEEP_TIME_MS);
         ++main_loop_count;
