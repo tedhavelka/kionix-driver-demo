@@ -61,6 +61,7 @@ LOG_MODULE_REGISTER(demo);
 #include "thread_iis2dh.h"
 #include "thread_lis2dh.h"
 #include "thread_simple_cli.h"
+#include "scoreboard.h"
 
 
 
@@ -103,6 +104,8 @@ LOG_MODULE_REGISTER(demo);
 // - SECTION - DEVELOPMENT FLAGS
 //----------------------------------------------------------------------
 
+// --- DEVELOPMENT FLAGS BEGIN ---
+
 #define PROJECT_DIAG_LEVEL DIAG_NORMAL // DIAG_OFF
 //#define PROJECT_DIAG_LEVEL DIAG_OFF // DIAG_NORMAL
 
@@ -122,6 +125,10 @@ LOG_MODULE_REGISTER(demo);
 #define NN_DEV__ENABLE_THREAD_SIMPLE_CLI                  (1)
 
 #define NN_DEV__ENABLE_IIS2DH_TEMPERATURE_READGINGS       (0)
+
+#define NN_DEV__TEST_SCOREBOARD_GLOBAL_SETTING            (1)
+
+// --- DEVELOPMENT FLAGS END ---
 
 
 
@@ -188,8 +195,9 @@ void main(void)
 // --- LOCAL VAR BEGIN ---
     const struct device *dev;
     bool led_is_on = true;
-    int ret;
     int main_loop_count = 0;
+//    int ret;
+    uint32_t rstatus = 0;
 
     int sensor_api_status = 0;
     struct sensor_value requested_config;
@@ -224,15 +232,15 @@ void main(void)
         return;
     }
 
-    ret = gpio_pin_configure(dev, PIN, GPIO_OUTPUT_ACTIVE | FLAGS);
-    if (ret < 0) {
+    rstatus = gpio_pin_configure(dev, PIN, GPIO_OUTPUT_ACTIVE | FLAGS);
+    if (rstatus < 0) {
         return;
     }
 
     const struct device *dev_accelerometer = device_get_binding(DT_LABEL(KIONIX_ACCELEROMETER));
-    struct sensor_value value;
-    union generic_data_four_bytes_union_t data_from_sensor;
-    uint32_t i = 0;
+//    struct sensor_value value;
+//    union generic_data_four_bytes_union_t data_from_sensor;
+//    uint32_t i = 0;
 
 
     if (dev_accelerometer == NULL) {
@@ -316,24 +324,39 @@ void main(void)
 
 
 #if NN_DEV__ENABLE_THREAD_IIS2DH_SENSOR == 1
-    dmsg("- DEV - starting IIS2DH test thread . . .", DIAG_NORMAL);
+    dmsg("- DEV - starting IIS2DH test thread . . .\n", DIAG_NORMAL);
     thread_set_up_status = initialize_thread_iis2dh_task();
 #endif
 
 #if NN_DEV__ENABLE_THREAD_LIS2DH_SENSOR == 1
-    dmsg("- DEV - starting comparative LIS2DH test thread . . .", DIAG_NORMAL);
+    dmsg("- DEV - starting comparative LIS2DH test thread . . .\n", DIAG_NORMAL);
     thread_set_up_status = initialize_thread_lis2dh_task();
 #endif
 
 #if NN_DEV__ENABLE_THREAD_SIMPLE_CLI == 1
-    dmsg("- DEV - starting simple Zephyr based CLI thread . . .", DIAG_NORMAL);
+    dmsg("- DEV - starting simple Zephyr based CLI thread . . .\n", DIAG_NORMAL);
     thread_set_up_status = initialize_thread_simple_cli_task();
 #endif
+
+#if NN_DEV__TEST_SCOREBOARD_GLOBAL_SETTING == 1
+// Note this static var declared in thread_simple_cli.h:
+//    dmsg("- DEV - setting scoreboard test value to 4 . . .\n", DIAG_NORMAL);
+//    global_test_value = 4;
+//    dmsg("- DEV - (this assignment doesn't seem to work.)\n", DIAG_NORMAL);
+        dmsg("- DEV - setting scoreboard test value to 5 . . .\n", DIAG_NORMAL);
+        rstatus = set_global_test_value(5);
+#endif
+
 
     while ( 1 )
     {
         gpio_pin_set(dev, PIN, (int)led_is_on);
         led_is_on = !led_is_on;
+
+#if NN_DEV__TEST_SCOREBOARD_GLOBAL_SETTING == 1
+//        dmsg("- DEV - setting scoreboard test value to 5 in while loop . . .\n", DIAG_NORMAL);
+//        rc = set_global_test_value(5);
+#endif
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Calls to KX132-1211 driver API:

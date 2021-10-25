@@ -1,5 +1,5 @@
-#ifndef _THREAD_LIS2DH_ACCELEROMETER
-#define _THREAD_LIS2DH_ACCELEROMETER
+#ifndef _THREAD_LIS2DH_ACCELEROMETER_H
+#define _THREAD_LIS2DH_ACCELEROMETER_H
 
 /**
  *  Function to initialize Zephyr thread for STMicro LIS2DH driver code tests.
@@ -9,4 +9,4 @@
 
 int initialize_thread_lis2dh_task(void);
 
-#endif // _THREAD_LIS2DH_ACCELEROMETER
+#endif // _THREAD_LIS2DH_ACCELEROMETER_H

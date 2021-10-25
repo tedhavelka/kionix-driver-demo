@@ -7,4 +7,5 @@
 
 int initialize_thread_simple_cli_task(void);
 
+
 #endif // _THREAD_SIMPLE_CLI

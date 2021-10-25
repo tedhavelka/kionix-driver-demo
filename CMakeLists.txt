@@ -35,7 +35,9 @@ target_sources(app PRIVATE src/main.c)
 target_sources(app PRIVATE src/diagnostic.c)
 target_sources(app PRIVATE src/thread_iis2dh.c)
 target_sources(app PRIVATE src/thread_lis2dh.c)
+
 target_sources(app PRIVATE src/thread_simple_cli.c)
+target_sources(app PRIVATE src/scoreboard.c)
 
 
 # --- end of CMakeLists.txt file ---

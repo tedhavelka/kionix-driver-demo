@@ -39,9 +39,12 @@
 #include <drivers/sensor.h>
 
 // 2021-10-05 - CLI incorporation work, see Zephyr v2.6.0 file "zephyr/subsys/console/tty.c"
-#include <drivers/uart.h>   // to provide uart_poll_in()
+#include <drivers/uart.h>        // to provide uart_poll_in()
 
 #include "diagnostic.h"
+
+//#include "thread_simple_cli.h"   // to provide experimental global vars for simple data sharing
+#include "scoreboard.h"   // to provide experimental global vars for simple data sharing
 
 
 
@@ -108,6 +111,34 @@ int initialize_thread_simple_cli_task(void)
 }
 
 
+
+static uint32_t command_handler(const char* input)
+{
+    uint32_t test_value = 0;
+    uint32_t rstatus = 0;
+
+    if ( input[0] == 'a' )
+    {
+        rstatus = get_global_test_value(&test_value);
+        printk("- cmd a - global setting for data sharing test holds %u,\n", test_value);
+    }
+
+    if ( input[0] == 'b' )
+    {
+        rstatus = set_global_test_value(3);
+    }
+
+    if ( input[0] == 'c' )
+    {
+        rstatus = set_global_test_value(256);
+    }
+
+    return rstatus;
+}
+
+
+
+
 //
 //----------------------------------------------------------------------
 // - SECTION - int main or entry point
@@ -118,7 +149,7 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
 {
 // --- VAR BEGIN ---
 //    int loop_count = 0;
-    char dev_msg[256];   // printk(), printf() development messages string
+//    char dev_msg[256];   // printk(), printf() development messages string
 // --- VAR END ---
 
 
@@ -145,8 +176,18 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
 
             if ( strlen(msg) > 0 )
             {
+#if 0
                 snprintf(dev_msg, sizeof(dev_msg), "zzz - %s - zzz\n", msg);
                 dmsg(dev_msg, DIAG_NORMAL);
+#endif
+                if ( ( msg[0] == '\n' ) ||  ( msg[0] == '\r' ) )
+                {
+                    printk("simple cli - got a command!\n");
+                }
+                else
+                {
+                    command_handler(msg);
+                }
             }
         }
 
