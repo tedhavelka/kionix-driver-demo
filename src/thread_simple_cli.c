@@ -14,12 +14,43 @@
  *
  *  @References:
  *
- *    +  https://docs.zephyrproject.org/latest/reference/kernel/threads/index.html#spawning-a-thread
+ *     +  https://docs.zephyrproject.org/latest/reference/kernel/threads/index.html#spawning-a-thread
  *
- *  2021-10-05 . . .
- *    +  REF https://lists.zephyrproject.org/g/devel/topic/help_required_on_reading_uart/16760425
+ *    2021-10-05 . . .
+ *     +  REF https://lists.zephyrproject.org/g/devel/topic/help_required_on_reading_uart/16760425
+ *
+ *
+ *  @Implementation:
+ *
+ *    (1)  To add new CLI commands first search in this source file for
+ *    text pattern 'ADD COMMANDS - STEP n:' where 'n' is one of 1, 2
+ *    of 3.  As of 2021 Q4 there are three places in this project file
+ *    where a supported command has parts of itself expressed.  These
+ *    places are,
+ *    
+ *      +  CLI routine prototypes section
+ *      +  array of CLI routine structure instances (function pts plus couple other members)
+ *      +  CLI routine definition
+ *
+ *    CLI routines have a particular signature and form.  They accept
+ *    an invariant string as their argument, and return a uint32_t 
+ *    value.  The invariant string in a CLI routine signature can be
+ *    further parsed into multiple arguments by the given routine.
+ *
+ *    Over time, a few simple parsing utility functions are planned to
+ *    provide this very tokenizing, and some simple string-to-number
+ *    conversions.
+ *
+ *
+ *  @Notes:
+ *
+ *    (1)  At commit 0a6d0e6f67330cc0a0656ca9f5792287719a8ea2 there is not
+ *    yet a short description field in the "CLI command instance structure".
+ *    In the nRF9160 ARM core we have 1MB of FLASH memory so we should
+ *    be ok resource wise to add this.  Doing so in Kionix Demo project,
+ *    git branch 'cli-dev-work-003' - TMH
+ *
  */
-
 
 
 //----------------------------------------------------------------------
@@ -87,6 +118,11 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3);
 uint32_t printk_cli(const char* output);
 void show_prompt(void);
 
+
+// *************************************************************************************************
+// - ADD COMMANDS - STEP 1:  add a prototype for CLI routine here
+// *************************************************************************************************
+
 // command handler prototypes:
 uint32_t output_data_rate_handler(const char* args);
 uint32_t iis2dh_sensor_handler(const char* args);
@@ -118,16 +154,21 @@ typedef uint32_t (*command_handler_t)(const char* argument_string);
 struct cli_command_writers_api
 {
     char* token_to_represent_command;
+    char* description;
     command_handler_t handler;
 };
 
+// *************************************************************************************************
+// - ADD COMMANDS - STEP 2:  add entry in array of CLI routine structures here
+// *************************************************************************************************
+
 struct cli_command_writers_api kd_command_set[] =
 {
-    { "odr", &output_data_rate_handler },
-    { "iis2dh", &iis2dh_sensor_handler },
-    { "help", &help_message },
-    { "?", &help_message },
-    { "banner", &banner_message }
+    { "odr", "IN PROGRESS - to be iis2dh Output Data Rate (ODR) set and get command.", &output_data_rate_handler },
+    { "iis2dh", "NOT YET IMPLEMENTED - to be general purpose iis2dh configurations command.", &iis2dh_sensor_handler },
+    { "help", "show supported Kionix demo CLI commands.", &help_message },
+    { "?", "show supported Kionix demo CLI commands.", &help_message },
+    { "banner", "show brief project identifier string for this Zephyr based app.", &banner_message }
 };
 
 
@@ -292,9 +333,11 @@ static uint32_t command_handler(const char* latest_input)
 
 #else
 
+#if 0
     printk("parsed command '%s',\n", command);
     printk("and arguments '%s'\n", args);
     printk("checking %u implemented Kionix demo commands...\n", ((sizeof(kd_command_set) / sizeof(struct cli_command_writers_api)) - 0));
+#endif
     
     for ( int i = 0; i < ( sizeof(kd_command_set) / sizeof(struct cli_command_writers_api) ); i++ )
     {
@@ -357,6 +400,10 @@ uint32_t build_command_string(const char* latest_input, const struct device* cal
 // - SECTION - command handlers
 //----------------------------------------------------------------------
 
+// *************************************************************************************************
+// - ADD COMMANDS - STEP 3:  add CLI routine definitions here
+// *************************************************************************************************
+
 uint32_t output_data_rate_handler(const char* args)
 {
     printk_cli("2021-10-25 ODR stub function\n");
@@ -379,13 +426,29 @@ uint32_t iis2dh_sensor_handler(const char* args)
 
 uint32_t help_message(const char* args)
 {
-#define SIZE_OF_SHORT_MESSAGE (80)
-    char lbuf[SIZE_OF_SHORT_MESSAGE];
+#define SIZE_OF_MESSAGE_SHORT (80)
+#define SIZE_OF_MESSAGE_MEDIUM (160)
+#define WIDTH_OF_BULLET_POINT (3)
+#define WIDTH_OF_COMMAND_TOKEN_OR_NAME (12)
+#define WIDTH_OF_COMMAND_DESCRIPTION (80)
+
+    char lbuf[SIZE_OF_MESSAGE_MEDIUM];
 
     printk_cli("Kionix demo CLI commands:\n\r");
     for ( int i = 0; i < implemented_command_count; i++ )
     {
-        snprintf(lbuf, SIZE_OF_SHORT_MESSAGE, "  %u)  %s\n\r", i, kd_command_set[i].token_to_represent_command);
+//        snprintf(lbuf, SIZE_OF_SHORT_MESSAGE, "  %u)  %s\n\r", i, kd_command_set[i].token_to_represent_command);
+        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "  %*u)  %s%*s   . . . %s\n\r",
+                   WIDTH_OF_BULLET_POINT,
+                   i,
+                   kd_command_set[i].token_to_represent_command,
+//                   WIDTH_OF_COMMAND_TOKEN_OR_NAME,
+                   (WIDTH_OF_COMMAND_TOKEN_OR_NAME - strlen(kd_command_set[i].token_to_represent_command)),
+                   " ",
+//                   WIDTH_OF_COMMAND_DESCRIPTION,
+                   kd_command_set[i].description
+                 );
+
         printk_cli(lbuf);
     }
     printk_cli("\n\r");
