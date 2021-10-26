@@ -219,8 +219,8 @@ uint32_t command_and_args_from_input(const char* latest_input,
                                      char* args)
 {
     uint32_t input_byte_count = strlen(latest_input);
-//    uint32_t flag_whitespace_found = 0;
     uint32_t i = 0;
+    uint32_t flag_white_space_found = 0;
     uint32_t rstatus = 0;
 
 printk("In 'command and args' about to parse %u bytes,\n", input_byte_count);
@@ -229,24 +229,29 @@ printk("In 'command and args' about to parse %u bytes,\n", input_byte_count);
     {
         if ( latest_input[i] == 0x20 )
         {
-//            flag_whitespace_found = 1;
+            flag_white_space_found = 1;
             strncpy(command, latest_input, (i - 0));
             strncpy(args, (latest_input + i + 1), (input_byte_count - i));
-printk("In 'command and args' found white space at string index %u\n", i);
+//printk("In 'command and args' found white space at string index %u\n", i);
             i = input_byte_count;
         }
 
-        if ( latest_input[i] == '\r' )
+//        if ( latest_input[i] == '\r' )
+        if ( ( latest_input[i] == '\r' ) || ( latest_input[i] == '\n' ) )
         {
-//            flag_whitespace_found = 1;
-            strncpy(command, latest_input, (i - 1));
+            strncpy(command, latest_input, (i - 0));
             strncpy(args, "", 1);
-printk("In 'command and args' found <CR> at string index %u\n", i);
+//printk("In 'command and args' found <CR> at string index %u\n", i);
             i = input_byte_count;
         }
     }
 
-printk("After parsing loop index i = %u,\nreturning . . .\n", i);
+    if ( !flag_white_space_found )
+    {
+        strncpy(command, latest_input, input_byte_count);
+    }
+
+//printk("After parsing loop index i = %u,\nreturning . . .\n", i);
 
     return rstatus;
 }
