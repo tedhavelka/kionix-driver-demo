@@ -76,7 +76,7 @@
 #define IIS2DH_THREAD_PRIORITY 7
 
 // defines for application or task implemented by this thread:
-#define SLEEP_TIME__IIS2DH_TASK__MS (3000)
+#define SLEEP_TIME__IIS2DH_TASK__MS (10000)
 
 // defines to connect with STMicro IIS2DH out-of-tree driver API:
 //#define KX132_1211 DT_INST(0, kionix_kx132_1211)
