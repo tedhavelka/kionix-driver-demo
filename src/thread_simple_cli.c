@@ -14,9 +14,43 @@
  *
  *  @References:
  *
- *  +  https://docs.zephyrproject.org/latest/reference/kernel/threads/index.html#spawning-a-thread
+ *     +  https://docs.zephyrproject.org/latest/reference/kernel/threads/index.html#spawning-a-thread
+ *
+ *    2021-10-05 . . .
+ *     +  REF https://lists.zephyrproject.org/g/devel/topic/help_required_on_reading_uart/16760425
+ *
+ *
+ *  @Implementation:
+ *
+ *    (1)  To add new CLI commands first search in this source file for
+ *    text pattern 'ADD COMMANDS - STEP n:' where 'n' is one of 1, 2
+ *    of 3.  As of 2021 Q4 there are three places in this project file
+ *    where a supported command has parts of itself expressed.  These
+ *    places are,
+ *    
+ *      +  CLI routine prototypes section
+ *      +  array of CLI routine structure instances (function pts plus couple other members)
+ *      +  CLI routine definition
+ *
+ *    CLI routines have a particular signature and form.  They accept
+ *    an invariant string as their argument, and return a uint32_t 
+ *    value.  The invariant string in a CLI routine signature can be
+ *    further parsed into multiple arguments by the given routine.
+ *
+ *    Over time, a few simple parsing utility functions are planned to
+ *    provide this very tokenizing, and some simple string-to-number
+ *    conversions.
+ *
+ *
+ *  @Notes:
+ *
+ *    (1)  At commit 0a6d0e6f67330cc0a0656ca9f5792287719a8ea2 there is not
+ *    yet a short description field in the "CLI command instance structure".
+ *    In the nRF9160 ARM core we have 1MB of FLASH memory so we should
+ *    be ok resource wise to add this.  Doing so in Kionix Demo project,
+ *    git branch 'cli-dev-work-003' - TMH
+ *
  */
-
 
 
 //----------------------------------------------------------------------
@@ -57,11 +91,13 @@
 #define SIMPLE_CLI_THREAD_PRIORITY 8   // NEED to implement project enum of project thread priorities - TMH
 
 // defines for application or task implemented by this thread:
-#define SLEEP_TIME__SIMPLE_CLI__MS (10)
+#define SLEEP_TIME__SIMPLE_CLI__MS (50)
 
-#define SIZE_COMMAND_TOKEN (32)    // in bytes, and we needn't support long paths, filenams or other identifiers
+#define SIZE_COMMAND_TOKEN (32)       // in bytes, and we needn't support long paths, filenams or other identifiers
 
-#define SIZE_COMMAND_HISTORY (10)  // 2021-10-25 - not yet implemented
+#define SIZE_COMMAND_HISTORY (10)     // 2021-10-25 - not yet implemented
+
+#define SIZE_OF_ARGS_SUPPORTED (256)
 
 
 
@@ -79,7 +115,20 @@
 //----------------------------------------------------------------------
 
 void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3);
+uint32_t printk_cli(const char* output);
 void show_prompt(void);
+
+
+// *************************************************************************************************
+// - ADD COMMANDS - STEP 1:  add a prototype for CLI routine here
+// *************************************************************************************************
+
+// command handler prototypes:
+uint32_t output_data_rate_handler(const char* args);
+uint32_t iis2dh_sensor_handler(const char* args);
+uint32_t help_message(const char* args);
+uint32_t banner_message(const char* args);
+// uint32_t (const char* args);
 
 
 //----------------------------------------------------------------------
@@ -87,13 +136,41 @@ void show_prompt(void);
 //----------------------------------------------------------------------
 
 static char latest_command[SIZE_COMMAND_TOKEN];
-static char command_history[SIZE_COMMAND_HISTORY][SIZE_COMMAND_TOKEN];
+static char command_history[SIZE_COMMAND_HISTORY][SIZE_COMMAND_TOKEN];  // <-- 2021-10-26 not yet used
 static uint32_t index_to_cmd_history;
 static uint32_t index_within_cmd_token;
 
-static char newline_string[] = { '\n' };
+//static char newline_string[] = { '\n' };
 
 static const struct device *uart_for_cli;
+
+
+// work in project git branch 'cli-dev-work-003':
+
+static uint32_t implemented_command_count;
+
+typedef uint32_t (*command_handler_t)(const char* argument_string);
+
+struct cli_command_writers_api
+{
+    char* token_to_represent_command;
+    char* description;
+    command_handler_t handler;
+};
+
+// *************************************************************************************************
+// - ADD COMMANDS - STEP 2:  add entry in array of CLI routine structures here
+// *************************************************************************************************
+
+struct cli_command_writers_api kd_command_set[] =
+{
+    { "odr", "IN PROGRESS - to be iis2dh Output Data Rate (ODR) set and get command.", &output_data_rate_handler },
+    { "iis2dh", "NOT YET IMPLEMENTED - to be general purpose iis2dh configurations command.", &iis2dh_sensor_handler },
+    { "help", "show supported Kionix demo CLI commands.", &help_message },
+    { "?", "show supported Kionix demo CLI commands.", &help_message },
+    { "banner", "show brief project identifier string for this Zephyr based app.", &banner_message }
+};
+
 
 
 
@@ -128,8 +205,14 @@ void initialize_command_handler(void)
         memset(command_history[i], 0, sizeof(command_history[i]));
     }
 
+// Count of implemented CLI commands known at build time, used couple times at run time:
+    implemented_command_count = (sizeof(kd_command_set) / sizeof(struct cli_command_writers_api));
+
     index_to_cmd_history = 0;
     index_within_cmd_token = 0;
+
+// First stuff out the CLI UART:
+    printk_cli("\n\n\n\n\n");
     show_prompt();
 }
 
@@ -167,36 +250,104 @@ void clear_latest_command_string(void)
 
 void show_prompt(void)
 {
-//    printk("%s", PS1);
     printk_cli(PS1);
 }
 
 
 
-static uint32_t command_handler(const char* input)
+uint32_t command_and_args_from_input(const char* latest_input,
+                                     char* command,
+                                     char* args)
 {
-    uint32_t test_value = 0;
+    uint32_t input_byte_count = strlen(latest_input);
+    uint32_t i = 0;
+    uint32_t flag_white_space_found = 0;
     uint32_t rstatus = 0;
 
-    printk("command_handler received '%s'\n", input);
+printk("In 'command and args' about to parse %u bytes,\n", input_byte_count);
 
-    if ( input[0] == 'a' )
+    for ( i = 0; (i < input_byte_count); i++ )
+    {
+        if ( latest_input[i] == 0x20 )
+        {
+            flag_white_space_found = 1;
+            strncpy(command, latest_input, (i - 0));
+            strncpy(args, (latest_input + i + 1), (input_byte_count - i));
+//printk("In 'command and args' found white space at string index %u\n", i);
+            i = input_byte_count;
+        }
+
+//        if ( latest_input[i] == '\r' )
+        if ( ( latest_input[i] == '\r' ) || ( latest_input[i] == '\n' ) )
+        {
+            strncpy(command, latest_input, (i - 0));
+            strncpy(args, "", 1);
+//printk("In 'command and args' found <CR> at string index %u\n", i);
+            i = input_byte_count;
+        }
+    }
+
+    if ( !flag_white_space_found )
+    {
+        strncpy(command, latest_input, input_byte_count);
+    }
+
+//printk("After parsing loop index i = %u,\nreturning . . .\n", i);
+
+    return rstatus;
+}
+
+
+
+static uint32_t command_handler(const char* latest_input)
+{
+// --- VAR BEGIN ---
+    uint32_t test_value = 0;
+    char command[SIZE_COMMAND_TOKEN];
+    char args[SIZE_OF_ARGS_SUPPORTED];
+    uint32_t rstatus = 0;
+// --- VAR END ---
+
+    memset(command, 0, sizeof(command));
+    memset(args, 0, sizeof(args));
+    rstatus = command_and_args_from_input(latest_input, command, args);
+
+#if 0
+    printk("command_handler received '%s'\n", latest_input);
+
+    if ( latest_input[0] == 'a' )
     {
         rstatus = get_global_test_value(&test_value);
         printk("- cmd a - global setting for data sharing test holds %u,\n", test_value);
     }
 
-    if ( input[0] == 'b' )
+    if ( latest_input[0] == 'b' )
     {
         rstatus = set_global_test_value(3);
     }
 
-    if ( input[0] == 'c' )
+    if ( latest_input[0] == 'c' )
     {
         rstatus = set_global_test_value(256);
     }
 
-//    clear_latest_command_string();
+#else
+
+#if 0
+    printk("parsed command '%s',\n", command);
+    printk("and arguments '%s'\n", args);
+    printk("checking %u implemented Kionix demo commands...\n", ((sizeof(kd_command_set) / sizeof(struct cli_command_writers_api)) - 0));
+#endif
+    
+    for ( int i = 0; i < ( sizeof(kd_command_set) / sizeof(struct cli_command_writers_api) ); i++ )
+    {
+        if ( strncmp(command, kd_command_set[i].token_to_represent_command, SIZE_COMMAND_TOKEN) == 0 )
+        {
+            rstatus = kd_command_set[i].handler(args);
+        }
+    }
+
+#endif
 
     return rstatus;
 }
@@ -206,9 +357,6 @@ static uint32_t command_handler(const char* input)
 uint32_t build_command_string(const char* latest_input, const struct device* callers_uart)
 {
     uint32_t rstatus = 0;
-
-#if 0
-#endif
 
 // If latest character printable and not '\r' . . . append latest command string:
     if ( (latest_input[0] >= 0x20) && (latest_input[0] < 0x7F) && (latest_input[0] != '\r') )
@@ -236,8 +384,8 @@ uint32_t build_command_string(const char* latest_input, const struct device* cal
 // If latest character is <ENTER> then call the command handler:
     if ( latest_input[0] == '\r' )
     {
-// Following two lines an effective "\n\r" test:
-        uart_poll_out(callers_uart, newline_string[0]);
+// When both active, following two lines an effective "\n\r" test:
+//        uart_poll_out(callers_uart, newline_string[0]);
         uart_poll_out(callers_uart, latest_input[0]);
         rstatus = command_handler(latest_command);
         clear_latest_command_string();
@@ -245,6 +393,80 @@ uint32_t build_command_string(const char* latest_input, const struct device* cal
 
     return rstatus;
 }
+
+
+
+//----------------------------------------------------------------------
+// - SECTION - command handlers
+//----------------------------------------------------------------------
+
+// *************************************************************************************************
+// - ADD COMMANDS - STEP 3:  add CLI routine definitions here
+// *************************************************************************************************
+
+uint32_t output_data_rate_handler(const char* args)
+{
+    printk_cli("2021-10-25 ODR stub function\n");
+    return 0;
+} 
+
+
+uint32_t iis2dh_sensor_handler(const char* args)
+{
+    printk_cli("iis2dh stub function\n");
+    return 0;
+} 
+
+
+
+//    { "help", &help_message },
+//    { "?", &help_message },
+//    { "banner", &banner_message }
+
+
+uint32_t help_message(const char* args)
+{
+#define SIZE_OF_MESSAGE_SHORT (80)
+#define SIZE_OF_MESSAGE_MEDIUM (160)
+#define WIDTH_OF_BULLET_POINT (3)
+#define WIDTH_OF_COMMAND_TOKEN_OR_NAME (12)
+#define WIDTH_OF_COMMAND_DESCRIPTION (80)
+
+    char lbuf[SIZE_OF_MESSAGE_MEDIUM];
+
+    printk_cli("Kionix demo CLI commands:\n\r");
+    for ( int i = 0; i < implemented_command_count; i++ )
+    {
+//        snprintf(lbuf, SIZE_OF_SHORT_MESSAGE, "  %u)  %s\n\r", i, kd_command_set[i].token_to_represent_command);
+        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "  %*u)  %s%*s   . . . %s\n\r",
+                   WIDTH_OF_BULLET_POINT,
+                   i,
+                   kd_command_set[i].token_to_represent_command,
+//                   WIDTH_OF_COMMAND_TOKEN_OR_NAME,
+                   (WIDTH_OF_COMMAND_TOKEN_OR_NAME - strlen(kd_command_set[i].token_to_represent_command)),
+                   " ",
+//                   WIDTH_OF_COMMAND_DESCRIPTION,
+                   kd_command_set[i].description
+                 );
+
+        printk_cli(lbuf);
+    }
+    printk_cli("\n\r");
+    return 0;
+} 
+
+
+
+uint32_t banner_message(const char* args)
+{
+    printk_cli("\n--\n\r");
+    printk_cli("-- Kionix Driver Demo\n\r");
+    printk_cli("-- A small Zephyr RTOS 2.6.0 based app to exercise Kionix KX132-1211 accelerometer\n\r");
+    printk_cli("--\n\r");
+    return 0;
+}
+
+
 
 
 //
@@ -256,14 +478,12 @@ uint32_t build_command_string(const char* latest_input, const struct device* cal
 void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
 {
 // --- VAR BEGIN ---
-//    int loop_count = 0;
-//    char dev_msg[256];   // printk(), printf() development messages string
+    char lbuf[160];
+    memset(lbuf, 0, sizeof(lbuf));
+    unsigned char* msg = lbuf;
 // --- VAR END ---
 
-
-// 2021-10-05
-// REF https://lists.zephyrproject.org/g/devel/topic/help_required_on_reading_uart/16760425
-//// Moving to file-scoped static pointer:
+//// Moving to file-scoped static pointer to ease routine implementations like 'show_prompt()':
 //    const struct device *uart_for_cli;
 //// Following two lines fail to compile:
 //    uart_for_cli = device_get_binding(DT_LABEL(UART_2));
@@ -281,26 +501,17 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
     {
         if ( uart_for_cli != NULL )
         {
+#if 0
             char lbuf[160];
             memset(lbuf, 0, sizeof(lbuf));
             unsigned char* msg = lbuf;
+#endif
+            memset(lbuf, 0, sizeof(lbuf));
+            msg = lbuf;
             uart_poll_in(uart_for_cli, msg);
 
             if ( strlen(msg) > 0 )
             {
-#if 0
-                snprintf(dev_msg, sizeof(dev_msg), "zzz - %s - zzz\n", msg);
-                dmsg(dev_msg, DIAG_NORMAL);
-                if ( ( msg[0] == '\n' ) ||  ( msg[0] == '\r' ) )
-                {
-                    printk("simple cli - got a command!\n");
-                }
-                else
-                {
-                    command_handler(msg);
-                }
-#endif
-
                 build_command_string(msg, uart_for_cli);
             }
         }
