@@ -76,7 +76,7 @@
 #define IIS2DH_THREAD_PRIORITY 7
 
 // defines for application or task implemented by this thread:
-#define SLEEP_TIME__IIS2DH_TASK__MS (6000)
+#define SLEEP_TIME__IIS2DH_TASK__MS (3000)
 
 // defines to connect with STMicro IIS2DH out-of-tree driver API:
 //#define KX132_1211 DT_INST(0, kionix_kx132_1211)
@@ -443,7 +443,7 @@ static uint32_t ii_accelerometer_stop_acquisition(const struct device *dev)
 // (4) Clear interrupt by reading interrupt status register:
     cmd[0] = IIS2DH_CTRL_REG3;
     cmd[1] = 0;
-    printk("333 - \n");
+//    printk("333 - \n");
     rstatus |= kd_read_peripheral_register(dev, cmd, &register_value, COUNT_BYTES_IN_IIS_CONTROL_REGISTER);
 //    printk("333 - from IIS2DH register CTRL3 read back %u\n", register_value);
 

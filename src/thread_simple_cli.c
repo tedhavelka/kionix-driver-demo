@@ -61,7 +61,7 @@
 
 #define SIZE_COMMAND_TOKEN (32)    // in bytes, and we needn't support long paths, filenams or other identifiers
 
-#define SIZE_COMMAND_HISTORY (20)  // 2021-10-25 - not yet implemented
+#define SIZE_COMMAND_HISTORY (10)  // 2021-10-25 - not yet implemented
 
 
 
@@ -79,6 +79,7 @@
 //----------------------------------------------------------------------
 
 void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3);
+void show_prompt(void);
 
 
 //----------------------------------------------------------------------
@@ -86,6 +87,13 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3);
 //----------------------------------------------------------------------
 
 static char latest_command[SIZE_COMMAND_TOKEN];
+static char command_history[SIZE_COMMAND_HISTORY][SIZE_COMMAND_TOKEN];
+static uint32_t index_to_cmd_history;
+static uint32_t index_within_cmd_token;
+
+static char newline_string[] = { '\n' };
+
+static const struct device *uart_for_cli;
 
 
 
@@ -112,10 +120,65 @@ int initialize_thread_simple_cli_task(void)
 
 
 
+void initialize_command_handler(void)
+{
+    memset(latest_command, 0, sizeof(latest_command));
+    for ( int i = 0; i < SIZE_COMMAND_HISTORY; i++ )
+    {
+        memset(command_history[i], 0, sizeof(command_history[i]));
+    }
+
+    index_to_cmd_history = 0;
+    index_within_cmd_token = 0;
+    show_prompt();
+}
+
+
+
+uint32_t printk_cli(const char* output)
+{
+    uint32_t rstatus = 0;
+    uint32_t output_byte_count = strlen(output);
+
+    if ( uart_for_cli == NULL )
+    {
+        return 1;
+    }
+
+    for ( int i = 0; i < output_byte_count; i++ )
+    {
+        uart_poll_out(uart_for_cli, output[i]);
+    }
+    return rstatus;
+} 
+
+
+
+void clear_latest_command_string(void)
+{
+    memset(latest_command, 0, sizeof(latest_command));
+    index_within_cmd_token = 0;
+    show_prompt();
+}
+
+
+
+#define PS1 "\n\rkd-demo > "
+
+void show_prompt(void)
+{
+//    printk("%s", PS1);
+    printk_cli(PS1);
+}
+
+
+
 static uint32_t command_handler(const char* input)
 {
     uint32_t test_value = 0;
     uint32_t rstatus = 0;
+
+    printk("command_handler received '%s'\n", input);
 
     if ( input[0] == 'a' )
     {
@@ -133,10 +196,55 @@ static uint32_t command_handler(const char* input)
         rstatus = set_global_test_value(256);
     }
 
+//    clear_latest_command_string();
+
     return rstatus;
 }
 
 
+
+uint32_t build_command_string(const char* latest_input, const struct device* callers_uart)
+{
+    uint32_t rstatus = 0;
+
+#if 0
+#endif
+
+// If latest character printable and not '\r' . . . append latest command string:
+    if ( (latest_input[0] >= 0x20) && (latest_input[0] < 0x7F) && (latest_input[0] != '\r') )
+//       ~~~~~~~~~~~~~~~~~~~~~~~~~    ~~~~~~~~~~~~~~~~~~~~~~~~    ~~~~~~~~~~~~~~~~~~~~~~~~~
+    {
+        if ( index_within_cmd_token >= SIZE_COMMAND_TOKEN )
+        {
+            printk("Supported commnd length exceeded!\n");
+            printk("Press <ENTER> to process or <ESC> to start over.\n");
+        }
+        else
+        {
+            latest_command[index_within_cmd_token] = latest_input[0];
+            ++index_within_cmd_token;
+            uart_poll_out(callers_uart, latest_input[0]);
+        }
+    }
+
+// If latest character is <ESC> then clear the latest captured command string:
+    if ( latest_input[0] == 0x1B )
+    {
+        clear_latest_command_string();
+    }
+
+// If latest character is <ENTER> then call the command handler:
+    if ( latest_input[0] == '\r' )
+    {
+// Following two lines an effective "\n\r" test:
+        uart_poll_out(callers_uart, newline_string[0]);
+        uart_poll_out(callers_uart, latest_input[0]);
+        rstatus = command_handler(latest_command);
+        clear_latest_command_string();
+    }
+
+    return rstatus;
+}
 
 
 //
@@ -155,7 +263,9 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
 
 // 2021-10-05
 // REF https://lists.zephyrproject.org/g/devel/topic/help_required_on_reading_uart/16760425
-    const struct device *uart_for_cli;
+//// Moving to file-scoped static pointer:
+//    const struct device *uart_for_cli;
+//// Following two lines fail to compile:
 //    uart_for_cli = device_get_binding(DT_LABEL(UART_2));
 //    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
 
@@ -164,6 +274,8 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
     {   
         dmsg("Failed to assign pointer to UART2 device!\n", PROJECT_DIAG_LEVEL);
     } 
+
+    initialize_command_handler();
 
     while (1)
     {
@@ -179,7 +291,6 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
 #if 0
                 snprintf(dev_msg, sizeof(dev_msg), "zzz - %s - zzz\n", msg);
                 dmsg(dev_msg, DIAG_NORMAL);
-#endif
                 if ( ( msg[0] == '\n' ) ||  ( msg[0] == '\r' ) )
                 {
                     printk("simple cli - got a command!\n");
@@ -188,6 +299,9 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
                 {
                     command_handler(msg);
                 }
+#endif
+
+                build_command_string(msg, uart_for_cli);
             }
         }
 

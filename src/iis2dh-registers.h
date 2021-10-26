@@ -35,6 +35,7 @@ static uint8_t iis2dh_fifo_ctrl_reg = 0;   // 0x2F
 //  +  LPEN   Low Power Enable
 //  +  ZEN    Z-axis Enable, Y-axis Enable, X-axis Enable
 
+#if 0
 #define ODR_0_POWERED_DOWN                      ( 0 << 4 )
 #define ODR_1_HZ                                ( 1 << 4 )
 #define ODR_10_HZ                               ( 2 << 4 )
@@ -45,6 +46,22 @@ static uint8_t iis2dh_fifo_ctrl_reg = 0;   // 0x2F
 #define ODR_400_HZ                              ( 7 << 4 )
 
 #define ODR_5p376_HZ_IN_LOW_POWER_MODE          ( 9 << 4 )
+#else
+enum iis2dh_output_data_rates_e
+{
+    ODR_0_POWERED_DOWN            = ( 0 << 4 ),
+    ODR_1_HZ                      = ( 1 << 4 ),
+    ODR_10_HZ                     = ( 2 << 4 ),
+    ODR_25_HZ                     = ( 3 << 4 ),
+    ODR_50_HZ                     = ( 4 << 4 ),
+    ODR_100_HZ                    = ( 5 << 4 ),
+    ODR_200_HZ                    = ( 6 << 4 ),
+    ODR_400_HZ                    = ( 7 << 4 ),
+    ODR_1620_HZ_IN_LOW_POWER_MODE = ( 8 << 4 ),
+    ODR_5376_HZ_IN_LOW_POWER_MODE = ( 9 << 4 )   // <-- note 1344 Hz in high resolution and normal power modes
+};
+#endif
+
 // Lower four bits of control register 1:
 #define LOW_POWER_DISABLE                       ( 0 << 3 )
 #define LOW_POWER_ENABLE                        ( 1 << 3 )

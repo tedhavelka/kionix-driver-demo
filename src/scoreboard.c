@@ -5,14 +5,15 @@
 #include <sys/printk.h>     // to provide printk() function
 
 #include "diagnostic.h"
-
 #include "scoreboard.h"
+#include "iis2dh-registers.h"
 
 
 
 static uint32_t flag__cmd_a = 0;
 static uint32_t global_test_value = 0;
 static enum nn_diagnostic_levels global_diag_messaging_level = DIAG_NORMAL;
+static enum iis2dh_output_data_rates_e user_iis2dh_output_data_rate = ODR_100_HZ;
 
 
 
@@ -54,6 +55,19 @@ uint32_t get_diag_messaging_level(enum nn_diagnostic_levels* value_to_return)
 }
 
 
+
+
+uint32_t set_user_iis2dh_output_data_rate(const enum iis2dh_output_data_rates_e passed_value)
+{
+    user_iis2dh_output_data_rate = passed_value;
+    return 0;
+}
+
+uint32_t get_user_iis2dh_output_data_rate(enum iis2dh_output_data_rates_e* value_to_return)
+{
+    *value_to_return = user_iis2dh_output_data_rate;
+    return 0;
+}
 
 
 
