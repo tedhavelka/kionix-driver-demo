@@ -57,6 +57,13 @@ LOG_MODULE_REGISTER(demo);
 // 2021-10-06 - to add wrapper about Zephyr printk(), for early CLI development work:
 #include "diagnostic.h"
 
+// 2021-10-16 -
+#include "thread_iis2dh.h"
+#include "thread_lis2dh.h"
+#include "thread_simple_cli.h"
+#include "scoreboard.h"
+
+
 
 //----------------------------------------------------------------------
 // - SECTION - symbol defines
@@ -74,7 +81,7 @@ LOG_MODULE_REGISTER(demo);
 // defines from Nordic sdk-nrf sample apps:
 
 /* 1000 msec = 1 sec */
-#define SLEEP_TIME_MS   1500 // 1000
+#define SLEEP_TIME_MS   1000 // 1000
 
 /* The devicetree node identifier for the "led0" alias. */
 #define LED0_NODE DT_ALIAS(led0)
@@ -91,16 +98,37 @@ LOG_MODULE_REGISTER(demo);
 #define FLAGS    0
 #endif
 
-// Development flags:
+
+
+//----------------------------------------------------------------------
+// - SECTION - DEVELOPMENT FLAGS
+//----------------------------------------------------------------------
+
+// --- DEVELOPMENT FLAGS BEGIN ---
+
 #define PROJECT_DIAG_LEVEL DIAG_NORMAL // DIAG_OFF
 //#define PROJECT_DIAG_LEVEL DIAG_OFF // DIAG_NORMAL
-// Configuration:
+
+// KX132-1211 Configuration:
 #define DEV_TEST__ENABLE_KX132_1211_ASYNCHRONOUS_READINGS (1)
 #define DEV_TEST__SET_KX132_1211_OUTPUT_DATA_RATE         (0)
-// Readings:
+
+// KX132-1211 Readings:
 #define DEV_TEST__FETCH_AND_GET_MANUFACTURER_ID           (1)
 #define DEV_TEST__FETCH_AND_GET_PART_ID                   (1)
 #define DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ        (1)
+
+
+#define NN_DEV__ENABLE_INT_MAIN_TESTS                     (0)
+#define NN_DEV__ENABLE_THREAD_IIS2DH_SENSOR               (1)
+#define NN_DEV__ENABLE_THREAD_LIS2DH_SENSOR               (0)
+#define NN_DEV__ENABLE_THREAD_SIMPLE_CLI                  (1)
+
+#define NN_DEV__ENABLE_IIS2DH_TEMPERATURE_READGINGS       (0)
+
+#define NN_DEV__TEST_SCOREBOARD_GLOBAL_SETTING            (1)
+
+// --- DEVELOPMENT FLAGS END ---
 
 
 
@@ -134,13 +162,42 @@ void banner(const char* caller)
 
 
 
+#if 0
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+// - DEV BEGIN - 2021-10-06 thread addition work
+// https://docs.zephyrproject.org/latest/reference/kernel/threads/index.html#spawning-a-thread
+
+#define CLI_STACK_SIZE 500
+#define CLI_THREAD_PRIORITY 5
+
+// Zephyr required signature for Zephyr thread entry point routines:
+// extern void my_entry_point(void *, void *, void *);
+
+// https://docs.zephyrproject.org/latest/reference/kernel/threads/index.html#c.K_THREAD_STACK_DEFINE
+
+K_THREAD_STACK_DEFINE(cli_stack_area, CLI_STACK_SIZE);
+struct k_thread cli_thread_data;
+
+void cli_entry_point(void* arg1, void* arg2, void* arg3)
+{
+// stub function
+}
+
+
+// - DEV END -
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+#endif
+
+
+
 void main(void)
 {
 // --- LOCAL VAR BEGIN ---
     const struct device *dev;
     bool led_is_on = true;
-    int ret;
     int main_loop_count = 0;
+//    int ret;
+    uint32_t rstatus = 0;
 
     int sensor_api_status = 0;
     struct sensor_value requested_config;
@@ -152,31 +209,38 @@ void main(void)
     memset(banner_msg, 0, sizeof(banner_msg));
     banner("main");
 
+
+#if 0
 // 2021-10-05
 // REF https://lists.zephyrproject.org/g/devel/topic/help_required_on_reading_uart/16760425
     const struct device *uart_for_cli;
 //    uart_for_cli = device_get_binding(DT_LABEL(UART_2));
 //    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
-    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart0)));
+
+// Selecting between UART instances prior to additonal wiring:
+    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
+//    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart0)));
     if ( uart_for_cli == NULL )
     {
         dmsg("Failed to assign pointer to UART2 device!\n", PROJECT_DIAG_LEVEL);
     }
+#endif
+
 
     dev = device_get_binding(LED0);
     if (dev == NULL) {
         return;
     }
 
-    ret = gpio_pin_configure(dev, PIN, GPIO_OUTPUT_ACTIVE | FLAGS);
-    if (ret < 0) {
+    rstatus = gpio_pin_configure(dev, PIN, GPIO_OUTPUT_ACTIVE | FLAGS);
+    if (rstatus < 0) {
         return;
     }
 
     const struct device *dev_accelerometer = device_get_binding(DT_LABEL(KIONIX_ACCELEROMETER));
-    struct sensor_value value;
-    union generic_data_four_bytes_union_t data_from_sensor;
-    uint32_t i = 0;
+//    struct sensor_value value;
+//    union generic_data_four_bytes_union_t data_from_sensor;
+//    uint32_t i = 0;
 
 
     if (dev_accelerometer == NULL) {
@@ -237,11 +301,62 @@ void main(void)
         );
     }
 
+    int thread_set_up_status = 0;
+
+#if 0
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+// - DEV START -
+
+// 2021-10-06 - work to add and test Zephyr thread:
+// - DEV THREAD WORK BEGIN -
+
+// Set up first development thread, code for this one entirely in main.c:
+        k_tid_t cli_tid = k_thread_create(&cli_thread_data, cli_stack_area,
+                                          K_THREAD_STACK_SIZEOF(cli_stack_area),
+                                          cli_entry_point,
+                                          NULL, NULL, NULL,
+                                          CLI_THREAD_PRIORITY, 0, K_NO_WAIT);
+// - DEV END -
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+#endif
+
+// - DEV THREAD WORK END -
+
+
+#if NN_DEV__ENABLE_THREAD_IIS2DH_SENSOR == 1
+    dmsg("- DEV - starting IIS2DH test thread . . .\n", DIAG_NORMAL);
+    thread_set_up_status = initialize_thread_iis2dh_task();
+#endif
+
+#if NN_DEV__ENABLE_THREAD_LIS2DH_SENSOR == 1
+    dmsg("- DEV - starting comparative LIS2DH test thread . . .\n", DIAG_NORMAL);
+    thread_set_up_status = initialize_thread_lis2dh_task();
+#endif
+
+#if NN_DEV__ENABLE_THREAD_SIMPLE_CLI == 1
+    dmsg("- DEV - starting simple Zephyr based CLI thread . . .\n", DIAG_NORMAL);
+    thread_set_up_status = initialize_thread_simple_cli_task();
+#endif
+
+#if NN_DEV__TEST_SCOREBOARD_GLOBAL_SETTING == 1
+// Note this static var declared in thread_simple_cli.h:
+//    dmsg("- DEV - setting scoreboard test value to 4 . . .\n", DIAG_NORMAL);
+//    global_test_value = 4;
+//    dmsg("- DEV - (this assignment doesn't seem to work.)\n", DIAG_NORMAL);
+        dmsg("- DEV - setting scoreboard test value to 5 . . .\n", DIAG_NORMAL);
+        rstatus = set_global_test_value(5);
+#endif
+
 
     while ( 1 )
     {
         gpio_pin_set(dev, PIN, (int)led_is_on);
         led_is_on = !led_is_on;
+
+#if NN_DEV__TEST_SCOREBOARD_GLOBAL_SETTING == 1
+//        dmsg("- DEV - setting scoreboard test value to 5 in while loop . . .\n", DIAG_NORMAL);
+//        rc = set_global_test_value(5);
+#endif
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Calls to KX132-1211 driver API:
@@ -251,6 +366,8 @@ void main(void)
 //  project code.  Scratch-the-surface documentation on this at:
 // *  https://docs.zephyrproject.org/1.14.1/reference/peripherals/sensor.html
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+#if NN_DEV__ENABLE_INT_MAIN_TESTS == 1
 
         if ( DEV_TEST__FETCH_AND_GET_MANUFACTURER_ID )
         {
@@ -300,7 +417,10 @@ void main(void)
             banner("main");
         }
 
+#endif // NN_DEV__ENABLE_INT_MAIN_TESTS 
 
+
+#if 0
 // --- UART_2 CLI work begin ---
         if ( uart_for_cli != NULL )
         {
@@ -313,6 +433,7 @@ void main(void)
             dmsg(dev_msg, DIAG_NORMAL);
         }
 // --- UART_2 CLI work end ---
+#endif
 
         k_msleep(SLEEP_TIME_MS);
         ++main_loop_count;

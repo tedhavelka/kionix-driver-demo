@@ -1,3 +1,6 @@
+#ifndef _DIAGNOSTIC_H
+#define _DIAGNOSTIC_H
+
 /*
  * Copyright (c) 2021 Neela Nurseries
  *
@@ -26,4 +29,4 @@ void dmsg(const char* message, int option);
 
 
 
-// --- EOF ---
+#endif // _DIAGNOSTIC_H
