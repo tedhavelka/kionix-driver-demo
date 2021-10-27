@@ -110,6 +110,18 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3);
 #define TRIPLETS_TO_FORMAT_PER_LINE (4)
 
 
+#if 1
+// Possible run-time copies of sensor configuration register settings:
+// static uint8_t iis2dh_ctrl_reg1 = 0;       // 0x20
+// static uint8_t iis2dh_ctrl_reg2 = 0;       // 0x21
+static uint8_t iis2dh_ctrl_reg3 = 0;       // 0x22
+// static uint8_t iis2dh_ctrl_reg4 = 0;       // 0x23
+static uint8_t iis2dh_ctrl_reg5 = 0;       // 0x24
+static uint8_t iis2dh_acc_status = 0;      // 0x27
+// static uint8_t iis2dh_fifo_ctrl_reg = 0;   // 0x2F
+#endif
+
+
 
 //----------------------------------------------------------------------
 // - SECTION - routine definitions
@@ -553,7 +565,6 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
 
 void make_references(void)
 {
-extern uint8_t iis2dh_ctrl_reg1;
 #if 0
     (void)iis2dh_ctrl_reg1;
     (void)iis2dh_ctrl_reg2;

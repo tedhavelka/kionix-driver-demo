@@ -76,6 +76,7 @@
 #include <drivers/uart.h>        // to provide uart_poll_in()
 
 #include "diagnostic.h"
+#include "return-values.h"
 
 //#include "thread_simple_cli.h"   // to provide experimental global vars for simple data sharing
 #include "scoreboard.h"   // to provide experimental global vars for simple data sharing
@@ -93,12 +94,19 @@
 // defines for application or task implemented by this thread:
 #define SLEEP_TIME__SIMPLE_CLI__MS (50)
 
-#define SIZE_COMMAND_TOKEN (32)       // in bytes, and we needn't support long paths, filenams or other identifiers
+// Note, for now we limit a token or character strings sans white space
+// to 32 characters, subject to change as needed:
+#define SIZE_COMMAND_TOKEN (32)       //
 
+// Note, space permitting we'll store up to ten user commands in a ring buffer:
 #define SIZE_COMMAND_HISTORY (10)     // 2021-10-25 - not yet implemented
 
-#define SIZE_OF_ARGS_SUPPORTED (256)
+// Note, for now we support command line up to 256 characters:
+#define SIZE_COMMAND_INPUT_SUPPORTED (256)
 
+// Note, we start with support for passing up to ten args to a CLI command herein:
+#define MAX_COUNT_SUPPORTED_ARGS (10)
+#define SUPPORTED_ARG_LENGTH     (16)
 
 
 //----------------------------------------------------------------------
@@ -110,6 +118,12 @@
 
 
 
+static char argument_array[MAX_COUNT_SUPPORTED_ARGS][SUPPORTED_ARG_LENGTH];
+static uint32_t argument_count;
+
+
+
+
 //----------------------------------------------------------------------
 // - SECTION - routine prototypes
 //----------------------------------------------------------------------
@@ -117,6 +131,9 @@
 void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3);
 uint32_t printk_cli(const char* output);
 void show_prompt(void);
+
+uint32_t store_args_from(const char* string);
+
 
 
 // *************************************************************************************************
@@ -197,10 +214,26 @@ int initialize_thread_simple_cli_task(void)
 
 
 
+void clear_argument_array(void)
+{
+    int i = 0;
+
+    for ( i = 0; i < SIZE_COMMAND_HISTORY; i++ )
+    {
+        memset(argument_array[i], 0, sizeof(argument_array[i]));
+    }
+
+    argument_count = 0;
+}
+
+
+
 void initialize_command_handler(void)
 {
+    int i = 0;
+
     memset(latest_command, 0, sizeof(latest_command));
-    for ( int i = 0; i < SIZE_COMMAND_HISTORY; i++ )
+    for ( i = 0; i < SIZE_COMMAND_HISTORY; i++ )
     {
         memset(command_history[i], 0, sizeof(command_history[i]));
     }
@@ -210,6 +243,9 @@ void initialize_command_handler(void)
 
     index_to_cmd_history = 0;
     index_within_cmd_token = 0;
+
+// Clear global argument array and argument count variable:
+    clear_argument_array();
 
 // First stuff out the CLI UART:
     printk_cli("\n\n\n\n\n");
@@ -302,9 +338,9 @@ printk("In 'command and args' about to parse %u bytes,\n", input_byte_count);
 static uint32_t command_handler(const char* latest_input)
 {
 // --- VAR BEGIN ---
-    uint32_t test_value = 0;
+//    uint32_t test_value = 0;
     char command[SIZE_COMMAND_TOKEN];
-    char args[SIZE_OF_ARGS_SUPPORTED];
+    char args[SIZE_COMMAND_INPUT_SUPPORTED];
     uint32_t rstatus = 0;
 // --- VAR END ---
 
@@ -312,33 +348,9 @@ static uint32_t command_handler(const char* latest_input)
     memset(args, 0, sizeof(args));
     rstatus = command_and_args_from_input(latest_input, command, args);
 
-#if 0
-    printk("command_handler received '%s'\n", latest_input);
+// NEED TO CHECK return status of previous routine call here:
+    rstatus = store_args_from(args);
 
-    if ( latest_input[0] == 'a' )
-    {
-        rstatus = get_global_test_value(&test_value);
-        printk("- cmd a - global setting for data sharing test holds %u,\n", test_value);
-    }
-
-    if ( latest_input[0] == 'b' )
-    {
-        rstatus = set_global_test_value(3);
-    }
-
-    if ( latest_input[0] == 'c' )
-    {
-        rstatus = set_global_test_value(256);
-    }
-
-#else
-
-#if 0
-    printk("parsed command '%s',\n", command);
-    printk("and arguments '%s'\n", args);
-    printk("checking %u implemented Kionix demo commands...\n", ((sizeof(kd_command_set) / sizeof(struct cli_command_writers_api)) - 0));
-#endif
-    
     for ( int i = 0; i < ( sizeof(kd_command_set) / sizeof(struct cli_command_writers_api) ); i++ )
     {
         if ( strncmp(command, kd_command_set[i].token_to_represent_command, SIZE_COMMAND_TOKEN) == 0 )
@@ -346,8 +358,6 @@ static uint32_t command_handler(const char* latest_input)
             rstatus = kd_command_set[i].handler(args);
         }
     }
-
-#endif
 
     return rstatus;
 }
@@ -397,6 +407,117 @@ uint32_t build_command_string(const char* latest_input, const struct device* cal
 
 
 //----------------------------------------------------------------------
+// - SECTION - string parsing routines
+//----------------------------------------------------------------------
+
+uint32_t store_args_from(const char* string)
+{
+    uint32_t rstatus = 0;
+    uint32_t i = 0;          // 'i' indexes the length of passed input string
+    uint32_t present_arg_size = 0;
+    uint32_t present_arg_start = 0;
+// Note global 'argument_count' serves as our present argument index.
+
+    while(
+           ( argument_count < MAX_COUNT_SUPPORTED_ARGS ) &&
+           ( i < SIZE_COMMAND_INPUT_SUPPORTED ) &&
+           ( present_arg_size < SUPPORTED_ARG_LENGTH )
+         )
+    {
+// Skip leading white space at start of input string and after each token parsed:
+        if ( (present_arg_size == 0) && (string[i] == 0x20) )
+        {
+            i++;
+        }
+// Note the starting position of each successive argument:
+        else if ( (present_arg_size == 0) && (string[i] != 0x20) )
+        {
+            present_arg_start = i;
+            present_arg_size++;
+            i++;
+        }
+
+        else if ( (present_arg_size > 0) && (string[i] == 0x20) )
+        {
+            for ( int j = present_arg_start; j < i; j++ )
+            {
+                 argument_array[argument_count][j - present_arg_start] = string[j];
+                 argument_count++;
+                 present_arg_size = 0;
+            }
+            i++;
+        }
+    } // end processing while loop
+
+    if ( argument_count >= MAX_COUNT_SUPPORTED_ARGS )
+        { rstatus = WARNING_MORE_ARGS_FOUND_THAN_SUPPORTED; }
+
+    if ( i >= SIZE_COMMAND_INPUT_SUPPORTED )
+        { rstatus = WARNING_COMMAND_INPUT_LONGER_THAN_SUPPORTED; }
+
+    if ( present_arg_size >= SUPPORTED_ARG_LENGTH )
+        { rstatus = WARNING_FOUND_ARG_LENGTH_LONGER_THAN_SUPPORTED; }
+
+    return rstatus;
+}
+
+
+
+
+uint32_t arg_n(const uint32_t requested_arg, char* return_arg)
+{
+    uint32_t rstatus = ROUTINE_OK;
+
+    if ( requested_arg <= argument_count )
+    {
+        return_arg = argument_array[requested_arg];
+    }
+    else
+    {
+        if ( argument_count == 0 )
+            { rstatus = ERROR_NO_ARGS_PARSED; }
+        else
+            { rstatus = ERROR_TOO_FEW_ARGS_PARSED; }
+    }
+
+    return rstatus;
+}
+
+
+
+/*
+ *  @brief    Test whether argument contains only characters [0-9]
+ *  @return   1 when true
+ *  @return   0 when false
+ *
+ *  https://www.cs.cmu.edu/~pattis/15-1XX/common/handouts/ascii.html
+ */
+uint32_t arg_is_decimal(const uint32_t index_to_arg)
+{
+    uint32_t tstatus = 1;  // test status
+    uint32_t arg_len = strlen(argument_array[index_to_arg]);
+
+    for ( int i = 0; i < arg_len; i++ )
+    {
+        if ( ( argument_array[index_to_arg][i] < 0x30 ) || ( argument_array[index_to_arg][i] > 0x39 ) )
+        { tstatus = 1;  i = arg_len; }
+    }
+
+    return tstatus;
+}
+
+
+
+uint32_t arg_is_hex(const uint32_t arg)
+{
+    return 0;
+}
+
+
+
+
+
+//----------------------------------------------------------------------
 // - SECTION - command handlers
 //----------------------------------------------------------------------
 
@@ -407,6 +528,10 @@ uint32_t build_command_string(const char* latest_input, const struct device* cal
 uint32_t output_data_rate_handler(const char* args)
 {
     printk_cli("2021-10-25 ODR stub function\n");
+
+
+
+
     return 0;
 } 
 
@@ -520,6 +645,42 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
     }
 
 } // end of thread entry point routine
+
+
+
+//----------------------------------------------------------------------
+// - SECTION - set aside
+//----------------------------------------------------------------------
+
+
+// From command_handler():
+
+#if 0
+    printk("command_handler received '%s'\n", latest_input);
+
+    if ( latest_input[0] == 'a' )
+    {
+        rstatus = get_global_test_value(&test_value);
+        printk("- cmd a - global setting for data sharing test holds %u,\n", test_value);
+    }
+
+    if ( latest_input[0] == 'b' )
+    {
+        rstatus = set_global_test_value(3);
+    }
+
+    if ( latest_input[0] == 'c' )
+    {
+        rstatus = set_global_test_value(256);
+    }
+
+#endif
+
+#if 0
+    printk("parsed command '%s',\n", command);
+    printk("and arguments '%s'\n", args);
+    printk("checking %u implemented Kionix demo commands...\n", ((sizeof(kd_command_set) / sizeof(struct cli_command_writers_api)) - 0));
+#endif
 
 
 

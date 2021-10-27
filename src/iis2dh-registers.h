@@ -16,8 +16,7 @@
 // - SECTION - IIS2DH configuration register defines
 //----------------------------------------------------------------------
 
-#if 0 // may not need these:
-#endif
+#if 0 // may not need these:   . . . 10/27 moved these to thread_iis2dh.c - TMH
 static uint8_t iis2dh_ctrl_reg1 = 0;       // 0x20
 static uint8_t iis2dh_ctrl_reg2 = 0;       // 0x21
 static uint8_t iis2dh_ctrl_reg3 = 0;       // 0x22
@@ -25,6 +24,7 @@ static uint8_t iis2dh_ctrl_reg4 = 0;       // 0x23
 static uint8_t iis2dh_ctrl_reg5 = 0;       // 0x24
 static uint8_t iis2dh_acc_status = 0;      // 0x27
 static uint8_t iis2dh_fifo_ctrl_reg = 0;   // 0x2F
+#endif
 
 
 //
