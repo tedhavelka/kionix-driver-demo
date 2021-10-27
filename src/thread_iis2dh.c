@@ -551,6 +551,18 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
 
 
 
+void make_references(void)
+{
+extern uint8_t iis2dh_ctrl_reg1;
+#if 0
+    (void)iis2dh_ctrl_reg1;
+    (void)iis2dh_ctrl_reg2;
+    (void)iis2dh_ctrl_reg4;
+    (void)iis2dh_ctrl_reg5;
+    (void)iis2dh_acc_status;
+    (void)iis2dh_fifo_ctrl_reg;
+#endif
+}
 
 
 
@@ -573,7 +585,7 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 
     static uint16_t iis2ds12_i2c_periph_addr = DT_INST_REG_ADDR(0);   //<-- 2021-10-17 not available at build time - TMH
 
-    struct sensor_value acceleration_readings;
+//    struct sensor_value acceleration_readings;
 
     uint8_t buff[10];
     memset(buff, 0, sizeof(buff));
