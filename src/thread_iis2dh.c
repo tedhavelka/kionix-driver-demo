@@ -59,6 +59,9 @@
 
 #include "iis2dh-registers.h"
 
+#include "scoreboard.h"
+
+
 
 
 //----------------------------------------------------------------------
@@ -76,7 +79,7 @@
 #define IIS2DH_THREAD_PRIORITY 7
 
 // defines for application or task implemented by this thread:
-#define SLEEP_TIME__IIS2DH_TASK__MS (10000)
+#define SLEEP_TIME__IIS2DH_TASK__MS (2000)
 
 // defines to connect with STMicro IIS2DH out-of-tree driver API:
 //#define KX132_1211 DT_INST(0, kionix_kx132_1211)
@@ -120,6 +123,8 @@ static uint8_t iis2dh_ctrl_reg5 = 0;       // 0x24
 static uint8_t iis2dh_acc_status = 0;      // 0x27
 // static uint8_t iis2dh_fifo_ctrl_reg = 0;   // 0x2F
 #endif
+
+static uint32_t iis2dh_thread_sleep_time_in_ms;
 
 
 
@@ -619,7 +624,10 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 // Defined in [WEST_WORKSPACE]/modules/hal/st/sensor/stmemsc/iis2dh_STdC/driver/iis2dh_reg.h:716: <<closing_curly_brace>> iis2dh_odr_t;
 // (an enumeration with elements equal 0..9)
 //    iis2dh_odr_t sensor_data_rate = 0;
+
     uint8_t accelerometer_status = 0;
+
+    enum iis2dh_output_data_rates_e odr_to_set = ODR_0_POWERED_DOWN;
 
 // --- VAR END ---
 
@@ -674,9 +682,13 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 
         rc = ii_accelerometer_stop_acquisition(sensor);
 
-        accelerator_start_acquisition_with_fifo(sensor, ODR_10_HZ);
+        rc = scoreboard_get_requested_iis2dh_odr(&odr_to_set);
+        printk("- iis2dh thread - using scoreboard ODR equal to %u,\n", odr_to_set);
+
+        accelerator_start_acquisition_with_fifo(sensor, odr_to_set);  // ODR_10_HZ);
 
         printk("\n\n");
+// New static variable this module:  iis2dh_thread_sleep_time_in_ms
         k_msleep(SLEEP_TIME__IIS2DH_TASK__MS);
         loop_count++;
 

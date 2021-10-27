@@ -310,7 +310,7 @@ uint32_t command_and_args_from_input(const char* latest_input,
     uint32_t flag_white_space_found = 0;
     uint32_t rstatus = 0;
 
-printk("In 'command and args' about to parse %u bytes,\n", input_byte_count);
+//printk("In 'command and args' about to parse %u bytes,\n", input_byte_count);
 
     for ( i = 0; (i < input_byte_count); i++ )
     {
@@ -352,9 +352,9 @@ static uint32_t command_handler(const char* latest_input)
     char command[SIZE_COMMAND_TOKEN];
     char args[SIZE_COMMAND_INPUT_SUPPORTED];
     uint32_t rstatus = 0;
-#if 1
+#if 0 // DEV BLOCK 1 START
     char lbuf[SIZE_OF_MESSAGE_SHORT] = { 0 };
-#endif
+#endif // DEV BLOCK 1 END
 // --- VAR END ---
 
     memset(command, 0, sizeof(command));
@@ -364,12 +364,12 @@ static uint32_t command_handler(const char* latest_input)
 // NEED TO CHECK return status of previous routine call here:
     rstatus = store_args_from(args);
 
-#if 1 // DEV BLOCK START
+#if 0 // // DEV BLOCK 1 START
     snprintf(lbuf, sizeof(lbuf), "parsed %u args from present input,\n\r", (argument_count + 0));
     printk_cli(lbuf);
 
     rstatus |= dev_show_args();
-#endif // DEV BLOCK END
+#endif // DEV BLOCK 1 END
 
     for ( int i = 0; i < ( sizeof(kd_command_set) / sizeof(struct cli_command_writers_api) ); i++ )
     {
