@@ -121,10 +121,10 @@ static uint8_t iis2dh_ctrl_reg3 = 0;       // 0x22
 // static uint8_t iis2dh_ctrl_reg4 = 0;       // 0x23
 static uint8_t iis2dh_ctrl_reg5 = 0;       // 0x24
 static uint8_t iis2dh_acc_status = 0;      // 0x27
-// static uint8_t iis2dh_fifo_ctrl_reg = 0;   // 0x2F
+static uint8_t iis2dh_fifo_ctrl_reg = 0;   // 0x2F
 #endif
 
-static uint32_t iis2dh_thread_sleep_time_in_ms;
+//static uint32_t iis2dh_thread_sleep_time_in_ms;
 
 
 
@@ -271,6 +271,23 @@ static uint8_t read_of_iis2dh_acc_status_register(const struct device *dev)
                            );
 
     return acc_status_register_value;
+}
+
+
+static uint8_t read_of_iis2dh_acc_fifo_src_register(const struct device *dev)
+{
+    int status = ROUTINE_OK;
+    uint8_t cmd[] = { IIS2DH_FIFO_SRC_REG };
+    struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
+    uint8_t acc_fifo_src_register_value = 0;
+
+    status = i2c_write_read(device_data_ptr->bus,
+                            DT_INST_REG_ADDR(0),
+                            cmd, sizeof(cmd),
+                            &acc_fifo_src_register_value, 1
+                           );
+
+    return acc_fifo_src_register_value;
 }
 
 
@@ -520,12 +537,12 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
 
 #if 0
     rstatus |= kd_read_peripheral_register(dev,
-                                           (0x80 | IIS2DH_OUT_X_L),
-                                           readings_data[i * 6],
-                                           (BYTES_PER_XYZ_READINGS_TRIPLET* count)
+                                           &iis2dh_x_axis_low_byte_reg,
+                                           readings_data,
+                                           (BYTES_PER_XYZ_READINGS_TRIPLET * count)
                                           );
-#endif
-    for ( i = 0; i < count; i++ )
+#else
+    for ( i = 0; i < count; i += BYTES_PER_XYZ_READINGS_TRIPLET )
     {
         rstatus |= kd_read_peripheral_register(dev,
                                            &iis2dh_x_axis_low_byte_reg,
@@ -533,6 +550,7 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
                                            BYTES_PER_XYZ_READINGS_TRIPLET
                                           );
     }
+#endif
 
     printk("data from %u readings:\n", count);
     for ( i = 0; i < count; i++ )
@@ -608,24 +626,8 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 
 // From LIS2DH sample app:
     int rc = 0;
-    struct sensor_value odr;
-//    struct sensor_value accel[3];
-//    const char *overrun = "";
 
-// DEV tests:
-//    extern stmdev_ctx_t iis2dh_i2c_ctx;  // Should not need to declare data structure as 'extern'
-                                         // now that we include iis2dh.h.
-// 2021-10-16 - We're trying to send iis2dh device data parameter
-// in the same way we see the lower level STMicro driver
-// routines call with a pointer to this sensor type's data
-// member element:
-//    struct iis2dh_data *iis2dh = sensor->data; // dev->data;
-//    uint32_t whoami_check_status = 0;
-// Defined in [WEST_WORKSPACE]/modules/hal/st/sensor/stmemsc/iis2dh_STdC/driver/iis2dh_reg.h:716: <<closing_curly_brace>> iis2dh_odr_t;
-// (an enumeration with elements equal 0..9)
-//    iis2dh_odr_t sensor_data_rate = 0;
-
-    uint8_t accelerometer_status = 0;
+//    uint8_t accelerometer_status = 0;
 
     enum iis2dh_output_data_rates_e odr_to_set = ODR_0_POWERED_DOWN;
 
@@ -662,21 +664,12 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 
         k_msleep(1);
 
-
-        accelerometer_status = read_of_iis2dh_acc_status_register(sensor);
-        iis2dh_acc_status = accelerometer_status;
-        printk("iis2dh status register 0x%02X holds %u,\n", IIS2DH_STATUS_REG, iis2dh_acc_status);
-
-// 10/17 test:
-// In [WEST_WORKSPACE]/modules/hal/st/sensor/stmemsc/iis2dh_STdC/driver/iis2dh_reg.c:
-// 371 int32_t iis2dh_data_rate_set(stmdev_ctx_t *ctx, iis2dh_odr_t val)
-
-        rc = sensor_attr_get(sensor,
-                             SENSOR_CHAN_ACCEL_XYZ,
-                             SENSOR_ATTR_SAMPLING_FREQUENCY,
-                             &odr
-                            );
-        printk("sampling at Output Data Rate (ODR) setting %u,\n", odr.val1);
+// Read of incorrect register:
+//        iis2dh_acc_status = read_of_iis2dh_acc_status_register(sensor);
+//        printk("iis2dh status register 0x%02X holds %u,\n", IIS2DH_STATUS_REG, iis2dh_acc_status);
+// read_of_iis2dh_acc_fifo_src_register
+        iis2dh_fifo_ctrl_reg = read_of_iis2dh_acc_fifo_src_register(sensor);
+        printk("iis2dh FIFO SRC register 0x%02X holds %u,\n", IIS2DH_FIFO_SRC_REG, iis2dh_fifo_ctrl_reg);
 
         rc = ii_accelerometer_read_xyz(sensor);
 
@@ -688,7 +681,7 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
         accelerator_start_acquisition_with_fifo(sensor, odr_to_set);  // ODR_10_HZ);
 
         printk("\n\n");
-// New static variable this module:  iis2dh_thread_sleep_time_in_ms
+// 2021-10-27 New static variable this module:  iis2dh_thread_sleep_time_in_ms
         k_msleep(SLEEP_TIME__IIS2DH_TASK__MS);
         loop_count++;
 
