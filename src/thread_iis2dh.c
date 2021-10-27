@@ -535,7 +535,7 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
     }
 
     printk("data from %u readings:\n", count);
-    for ( i = 0; i < count; i++ )
+    for ( i = 0; i < (count * BYTES_PER_XYZ_READINGS_TRIPLET); i += BYTES_PER_XYZ_READINGS_TRIPLET )
     {
         printk(" %02X %02X  %02X %02X  %02X %02X  ",
           readings_data[i],
