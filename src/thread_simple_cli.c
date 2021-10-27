@@ -88,7 +88,7 @@
 //----------------------------------------------------------------------
 
 // defines thread related:
-#define SIMPLE_CLI_THREAD_STACK_SIZE 1024
+#define SIMPLE_CLI_THREAD_STACK_SIZE 1536 // 3072 // 2048 // 1024
 #define SIMPLE_CLI_THREAD_PRIORITY 8   // NEED to implement project enum of project thread priorities - TMH
 
 // defines for application or task implemented by this thread:
@@ -107,6 +107,11 @@
 // Note, we start with support for passing up to ten args to a CLI command herein:
 #define MAX_COUNT_SUPPORTED_ARGS (10)
 #define SUPPORTED_ARG_LENGTH     (16)
+
+
+#define SIZE_OF_MESSAGE_SHORT (80)
+#define SIZE_OF_MESSAGE_MEDIUM (160)
+
 
 
 //----------------------------------------------------------------------
@@ -133,6 +138,11 @@ uint32_t printk_cli(const char* output);
 void show_prompt(void);
 
 uint32_t store_args_from(const char* string);
+uint32_t dev_show_args(void);
+
+uint32_t arg_n(const uint32_t requested_arg, char* return_arg);
+uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value);
+uint32_t arg_is_hex(const uint32_t index_to_arg, int* value);
 
 
 
@@ -342,6 +352,9 @@ static uint32_t command_handler(const char* latest_input)
     char command[SIZE_COMMAND_TOKEN];
     char args[SIZE_COMMAND_INPUT_SUPPORTED];
     uint32_t rstatus = 0;
+#if 1
+    char lbuf[SIZE_OF_MESSAGE_SHORT] = { 0 };
+#endif
 // --- VAR END ---
 
     memset(command, 0, sizeof(command));
@@ -350,6 +363,13 @@ static uint32_t command_handler(const char* latest_input)
 
 // NEED TO CHECK return status of previous routine call here:
     rstatus = store_args_from(args);
+
+#if 1 // DEV BLOCK START
+    snprintf(lbuf, sizeof(lbuf), "parsed %u args from present input,\n\r", (argument_count + 0));
+    printk_cli(lbuf);
+
+    rstatus |= dev_show_args();
+#endif // DEV BLOCK END
 
     for ( int i = 0; i < ( sizeof(kd_command_set) / sizeof(struct cli_command_writers_api) ); i++ )
     {
@@ -402,52 +422,83 @@ uint32_t build_command_string(const char* latest_input, const struct device* cal
     }
 
     return rstatus;
-}
-
+} 
 
 
 //----------------------------------------------------------------------
 // - SECTION - string parsing routines
 //----------------------------------------------------------------------
 
-uint32_t store_args_from(const char* string)
+uint32_t store_args_from(const char* input)
 {
     uint32_t rstatus = 0;
     uint32_t i = 0;          // 'i' indexes the length of passed input string
     uint32_t present_arg_size = 0;
     uint32_t present_arg_start = 0;
+    uint32_t input_length = strlen(input);
 // Note global 'argument_count' serves as our present argument index.
 
+
+printk("- store_args_from - starting to parse and store args . . .\n");
+
+    clear_argument_array();
+
+printk("- store_args_from - args array cleared, input has length %u,\n", input_length);
+
+
     while(
+           ( i < input_length ) &&
            ( argument_count < MAX_COUNT_SUPPORTED_ARGS ) &&
            ( i < SIZE_COMMAND_INPUT_SUPPORTED ) &&
            ( present_arg_size < SUPPORTED_ARG_LENGTH )
          )
     {
 // Skip leading white space at start of input string and after each token parsed:
-        if ( (present_arg_size == 0) && (string[i] == 0x20) )
+        if ( (present_arg_size == 0) && (input[i] == 0x20) )
         {
-            i++;
+//            i++;
         }
 // Note the starting position of each successive argument:
-        else if ( (present_arg_size == 0) && (string[i] != 0x20) )
+        else if ( (present_arg_size == 0) && (input[i] != 0x20) )
         {
+printk("- store_args_from - found arg at %u . . .\n", i);
             present_arg_start = i;
             present_arg_size++;
-            i++;
         }
 
-        else if ( (present_arg_size > 0) && (string[i] == 0x20) )
+        else if ( (present_arg_size > 0) && (input[i] == 0x20) )
         {
+#if 1
             for ( int j = present_arg_start; j < i; j++ )
             {
-                 argument_array[argument_count][j - present_arg_start] = string[j];
-                 argument_count++;
-                 present_arg_size = 0;
+                 argument_array[argument_count][j - present_arg_start] = input[j];
             }
-            i++;
+            argument_count++;
+            present_arg_size = 0;
+#else
+int j = present_arg_start;
+printk("- store_args_from - found arg from %u to %u in input,\n", j, i);
+argument_count++;
+present_arg_size = 0;
+#endif
         }
+        i++;
     } // end processing while loop
+
+#ifdef DIAG_STORE_ARGS
+printk("- store_args_from - reached end of processing loop,\n");
+#endif
+
+// If end of input not white space then we have a final arg to store after prior while construct:
+    if ( present_arg_size > 0 )
+    {
+        for ( int j = present_arg_start; j < i; j++ )
+        {
+             argument_array[argument_count][j - present_arg_start] = input[j];
+        }
+        argument_count++;
+    }
+
 
     if ( argument_count >= MAX_COUNT_SUPPORTED_ARGS )
         { rstatus = WARNING_MORE_ARGS_FOUND_THAN_SUPPORTED; }
@@ -486,21 +537,41 @@ uint32_t arg_n(const uint32_t requested_arg, char* return_arg)
 
 
 /*
- *  @brief    Test whether argument contains only characters [0-9]
+ * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ *  @brief    Test whether argument contains only characters [0-9],
+ *             when numeric convert to integer value.
  *  @return   1 when true
  *  @return   0 when false
  *
  *  https://www.cs.cmu.edu/~pattis/15-1XX/common/handouts/ascii.html
+ * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  */
-uint32_t arg_is_decimal(const uint32_t index_to_arg)
+uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return)
 {
     uint32_t tstatus = 1;  // test status
     uint32_t arg_len = strlen(argument_array[index_to_arg]);
+    uint32_t multiplier = 1;
 
     for ( int i = 0; i < arg_len; i++ )
     {
         if ( ( argument_array[index_to_arg][i] < 0x30 ) || ( argument_array[index_to_arg][i] > 0x39 ) )
-        { tstatus = 1;  i = arg_len; }
+        {
+            tstatus = 0 /* false result */;  i = arg_len /* kick out */;
+        }
+    }
+
+printk("ZZZZZ - arg-is-decimal - looking at arg '%s' of length %u,\n", argument_array[index_to_arg], arg_len);
+
+// Note 0x30 is the ASCII value for the character zero '0':
+
+    if ( tstatus == 1 )
+    {
+        *value_to_return = 0;
+        for ( int i = (arg_len - 1); i >= 0; i-- )
+        {
+            *value_to_return += ( (argument_array[index_to_arg][i] - 0x30) * multiplier );
+            multiplier *= 10;
+        }
     }
 
     return tstatus;
@@ -508,11 +579,32 @@ uint32_t arg_is_decimal(const uint32_t index_to_arg)
 
 
 
-uint32_t arg_is_hex(const uint32_t arg)
+uint32_t arg_is_hex(const uint32_t arg, int* value_to_return)
 {
     return 0;
 }
 
+
+
+uint32_t dev_show_args(void)
+{
+
+    if ( argument_count < 1 )
+    {
+        printk("- dev-show-args - no arguments parsed from latest command input.\n");
+    }
+    else
+    {
+        printk("- dev-show-args -\nPresent args:  ");
+        for ( int i = 0; i < argument_count; i++ )
+        {
+            printk("%s, ", argument_array[i]);
+        }
+        printk("\n");
+    }
+
+    return 0;
+}
 
 
 
@@ -527,10 +619,26 @@ uint32_t arg_is_hex(const uint32_t arg)
 
 uint32_t output_data_rate_handler(const char* args)
 {
-    printk_cli("2021-10-25 ODR stub function\n");
+    uint32_t rstatus = 0;
+    uint32_t new_data_rate = 0;
+    char arg1[SUPPORTED_ARG_LENGTH] = { 0 };
+    char lbuf[SIZE_OF_MESSAGE_MEDIUM] = { 0 };
 
+    printk_cli("2021-10-25 ODR stub function\n\r");
 
+    if ( argument_count > 0 )
+    {
+        rstatus = arg_n(0, arg1);
+        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "- output_data_rate_handler - requested copy of first arg '%s',\n\r", arg1);
+        printk_cli(lbuf);
 
+        rstatus = arg_is_decimal(0, &new_data_rate);
+
+        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "- output_data_rate_handler - test first arg decimal yields %u,\n\r", rstatus);
+        printk_cli(lbuf);
+        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "- output_data_rate_handler - arg1 as integer = %u,\n\r", new_data_rate);
+        printk_cli(lbuf);
+    }
 
     return 0;
 } 
@@ -544,15 +652,8 @@ uint32_t iis2dh_sensor_handler(const char* args)
 
 
 
-//    { "help", &help_message },
-//    { "?", &help_message },
-//    { "banner", &banner_message }
-
-
 uint32_t help_message(const char* args)
 {
-#define SIZE_OF_MESSAGE_SHORT (80)
-#define SIZE_OF_MESSAGE_MEDIUM (160)
 #define WIDTH_OF_BULLET_POINT (3)
 #define WIDTH_OF_COMMAND_TOKEN_OR_NAME (12)
 #define WIDTH_OF_COMMAND_DESCRIPTION (80)
@@ -674,6 +775,7 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
         rstatus = set_global_test_value(256);
     }
 
+#else
 #endif
 
 #if 0
