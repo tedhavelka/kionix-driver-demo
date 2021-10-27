@@ -60,7 +60,7 @@ uint32_t get_diag_messaging_level(enum nn_diagnostic_levels* value_to_return)
 static uint32_t odr_value_has_changed = 0;
 static enum iis2dh_output_data_rates_e requested_odr_present = ODR_0_POWERED_DOWN;
 
-uint32_t set_requested_iis2dh_odr(const enum iis2dh_output_data_rates_e passed_rate)
+uint32_t scoreboard_set_requested_iis2dh_odr(const enum iis2dh_output_data_rates_e passed_rate)
 {
 
     if ( requested_odr_present != passed_rate ) // Output Data Rate changed since last read of this value from scoreboard
@@ -73,7 +73,7 @@ uint32_t set_requested_iis2dh_odr(const enum iis2dh_output_data_rates_e passed_r
 }
 
 
-uint32_t get_requested_iis2dh_odr(enum iis2dh_output_data_rates_e* value_to_return)
+uint32_t scoreboard_get_requested_iis2dh_odr(enum iis2dh_output_data_rates_e* value_to_return)
 {
     *value_to_return = requested_odr_present;
     odr_value_has_changed = 0;

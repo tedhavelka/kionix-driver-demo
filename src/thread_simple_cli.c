@@ -438,13 +438,17 @@ uint32_t store_args_from(const char* input)
     uint32_t input_length = strlen(input);
 // Note global 'argument_count' serves as our present argument index.
 
-
+#ifdef DIAG_COMMAND_PARSING
+#endif
+#ifdef DIAG_STORE_ARGS
 printk("- store_args_from - starting to parse and store args . . .\n");
+#endif
 
     clear_argument_array();
 
+#ifdef DIAG_STORE_ARGS
 printk("- store_args_from - args array cleared, input has length %u,\n", input_length);
-
+#endif
 
     while(
            ( i < input_length ) &&
@@ -461,7 +465,9 @@ printk("- store_args_from - args array cleared, input has length %u,\n", input_l
 // Note the starting position of each successive argument:
         else if ( (present_arg_size == 0) && (input[i] != 0x20) )
         {
+#ifdef DIAG_STORE_ARGS
 printk("- store_args_from - found arg at %u . . .\n", i);
+#endif
             present_arg_start = i;
             present_arg_size++;
         }
@@ -514,14 +520,13 @@ printk("- store_args_from - reached end of processing loop,\n");
 
 
 
-
 uint32_t arg_n(const uint32_t requested_arg, char* return_arg)
 {
     uint32_t rstatus = ROUTINE_OK;
 
     if ( requested_arg <= argument_count )
     {
-        return_arg = argument_array[requested_arg];
+        strncpy(return_arg, argument_array[requested_arg], sizeof(argument_array[requested_arg]));
     }
     else
     {
@@ -560,7 +565,7 @@ uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return)
         }
     }
 
-printk("ZZZZZ - arg-is-decimal - looking at arg '%s' of length %u,\n", argument_array[index_to_arg], arg_len);
+//printk("ZZZZZ - arg-is-decimal - looking at arg '%s' of length %u,\n", argument_array[index_to_arg], arg_len);
 
 // Note 0x30 is the ASCII value for the character zero '0':
 
@@ -617,31 +622,74 @@ uint32_t dev_show_args(void)
 // - ADD COMMANDS - STEP 3:  add CLI routine definitions here
 // *************************************************************************************************
 
+/*
+ *  @Brief   Accept integer values 0-9 and map those to iis2dh Output
+ *           Data Rate bit-wise flags, expressed in iis2dh-registers.h.
+ */
+
 uint32_t output_data_rate_handler(const char* args)
 {
     uint32_t rstatus = 0;
     uint32_t new_data_rate = 0;
-    char arg1[SUPPORTED_ARG_LENGTH] = { 0 };
     char lbuf[SIZE_OF_MESSAGE_MEDIUM] = { 0 };
+    enum iis2dh_output_data_rates_e new_rate = ODR_0_POWERED_DOWN;
 
-    printk_cli("2021-10-25 ODR stub function\n\r");
+//    printk_cli("2021-10-25 ODR stub function\n\r");
 
     if ( argument_count > 0 )
     {
-        rstatus = arg_n(0, arg1);
-        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "- output_data_rate_handler - requested copy of first arg '%s',\n\r", arg1);
-        printk_cli(lbuf);
-
         rstatus = arg_is_decimal(0, &new_data_rate);
 
+#if 0 // DEV BLOCK BEGIN
         snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "- output_data_rate_handler - test first arg decimal yields %u,\n\r", rstatus);
         printk_cli(lbuf);
         snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "- output_data_rate_handler - arg1 as integer = %u,\n\r", new_data_rate);
         printk_cli(lbuf);
+#endif // DEV BLOCK END
+
+        if ( rstatus == 1 )
+        {
+            if ( (new_data_rate >= LOWEST_DATA_RATE_INDEX) && (new_data_rate <= HIGHEST_DATA_RATE_INDEX) )
+            {
+                switch (new_data_rate)
+                {
+                    case 0: new_rate = ODR_0_POWERED_DOWN; break;
+                    case 1: new_rate = ODR_1_HZ; break;
+                    case 2: new_rate = ODR_10_HZ; break;
+                    case 3: new_rate = ODR_25_HZ; break;
+                    case 4: new_rate = ODR_50_HZ; break;
+
+                    case 5: new_rate = ODR_100_HZ; break;
+                    case 6: new_rate = ODR_200_HZ; break;
+                    case 7: new_rate = ODR_400_HZ; break;
+                    case 8: new_rate = ODR_1620_HZ_IN_LOW_POWER_MODE; break;
+                    case 9: new_rate = ODR_5376_HZ_IN_LOW_POWER_MODE; break;
+
+                    default: 
+                            new_rate = ODR_0_POWERED_DOWN;
+                }
+
+                printk("- output_data_rate_handler - calling scoreboard to post new requested data rate...\n");
+                rstatus = scoreboard_set_requested_iis2dh_odr(new_rate);
+            }
+            else
+            {
+                printk("- output_data_rate_handler - WARNING! requested output data rate out of range,\n");
+            }
+
+        } // end scope to handle when first arg is integer value
+
+    } // end scope to handle when there are one or more arguments
+    else
+    {
+        enum iis2dh_output_data_rates_e present_odr_flags;
+        rstatus = scoreboard_get_requested_iis2dh_odr(&present_odr_flags);
+        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "present ODR flags = %u,\n\r", (uint32_t)present_odr_flags);
+        printk_cli(lbuf);
     }
 
-    return 0;
-} 
+    return rstatus;
+}
 
 
 uint32_t iis2dh_sensor_handler(const char* args)
