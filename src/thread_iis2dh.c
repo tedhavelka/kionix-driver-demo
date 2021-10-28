@@ -536,16 +536,37 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
     }
 #endif
 
+#define APPR_ACCELERATION_OF_GRAVITY (9.80665)
+
+    float x_in_g = 0.0;
+    float scale_by = 0.0;
+    int x_axis_reading = readings_data[i];
+    scale_by = ( ( 2.0 * APPR_ACCELERATION_OF_GRAVITY ) / 128.0 );
+
     printk("data from %u readings:\n", count);
     for ( i = 0; i < (count * BYTES_PER_XYZ_READINGS_TRIPLET); i += BYTES_PER_XYZ_READINGS_TRIPLET )
     {
-        printk(" %02X %02X  %02X %02X  %02X %02X  ",
+        if ( readings_data[i] & 0x80 )
+        {
+            x_axis_reading = ~(x_axis_reading);
+            x_axis_reading++;
+        }
+// Here assume/use 2G full scale:
+        x_in_g = x_axis_reading * scale_by;
+        if ( readings_data[i] & 0x80 )
+        {
+            x_in_g *= -1.0;
+        }
+
+//        printk(" %02X %02X  %02X %02X  %02X %02X  ",
+        printk(" %02X %02X  %02X %02X  %02X %02X  . . . X-axis in G = %2.3f",
           readings_data[i],
           readings_data[i + 1],
           readings_data[i + 2],
           readings_data[i + 3],
           readings_data[i + 4],
           readings_data[i + 5]
+          , x_in_g
         );
 
 // ---** CODING MARK **---

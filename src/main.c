@@ -420,21 +420,6 @@ void main(void)
 #endif // NN_DEV__ENABLE_INT_MAIN_TESTS 
 
 
-#if 0
-// --- UART_2 CLI work begin ---
-        if ( uart_for_cli != NULL )
-        {
-            char lbuf[160];
-            memset(lbuf, 0, sizeof(lbuf));
-            unsigned char* msg = lbuf;
-            uart_poll_in(uart_for_cli, msg);
-
-            snprintf(dev_msg, sizeof(dev_msg), "zzz - %s - zzz\n", msg);
-            dmsg(dev_msg, DIAG_NORMAL);
-        }
-// --- UART_2 CLI work end ---
-#endif
-
         k_msleep(SLEEP_TIME_MS);
         ++main_loop_count;
     }
