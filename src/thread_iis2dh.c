@@ -518,13 +518,14 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
         count = 25;
     }
 
-#if 0
+#if 1
     rstatus |= kd_read_peripheral_register(dev,
-                                           (0x80 | IIS2DH_OUT_X_L),
-                                           readings_data[i * 6],
-                                           (BYTES_PER_XYZ_READINGS_TRIPLET* count)
+//                                           (0x80 | IIS2DH_OUT_X_L),
+                                           &iis2dh_x_axis_low_byte_reg, // const at called routine, and Z-API requires pointer type
+                                           readings_data,
+                                           (BYTES_PER_XYZ_READINGS_TRIPLET * count)
                                           );
-#endif
+#else
     for ( i = 0; i < count; i++ )
     {
         rstatus |= kd_read_peripheral_register(dev,
@@ -533,6 +534,7 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
                                            BYTES_PER_XYZ_READINGS_TRIPLET
                                           );
     }
+#endif
 
     printk("data from %u readings:\n", count);
     for ( i = 0; i < (count * BYTES_PER_XYZ_READINGS_TRIPLET); i += BYTES_PER_XYZ_READINGS_TRIPLET )
