@@ -96,6 +96,8 @@
 
 #define COUNT_BYTES_IN_IIS_CONTROL_REGISTER (1)
 
+#define APPR_ACCELERATION_OF_GRAVITY (9.80665)
+
 
 
 //----------------------------------------------------------------------
@@ -478,6 +480,29 @@ static uint32_t ii_accelerometer_stop_acquisition(const struct device *dev)
 
 
 
+float reading_in_g(const uint32_t reading_in_twos_comp, const uint32_t full_scale, const uint32_t res_in_bits)
+{
+    uint32_t reading = (uint32_t)reading_in_twos_comp;
+    float reading_as_float = 0.0;
+    float scale_by_value = ( ( 2.0 * APPR_ACCELERATION_OF_GRAVITY ) / 128.0 );
+    (void)full_scale;
+    (void)res_in_bits;
+
+// Later add check for values > 255, 1023, 4095, e.g. 8- 10- 12-bit readings
+    if ( reading & 0x80 )
+        { reading = ~(reading); reading++; }
+
+    reading_as_float = ( (float)reading * scale_by_value );
+
+    if ( reading & 0x80 )
+        { reading_as_float *= -1.0; }
+
+    return reading_as_float;
+}
+
+
+
+
 static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
 {
 // -- VAR BEGIN ---
@@ -536,37 +561,41 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
     }
 #endif
 
-#define APPR_ACCELERATION_OF_GRAVITY (9.80665)
-
     float x_in_g = 0.0;
-    float scale_by = 0.0;
+    float scale_by_value = 0.0;
     int x_axis_reading = readings_data[i];
-    scale_by = ( ( 2.0 * APPR_ACCELERATION_OF_GRAVITY ) / 128.0 );
+    scale_by_value = ( ( 2.0 * APPR_ACCELERATION_OF_GRAVITY ) / 128.0 );   // divide by 128 as 0 to 127 = about 2G range, 
 
     printk("data from %u readings:\n", count);
     for ( i = 0; i < (count * BYTES_PER_XYZ_READINGS_TRIPLET); i += BYTES_PER_XYZ_READINGS_TRIPLET )
     {
-        if ( readings_data[i] & 0x80 )
+#if 0
+        x_axis_reading = readings_data[i];
+
+        if ( x_axis_reading & 0x80 )
         {
             x_axis_reading = ~(x_axis_reading);
             x_axis_reading++;
         }
 // Here assume/use 2G full scale:
-        x_in_g = x_axis_reading * scale_by;
-        if ( readings_data[i] & 0x80 )
+        x_in_g = ( (float)x_axis_reading * scale_by_value );
+
+        if ( x_axis_reading & 0x80 )
         {
             x_in_g *= -1.0;
         }
-
+#endif
 //        printk(" %02X %02X  %02X %02X  %02X %02X  ",
-        printk(" %02X %02X  %02X %02X  %02X %02X  . . . X-axis in G = %2.3f",
+        printk(" %02X %02X  %02X %02X  %02X %02X  --  x,y,z in G = %2.3fG, %2.3fG, %2.3fG",
           readings_data[i],
           readings_data[i + 1],
           readings_data[i + 2],
           readings_data[i + 3],
           readings_data[i + 4],
-          readings_data[i + 5]
-          , x_in_g
+          readings_data[i + 5],
+          reading_in_g((uint32_t)readings_data[i], 0, 0),
+          reading_in_g((uint32_t)readings_data[i + 2], 0, 0),
+          reading_in_g((uint32_t)readings_data[i + 4], 0, 0)
         );
 
 // ---** CODING MARK **---
