@@ -482,7 +482,8 @@ static uint32_t ii_accelerometer_stop_acquisition(const struct device *dev)
 
 float reading_in_g(const uint32_t reading_in_twos_comp, const uint32_t full_scale, const uint32_t res_in_bits)
 {
-    uint32_t reading = (uint32_t)reading_in_twos_comp;
+    uint32_t reading = reading_in_twos_comp;
+    uint32_t reading_bounded = (reading & 0xFF);
     float reading_as_float = 0.0;
     float scale_by_value = ( ( 2.0 * APPR_ACCELERATION_OF_GRAVITY ) / 128.0 );
     (void)full_scale;
@@ -490,9 +491,13 @@ float reading_in_g(const uint32_t reading_in_twos_comp, const uint32_t full_scal
 
 // Later add check for values > 255, 1023, 4095, e.g. 8- 10- 12-bit readings
     if ( reading & 0x80 )
-        { reading = ~(reading); reading++; }
+    {
+        reading_bounded = ~(reading_bounded);
+        reading_bounded &= 0xFF;   // keep 8-bit bounded reading bounded,
+        reading_bounded++;
+    }
 
-    reading_as_float = ( (float)reading * scale_by_value );
+    reading_as_float = ( (float)reading_bounded * scale_by_value );
 
     if ( reading & 0x80 )
         { reading_as_float *= -1.0; }
@@ -561,7 +566,6 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
     }
 #endif
 
-    float x_in_g = 0.0;
     float scale_by_value = 0.0;
     int x_axis_reading = readings_data[i];
     scale_by_value = ( ( 2.0 * APPR_ACCELERATION_OF_GRAVITY ) / 128.0 );   // divide by 128 as 0 to 127 = about 2G range, 
@@ -569,22 +573,6 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
     printk("data from %u readings:\n", count);
     for ( i = 0; i < (count * BYTES_PER_XYZ_READINGS_TRIPLET); i += BYTES_PER_XYZ_READINGS_TRIPLET )
     {
-#if 0
-        x_axis_reading = readings_data[i];
-
-        if ( x_axis_reading & 0x80 )
-        {
-            x_axis_reading = ~(x_axis_reading);
-            x_axis_reading++;
-        }
-// Here assume/use 2G full scale:
-        x_in_g = ( (float)x_axis_reading * scale_by_value );
-
-        if ( x_axis_reading & 0x80 )
-        {
-            x_in_g *= -1.0;
-        }
-#endif
 //        printk(" %02X %02X  %02X %02X  %02X %02X  ",
         printk(" %02X %02X  %02X %02X  %02X %02X  --  x,y,z in G = %2.3fG, %2.3fG, %2.3fG",
           readings_data[i],
