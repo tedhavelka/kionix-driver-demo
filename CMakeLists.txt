@@ -1,7 +1,12 @@
 ##----------------------------------------------------------------------
-## Kionix driver demo
-## Copyright (c) <team name here>
-## SPDX-License-Identifier: Apache-2.0
+##
+##  Kionix driver demo
+##  Copyright (c) <team name here>
+##  PDX-License-Identifier: Apache-2.0
+##
+##  References:
+##    *  https://stackoverflow.com/questions/31343813/displaying-cmake-variables
+##
 ##----------------------------------------------------------------------
 
 
@@ -44,6 +49,7 @@ zephyr_include_directories($ENV{ZEPHYR_BASE}/drivers/sensor/lis2dh)
 
 # 2021-11-11 - trying to bring in thread_analyzer.h:
 ##zephyr_include_directories($ENV{ZEPHYR_BASE}/include/debug)   // <-- not sufficient
+include_directories(../zephyr/include/debug)
 
 
 target_sources(app PRIVATE src/main.c)
