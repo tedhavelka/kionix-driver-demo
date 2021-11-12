@@ -81,6 +81,8 @@
 //#include "thread_simple_cli.h"   // to provide experimental global vars for simple data sharing
 #include "scoreboard.h"   // to provide experimental global vars for simple data sharing
 
+#include "cli-zephyr-stack-info.h"
+
 
 
 //----------------------------------------------------------------------

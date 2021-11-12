@@ -7,9 +7,12 @@
 //----------------------------------------------------------------------
 
 
-#include <zephyr.h>         // . . .
+//#include <zephyr.h>         // . . .
+#include <sys/printk.h>
 
 #include <stdint.h>         // to provide define of uint32_t
+
+#include <string.h>         // to provide strlen()
 
 // See project top level CMakeLists.txt file for `include_directory()` to provide relative
 // path of Zephyr thread analyzer header file:
@@ -23,8 +26,10 @@
 uint32_t cli__zephyr_2p6p0_stack_statistics(const char* args)
 {
 // void thread_analyzer_print 	( 	void  		)
+printk("ZZTOP\n\r");
+    if ( strlen(args) == 0 ) { } // trivial test to start, to avoid compiler warning - TMH
 
-    thread_analyzer_print();
+//    thread_analyzer_print();
 
     return ROUTINE_OK;
 }
