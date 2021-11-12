@@ -25,11 +25,12 @@
 
 uint32_t cli__zephyr_2p6p0_stack_statistics(const char* args)
 {
-// void thread_analyzer_print 	( 	void  		)
+// void thread_analyzer_print(void)
 printk("ZZTOP\n\r");
+
     if ( strlen(args) == 0 ) { } // trivial test to start, to avoid compiler warning - TMH
 
-//    thread_analyzer_print();
+    thread_analyzer_print();
 
     return ROUTINE_OK;
 }
