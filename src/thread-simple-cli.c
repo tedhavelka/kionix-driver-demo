@@ -156,6 +156,7 @@ uint32_t iis2dh_sensor_handler(const char* args);
 uint32_t help_message(const char* args);
 uint32_t banner_message(const char* args);
 // uint32_t (const char* args);
+extern uint32_t cli__zephyr_2p6p0_stack_statistics(const char* args);
 
 
 //----------------------------------------------------------------------
@@ -195,7 +196,8 @@ struct cli_command_writers_api kd_command_set[] =
     { "iis2dh", "NOT YET IMPLEMENTED - to be general purpose iis2dh configurations command.", &iis2dh_sensor_handler },
     { "help", "show supported Kionix demo CLI commands.", &help_message },
     { "?", "show supported Kionix demo CLI commands.", &help_message },
-    { "banner", "show brief project identifier string for this Zephyr based app.", &banner_message }
+    { "banner", "show brief project identifier string for this Zephyr based app.", &banner_message },
+    { "stacks", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics }
 };
 
 

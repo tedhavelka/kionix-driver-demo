@@ -57,8 +57,9 @@
 // For tests of hand-rolled IIS2DH register config routines:
 #include <drivers/i2c.h>
 
+// Local-to-project headers:
 #include "iis2dh-registers.h"
-
+#include "return-values.h"
 #include "scoreboard.h"
 
 
@@ -92,7 +93,8 @@
 #define IIS2DH_ACCELEROMETER DT_NODELABEL(stmicro_sensor)
 
 
-#define ROUTINE_OK 0  // <-- NEED TO PULL IN LOCAL PROJECT HEADER WITH ENUMERATION OF ROUTINE RETURN VALUES - TMH
+//#define ROUTINE_OK 0  // <-- NEED TO PULL IN LOCAL PROJECT HEADER WITH ENUMERATION OF ROUTINE RETURN VALUES - TMH
+//        ^^^^^^^^^^ provided by header file return-values.h
 
 #define COUNT_BYTES_IN_IIS_CONTROL_REGISTER (1)
 
@@ -105,11 +107,16 @@
 void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3);
 
 
+
+//----------------------------------------------------------------------
+// - SECTION - file scoped variables, arrays, structures
+//----------------------------------------------------------------------
+
 // - SECTION - File scoped or global variables -
 
 #define BYTES_PER_XYZ_READINGS_TRIPLET (6)
 #define FIFO_READINGS_MAXIMUM_COUNT (32)
-    uint8_t readings_data[BYTES_PER_XYZ_READINGS_TRIPLET * (FIFO_READINGS_MAXIMUM_COUNT - 1)];
+static uint8_t readings_data[BYTES_PER_XYZ_READINGS_TRIPLET * (FIFO_READINGS_MAXIMUM_COUNT - 1)];
 #define TRIPLETS_TO_FORMAT_PER_LINE (4)
 
 
@@ -125,6 +132,48 @@ static uint8_t iis2dh_fifo_ctrl_reg = 0;   // 0x2F
 #endif
 
 //static uint32_t iis2dh_thread_sleep_time_in_ms;
+
+// Not fully implemented, meant to track larger sets of time contiguous reagings from FIFO:
+static uint32_t running_total_xyz_readings = 0;
+
+
+//
+// --- FIFO overrun related BEGIN ---
+struct fifo_overrun_event
+{
+    uint32_t reading_index;
+};
+
+#define MAX_OVERRUNS_TRACKED (50)
+struct fifo_overrun_event fifo_overrun_events[MAX_OVERRUNS_TRACKED];
+
+static uint32_t fifo_overrun_count_fsv = 0;
+// --- FIFO overrun related END ---
+//
+
+
+//----------------------------------------------------------------------
+// - SECTION - development routines
+//----------------------------------------------------------------------
+
+// Note, showing FIFO overrun event counts and details is development in
+//  nature, but tracking and responding to them at run time is most
+//  likely real life use case, e.g. production use:
+
+void show_fifo_overruns_summary(void)
+{
+    uint32_t i = 0;
+
+    printk("FIFO overrun events noted from latest x,y,z readings set:\n\n");
+
+    for ( i = 0; i < fifo_overrun_count_fsv; i++ )
+    {   
+        printk("  FIFO overrun %u @ reading %u\n", i, fifo_overrun_events->reading_index);
+    }   
+    printk("\n");
+}
+
+
 
 
 
@@ -524,8 +573,11 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
 // Check for FIFO overrun, indicating missed readings:
     if (( source & FIFO_SOURCE_OVERRUN) != 0 )
     {
+#if 1 // TO-DO create development define for this message:
         printk("- FIFO overrun detected!\n");
-        // return (source & FIFO_SOURCE_OVERRUN);
+#endif
+        fifo_overrun_events[fifo_overrun_count_fsv].reading_index = running_total_xyz_readings;
+        fifo_overrun_count_fsv++;
     }
 
 // Check whether FIFO is empty:
@@ -535,7 +587,7 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
         count = 25;
     }
 
-#if 0
+#if 1
     rstatus |= kd_read_peripheral_register(dev,
                                            &iis2dh_x_axis_low_byte_reg,
                                            readings_data,
@@ -553,7 +605,7 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
 #endif
 
     printk("data from %u readings:\n", count);
-    for ( i = 0; i < count; i++ )
+    for ( i = 0; i < count; i += BYTES_PER_XYZ_READINGS_TRIPLET )
     {
         printk(" %02X %02X  %02X %02X  %02X %02X  ",
           readings_data[i],

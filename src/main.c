@@ -58,9 +58,9 @@ LOG_MODULE_REGISTER(demo);
 #include "diagnostic.h"
 
 // 2021-10-16 -
-#include "thread_iis2dh.h"
-#include "thread_lis2dh.h"
-#include "thread_simple_cli.h"
+#include "thread-iis2dh.h"
+#include "thread-lis2dh.h"
+#include "thread-simple-cli.h"
 #include "scoreboard.h"
 
 
