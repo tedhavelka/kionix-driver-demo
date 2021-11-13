@@ -83,6 +83,8 @@
 
 #include "cli-zephyr-stack-info.h"
 
+#include "thread-simple-cli.h"
+
 
 
 //----------------------------------------------------------------------
@@ -111,8 +113,8 @@
 #define SUPPORTED_ARG_LENGTH     (16)
 
 
-#define SIZE_OF_MESSAGE_SHORT (80)
-#define SIZE_OF_MESSAGE_MEDIUM (160)
+//#define SIZE_OF_MESSAGE_SHORT (80)
+//#define SIZE_OF_MESSAGE_MEDIUM (160)
 
 
 
@@ -136,7 +138,7 @@ static uint32_t argument_count;
 //----------------------------------------------------------------------
 
 void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3);
-uint32_t printk_cli(const char* output);
+//uint32_t printk_cli(const char* output);
 void show_prompt(void);
 
 uint32_t store_args_from(const char* string);
