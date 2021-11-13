@@ -83,7 +83,8 @@
 
 #include "cli-zephyr-stack-info.h"
 
-#include "thread-simple-cli.h"
+#include "thread-simple-cli.h"     // to provide prototype for printk_cli(),
+                                   // ( called earlier than defined in this source file. )
 
 
 

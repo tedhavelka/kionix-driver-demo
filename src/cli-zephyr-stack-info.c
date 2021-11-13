@@ -36,11 +36,12 @@ void kd_thread_print_cb(struct thread_analyzer_info *info)
 {
     char lbuf[SIZE_OF_MESSAGE_MEDIUM] = { 0 };
 
-    print_cli("------------------------------------------------------------------------\n\r");
+    printk_cli("*----------------------------------------------------------------------*\n\r");
+    printk_cli("*- 1112 DEV                                                           *\n\r");
     snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "stack size %u\n\rstack used %u\n\r",
       info->stack_size, info->stack_used);
-    print_cli(lbuf);
-    print_cli("------------------------------------------------------------------------\n\r");
+    printk_cli(lbuf);
+    printk_cli("*----------------------------------------------------------------------*\n\r");
 }
 
 
@@ -52,7 +53,8 @@ printk("ZZTOP\n\r");
 
     if ( strlen(args) == 0 ) { } // trivial test to start, to avoid compiler warning - TMH
 
-    thread_analyzer_print();
+//    thread_analyzer_print();
+    thread_analyzer_run(kd_thread_print_cb);
 
     return ROUTINE_OK;
 }
