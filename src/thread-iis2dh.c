@@ -184,19 +184,27 @@ void show_fifo_overruns_summary(void)
 // https://docs.zephyrproject.org/latest/reference/kernel/threads/index.html#c.K_THREAD_STACK_DEFINE
 
 K_THREAD_STACK_DEFINE(iis2dh_thread_stack_area, IIS2DH_THREAD_STACK_SIZE);
-struct k_thread iis2dh_thread_thread_data;
+struct k_thread iis2dh_thread_data;
 
 
 
 int initialize_thread_iis2dh_task(void)
 {
-    k_tid_t iis2dh_task_tid = k_thread_create(&iis2dh_thread_thread_data, iis2dh_thread_stack_area,
+    int rstatus = 0;
+
+    k_tid_t iis2dh_task_tid = k_thread_create(&iis2dh_thread_data, iis2dh_thread_stack_area,
                                             K_THREAD_STACK_SIZEOF(iis2dh_thread_stack_area),
                                             iis2dh_thread_entry_point,
                                             NULL, NULL, NULL,
                                             IIS2DH_THREAD_PRIORITY,
                                             0,
                                             K_MSEC(1300)); // K_NO_WAIT);
+
+// REF https://docs.zephyrproject.org/2.6.0/reference/kernel/threads/index.html?highlight=k_thread_create#c.k_thread_name_set
+// int k_thread_name_set(k_tid_t thread, const char *str)
+    rstatus = k_thread_name_set(iis2dh_task_tid, "kd_thread_iis2dh");
+    if ( rstatus == 0 ) { } // avoid compiler warning about unused variable - TMH
+
     return (int)iis2dh_task_tid;
 }
 
