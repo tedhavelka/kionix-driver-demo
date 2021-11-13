@@ -4,6 +4,10 @@
 //
 //     File:  cli-zephyr-stack-info.c
 //
+//
+//  Note struct thread_analyzer_info defined in file
+//  './include/debug/thread_analyzer.h'
+//
 //----------------------------------------------------------------------
 
 
@@ -35,13 +39,20 @@
 void kd_thread_print_cb(struct thread_analyzer_info *info)
 {
     char lbuf[SIZE_OF_MESSAGE_MEDIUM] = { 0 };
-
+    static uint32_t exec_count = 1;
+#if 0
     printk_cli("*----------------------------------------------------------------------*\n\r");
     printk_cli("*- 1112 DEV                                                           *\n\r");
     snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "stack size %u\n\rstack used %u\n\r",
       info->stack_size, info->stack_used);
     printk_cli(lbuf);
     printk_cli("*----------------------------------------------------------------------*\n\r");
+#else
+    snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "%u)  '%s' stack size %u bytes, stack used %u bytes\n\r",
+      exec_count, info->name, info->stack_size, info->stack_used);
+    printk_cli(lbuf);
+#endif
+    exec_count++;
 }
 
 

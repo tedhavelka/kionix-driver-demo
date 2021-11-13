@@ -231,6 +231,25 @@ int initialize_thread_simple_cli_task(void)
 
 
 
+uint32_t printk_cli(const char* output)
+{
+    uint32_t rstatus = 0;
+    uint32_t output_byte_count = strlen(output);
+
+    if ( uart_for_cli == NULL )
+    {
+        return 1;
+    }
+
+    for ( int i = 0; i < output_byte_count; i++ )
+    {
+        uart_poll_out(uart_for_cli, output[i]);
+    }
+    return rstatus;
+} 
+
+
+
 void clear_argument_array(void)
 {
     int i = 0;
@@ -268,25 +287,6 @@ void initialize_command_handler(void)
     printk_cli("\n\n\n\n\n");
     show_prompt();
 }
-
-
-
-uint32_t printk_cli(const char* output)
-{
-    uint32_t rstatus = 0;
-    uint32_t output_byte_count = strlen(output);
-
-    if ( uart_for_cli == NULL )
-    {
-        return 1;
-    }
-
-    for ( int i = 0; i < output_byte_count; i++ )
-    {
-        uart_poll_out(uart_for_cli, output[i]);
-    }
-    return rstatus;
-} 
 
 
 
