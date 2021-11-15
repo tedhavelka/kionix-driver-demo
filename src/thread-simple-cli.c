@@ -163,7 +163,7 @@ uint32_t arg_is_hex(const uint32_t index_to_arg, int* value);
 // command handler prototypes:
 uint32_t output_data_rate_handler(const char* args);
 uint32_t iis2dh_sensor_handler(const char* args);
-uint32_t help_message(const char* args);
+uint32_t cli__help_message(const char* args);
 uint32_t banner_message(const char* args);
 
 // cli-zephyr-stack-info.h . . .
@@ -206,10 +206,10 @@ struct cli_command_writers_api
 
 struct cli_command_writers_api kd_command_set[] =
 {
-    { "odr", "IN PROGRESS - to be iis2dh Output Data Rate (ODR) set and get command.", &output_data_rate_handler },
+    { "odr", "IIS2DH Output Data Rate (ODR) set and get command.", &output_data_rate_handler },
     { "iis2dh", "NOT YET IMPLEMENTED - to be general purpose iis2dh configurations command.", &iis2dh_sensor_handler },
-    { "help", "show supported Kionix demo CLI commands.", &help_message },
-    { "?", "show supported Kionix demo CLI commands.", &help_message },
+    { "help", "show supported Kionix demo CLI commands.", &cli__help_message },
+    { "?", "show supported Kionix demo CLI commands.", &cli__help_message },
     { "banner", "show brief project identifier string for this Zephyr based app.", &banner_message },
 //    { "stacks", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
     { "st", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
@@ -719,7 +719,7 @@ uint32_t iis2dh_sensor_handler(const char* args)
 
 
 
-uint32_t help_message(const char* args)
+uint32_t cli__help_message(const char* args)
 {
 #define WIDTH_OF_BULLET_POINT (3)
 #define WIDTH_OF_COMMAND_TOKEN_OR_NAME (12)
@@ -727,18 +727,15 @@ uint32_t help_message(const char* args)
 
     char lbuf[SIZE_OF_MESSAGE_MEDIUM];
 
-    printk_cli("Kionix demo CLI commands:\n\r");
+    printk_cli("Kionix demo CLI commands:\n\r\n\r");
     for ( int i = 0; i < implemented_command_count; i++ )
     {
-//        snprintf(lbuf, SIZE_OF_SHORT_MESSAGE, "  %u)  %s\n\r", i, kd_command_set[i].token_to_represent_command);
         snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "  %*u)  %s%*s   . . . %s\n\r",
                    WIDTH_OF_BULLET_POINT,
                    i,
                    kd_command_set[i].token_to_represent_command,
-//                   WIDTH_OF_COMMAND_TOKEN_OR_NAME,
                    (WIDTH_OF_COMMAND_TOKEN_OR_NAME - strlen(kd_command_set[i].token_to_represent_command)),
                    " ",
-//                   WIDTH_OF_COMMAND_DESCRIPTION,
                    kd_command_set[i].description
                  );
 
@@ -849,6 +846,31 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
     printk("parsed command '%s',\n", command);
     printk("and arguments '%s'\n", args);
     printk("checking %u implemented Kionix demo commands...\n", ((sizeof(kd_command_set) / sizeof(struct cli_command_writers_api)) - 0));
+#endif
+
+
+
+
+#if 0
+// Formatting example from cli__help_message routine:
+
+    printk_cli("Kionix demo CLI commands:\n\r\n\r");
+    for ( int i = 0; i < implemented_command_count; i++ )
+    {
+//        snprintf(lbuf, SIZE_OF_SHORT_MESSAGE, "  %u)  %s\n\r", i, kd_command_set[i].token_to_represent_command);
+        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "  %*u)  %s%*s   . . . %s\n\r",
+                   WIDTH_OF_BULLET_POINT,
+                   i,
+                   kd_command_set[i].token_to_represent_command,
+//                   WIDTH_OF_COMMAND_TOKEN_OR_NAME,
+                   (WIDTH_OF_COMMAND_TOKEN_OR_NAME - strlen(kd_command_set[i].token_to_represent_command)),
+                   " ",
+//                   WIDTH_OF_COMMAND_DESCRIPTION,
+                   kd_command_set[i].description
+                 );
+
+        printk_cli(lbuf);
+    }
 #endif
 
 

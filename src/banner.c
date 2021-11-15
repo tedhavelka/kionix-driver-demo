@@ -49,8 +49,8 @@ uint32_t cli__kd_version(const char* args)
     uint32_t rstatus = ROUTINE_OK;
 
     rstatus = latest_version_string(lbuf);
-    printk_cli("Kionix Driver Demo version:  ");
-    printk_cli(lbuf);
+//    printk_cli("Kionix Driver Demo version:  ");
+//    printk_cli(lbuf);
     printk_cli("\n\r\n\r");
 
     return rstatus;
