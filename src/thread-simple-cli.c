@@ -165,8 +165,12 @@ uint32_t output_data_rate_handler(const char* args);
 uint32_t iis2dh_sensor_handler(const char* args);
 uint32_t help_message(const char* args);
 uint32_t banner_message(const char* args);
-// uint32_t (const char* args);
+
+// cli-zephyr-stack-info.h . . .
 extern uint32_t cli__zephyr_2p6p0_stack_statistics(const char* args);
+// banner.h . . .
+extern uint32_t cli__kd_version(const char* args);
+
 
 
 //----------------------------------------------------------------------
@@ -207,7 +211,10 @@ struct cli_command_writers_api kd_command_set[] =
     { "help", "show supported Kionix demo CLI commands.", &help_message },
     { "?", "show supported Kionix demo CLI commands.", &help_message },
     { "banner", "show brief project identifier string for this Zephyr based app.", &banner_message },
-    { "stacks", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics }
+//    { "stacks", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
+    { "st", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
+    { "version", "show this Kionix Driver Demo version info", &cli__kd_version }
+//    { "ver", "show this Kionix Driver Demo version info", &cli__kd_version }
 };
 
 

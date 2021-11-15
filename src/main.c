@@ -63,6 +63,8 @@ LOG_MODULE_REGISTER(demo);
 #include "thread-simple-cli.h"
 #include "scoreboard.h"
 
+#include "version.h"
+
 
 
 //----------------------------------------------------------------------
