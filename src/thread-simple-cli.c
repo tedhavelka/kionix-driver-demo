@@ -75,10 +75,15 @@
 // 2021-10-05 - CLI incorporation work, see Zephyr v2.6.0 file "zephyr/subsys/console/tty.c"
 #include <drivers/uart.h>        // to provide uart_poll_in()
 
+
+//
+// Project specific includes:
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 #include "diagnostic.h"
 #include "return-values.h"
+#include "kionix-demo-errors.h"
 
-//#include "thread_simple_cli.h"   // to provide experimental global vars for simple data sharing
 #include "scoreboard.h"   // to provide experimental global vars for simple data sharing
 
 #include "cli-zephyr-stack-info.h"

@@ -23,6 +23,7 @@ enum nn_diagnostic_levels
 
 #define SIZE_OF_MESSAGE_SHORT (80)
 #define SIZE_OF_MESSAGE_MEDIUM (160)
+#define DEFAULT_MESSAGE_SIZE (256)
 
 
 // Function prototypes:

@@ -199,10 +199,12 @@ void main(void)
 //    int ret;
     uint32_t rstatus = 0;
 
+    int thread_set_up_status = 0;
+
     int sensor_api_status = 0;
     struct sensor_value requested_config;
 
-    char dev_msg[256];
+    char lbuf[DEFAULT_MESSAGE_SIZE];
 // --- LOCAL VAR END ---
 
 
@@ -243,23 +245,29 @@ void main(void)
 //    uint32_t i = 0;
 
 
-    if (dev_accelerometer == NULL) {
-        dmsg("Failed to init Kionix sensor device pointer!\n", PROJECT_DIAG_LEVEL);
-        dmsg("firmware exiting early, done.\n\n", PROJECT_DIAG_LEVEL);
-        return;
-    }
-
-#if 1
-    if (!device_is_ready(dev_accelerometer))
+    if (dev_accelerometer == NULL)
     {
-        snprintf(dev_msg, sizeof(dev_msg), "Device %s is not ready\n", dev_accelerometer->name);
-        dmsg(dev_msg, PROJECT_DIAG_LEVEL);
-        return;
+        dmsg("Failed to init Kionix sensor device pointer!\n", PROJECT_DIAG_LEVEL);
+        snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "Zephyr macros '(DT_LABEL(KIONIX_ACCELEROMETER))' expand to value '%s'\n",
+          (DT_LABEL(KIONIX_ACCELEROMETER)));
+        dmsg(lbuf, PROJECT_DIAG_LEVEL);
+//        dmsg("firmware exiting early, done.\n\n", PROJECT_DIAG_LEVEL);
+//        return;
     }
     else
-#endif
     {
-        dmsg("- SUCCESS - found Kionix accelerometer and device is ready\n", PROJECT_DIAG_LEVEL);
+#if 1
+        if (!device_is_ready(dev_accelerometer))
+        {
+            snprintf(lbuf, sizeof(lbuf), "Device %s is not ready\n", dev_accelerometer->name);
+            dmsg(lbuf, PROJECT_DIAG_LEVEL);
+            return;
+        }
+        else
+#endif
+        {
+            dmsg("- SUCCESS - found Kionix accelerometer and device is ready\n", PROJECT_DIAG_LEVEL);
+        }
     }
 
 
@@ -276,32 +284,40 @@ void main(void)
 //  zephyr/include/drivers/sensor.h.
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-    if ( DEV_TEST__ENABLE_KX132_1211_ASYNCHRONOUS_READINGS == 1 )
+    if (dev_accelerometer != NULL)
     {
-        requested_config.val1 = KX132_ENABLE_ASYNC_READINGS;
+        if ( DEV_TEST__ENABLE_KX132_1211_ASYNCHRONOUS_READINGS == 1 )
+        {
+            requested_config.val1 = KX132_ENABLE_ASYNC_READINGS;
 
-        sensor_api_status = sensor_attr_set(
-          dev_accelerometer,
-          SENSOR_CHAN_ALL,
-          SENSOR_ATTR_PRIV_START,          
-          &requested_config
-        );
+            sensor_api_status = sensor_attr_set(
+              dev_accelerometer,
+              SENSOR_CHAN_ALL,
+              SENSOR_ATTR_PRIV_START,          
+              &requested_config
+            );
+        }
+
+        if ( DEV_TEST__SET_KX132_1211_OUTPUT_DATA_RATE == 1 )
+        {
+            requested_config.val1 = KX132_ENABLE_ASYNC_READINGS;
+            requested_config.val2 = KX132_ODR_3200_HZ;
+
+            sensor_api_status = sensor_attr_set(
+              dev_accelerometer,
+              SENSOR_CHAN_ALL,
+              SENSOR_ATTR_PRIV_START,          
+              &requested_config
+            );
+        }
+
+        thread_set_up_status = 0;
+    }
+    else
+    {
+        thread_set_up_status = 1;
     }
 
-    if ( DEV_TEST__SET_KX132_1211_OUTPUT_DATA_RATE == 1 )
-    {
-        requested_config.val1 = KX132_ENABLE_ASYNC_READINGS;
-        requested_config.val2 = KX132_ODR_3200_HZ;
-
-        sensor_api_status = sensor_attr_set(
-          dev_accelerometer,
-          SENSOR_CHAN_ALL,
-          SENSOR_ATTR_PRIV_START,          
-          &requested_config
-        );
-    }
-
-    int thread_set_up_status = 0;
 
 #if 0
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -324,8 +340,10 @@ void main(void)
 
 
 #if NN_DEV__ENABLE_THREAD_IIS2DH_SENSOR == 1
-    dmsg("- DEV - starting IIS2DH test thread . . .\n", DIAG_NORMAL);
-    thread_set_up_status = initialize_thread_iis2dh_task();
+    {
+        dmsg("- DEV - starting IIS2DH test thread . . .\n", DIAG_NORMAL);
+        thread_set_up_status = initialize_thread_iis2dh_task();
+    }
 #endif
 
 #if NN_DEV__ENABLE_THREAD_LIS2DH_SENSOR == 1
@@ -369,45 +387,54 @@ void main(void)
 
 #if NN_DEV__ENABLE_INT_MAIN_TESTS == 1
 
-        if ( DEV_TEST__FETCH_AND_GET_MANUFACTURER_ID )
+        if (dev_accelerometer != NULL)
         {
-            sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID);
-            sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID, &value);
 
-            snprintf(dev_msg, sizeof(dev_msg), "main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer %d\n", value.val1);
-            dmsg(dev_msg, PROJECT_DIAG_LEVEL);
-            snprintf(dev_msg, sizeof(dev_msg), "main.c - sensor_value.val2 holds %d\n", value.val2);
-            dmsg(dev_msg, PROJECT_DIAG_LEVEL);
-            data_from_sensor.as_32_bit_integer = value.val1;
-
-            dmsg("main.c - value.val1 as bytes:  ", PROJECT_DIAG_LEVEL);
-            for ( i = 0; i < sizeof(int); i++ )
+            if ( DEV_TEST__FETCH_AND_GET_MANUFACTURER_ID )
             {
-                snprintf(dev_msg, sizeof(dev_msg), "0x%2X ", data_from_sensor.as_bytes[i]);
-                dmsg(dev_msg, PROJECT_DIAG_LEVEL);
+                sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID);
+                sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID, &value);
+
+                snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer %d\n", value.val1);
+                dmsg(lbuf, PROJECT_DIAG_LEVEL);
+                snprintf(lbuf, sizeof(lbuf), "main.c - sensor_value.val2 holds %d\n", value.val2);
+                dmsg(lbuf, PROJECT_DIAG_LEVEL);
+                data_from_sensor.as_32_bit_integer = value.val1;
+
+                dmsg("main.c - value.val1 as bytes:  ", PROJECT_DIAG_LEVEL);
+                for ( i = 0; i < sizeof(int); i++ )
+                {
+                    snprintf(lbuf, sizeof(lbuf), "0x%2X ", data_from_sensor.as_bytes[i]);
+                    dmsg(lbuf, PROJECT_DIAG_LEVEL);
+                }
+                dmsg("  \"", PROJECT_DIAG_LEVEL);
+                for ( i = 0; i < sizeof(int); i++ )
+                {
+                    snprintf(lbuf, sizeof(lbuf), " %c ", data_from_sensor.as_bytes[i]);
+                    dmsg(lbuf, PROJECT_DIAG_LEVEL);
+                }
+                dmsg("\"\n", PROJECT_DIAG_LEVEL);
             }
-            dmsg("  \"", PROJECT_DIAG_LEVEL);
-            for ( i = 0; i < sizeof(int); i++ )
+
+            if ( DEV_TEST__FETCH_AND_GET_PART_ID )
             {
-                snprintf(dev_msg, sizeof(dev_msg), " %c ", data_from_sensor.as_bytes[i]);
-                dmsg(dev_msg, PROJECT_DIAG_LEVEL);
+                sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_PART_ID);
+                sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_PART_ID, &value);
+                snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor reports part ID of %d\n", value.val1);
+                dmsg(lbuf, PROJECT_DIAG_LEVEL);
             }
-            dmsg("\"\n", PROJECT_DIAG_LEVEL);
-        }
 
-        if ( DEV_TEST__FETCH_AND_GET_PART_ID )
+            if ( DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ )
+            {
+                sensor_api_status = sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_ACCEL_XYZ);
+            }
+
+        } 
+        else 
         {
-            sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_PART_ID);
-            sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_PART_ID, &value);
-            snprintf(dev_msg, sizeof(dev_msg), "main.c - Kionix sensor reports part ID of %d\n", value.val1);
-            dmsg(dev_msg, PROJECT_DIAG_LEVEL);
-        }
-
-        if ( DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ )
-        {
-            sensor_api_status = sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_ACCEL_XYZ);
-        }
-
+            dmsg("- WARNING - problem initializing KX132 Zephyr device pointer,", PROJECT_DIAG_LEVEL);
+            dmsg("- WARNING + therefore not exercising features of this sensor.", PROJECT_DIAG_LEVEL);
+        } 
 
 // Output periodic or multi-phasic blank line to highlight scrolling in terminal window (note 1):
 
@@ -429,8 +456,8 @@ void main(void)
             unsigned char* msg = lbuf;
             uart_poll_in(uart_for_cli, msg);
 
-            snprintf(dev_msg, sizeof(dev_msg), "zzz - %s - zzz\n", msg);
-            dmsg(dev_msg, DIAG_NORMAL);
+            snprintf(lbuf, sizeof(lbuf), "zzz - %s - zzz\n", msg);
+            dmsg(lbuf, DIAG_NORMAL);
         }
 // --- UART_2 CLI work end ---
 #endif
