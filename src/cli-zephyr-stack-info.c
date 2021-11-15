@@ -27,7 +27,7 @@
 // Kionix Driver Demo headers:
 #include "return-values.h"
 #include "diagnostic.h"
-#include "thread-simple-cli.h"
+//#include "thread-simple-cli.h"
 
 
 

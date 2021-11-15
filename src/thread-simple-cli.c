@@ -231,19 +231,19 @@ int initialize_thread_simple_cli_task(void)
 
 
 
-uint32_t printk_cli(const char* output)
+uint32_t printk_cli(const char* message)
 {
     uint32_t rstatus = 0;
-    uint32_t output_byte_count = strlen(output);
+    uint32_t message_byte_count = strlen(message);
 
     if ( uart_for_cli == NULL )
     {
-        return 1;
+        return KD_ERROR__HANDLE_TO_ALTERNATE_UART_NULL;
     }
 
-    for ( int i = 0; i < output_byte_count; i++ )
+    for ( int i = 0; i < message_byte_count; i++ )
     {
-        uart_poll_out(uart_for_cli, output[i]);
+        uart_poll_out(uart_for_cli, message[i]);
     }
     return rstatus;
 } 

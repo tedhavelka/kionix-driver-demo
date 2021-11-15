@@ -51,6 +51,8 @@ zephyr_include_directories($ENV{ZEPHYR_BASE}/drivers/sensor/lis2dh)
 ##zephyr_include_directories($ENV{ZEPHYR_BASE}/include/debug)   // <-- not sufficient
 include_directories(../zephyr/include/debug)
 
+zephyr_include_directories(../kionix-drivers/drivers/kionix/kx132-1211)
+
 
 target_sources(app PRIVATE src/main.c)
 target_sources(app PRIVATE src/diagnostic.c)

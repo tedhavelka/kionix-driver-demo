@@ -5,3 +5,6 @@
 mainmenu "Kionix Zephyr Driver Demo"
 
 source "Kconfig.zephyr"
+
+## 2021-11-15 MON
+rsource "../kionix-drivers/Kconfig"
