@@ -30,4 +30,9 @@ struct acc_reading_triplet
 #define CLEAR_FLAG VALUE_OF_FLAG_CLEARED
 
 
+// 2021-11-15 - output line and data formatting:
+#define ONE_NEWLINE "\n\r"
+#define TWO_NEWLINES "\n\r\n\r"
+
+
 #endif // _COMMON_H

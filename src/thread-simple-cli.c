@@ -770,9 +770,9 @@ uint32_t cli__help_message(const char* args)
     printk_cli("Kionix demo CLI commands:\n\r\n\r");
     for ( int i = 0; i < implemented_command_count; i++ )
     {
-        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "  %*u)  %s%*s   . . . %s\n\r",
+        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, " %*u)  %s%*s   . . . %s\n\r",
                    WIDTH_OF_BULLET_POINT,
-                   i,
+                   (i + 1),
                    kd_command_set[i].token_to_represent_command,
                    (WIDTH_OF_COMMAND_TOKEN_OR_NAME - strlen(kd_command_set[i].token_to_represent_command)),
                    " ",

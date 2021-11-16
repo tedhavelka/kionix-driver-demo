@@ -18,8 +18,9 @@
 // 2021-11-16 Stanza added to CMakeLists.txt file "include_directories(../zephyr/include)" enables:
 #include <kernel.h>                // to provide k_cycle_get_32()
 
-#include "diagnostic.h"            // to provide prototype for printk_cli()
-#include "return-values.h"         // to provide prototype for printk_cli()
+#include "common.h"                //
+#include "diagnostic.h"            //
+#include "return-values.h"         //
 #include "thread-simple-cli.h"     // to provide prototype for printk_cli()
 
 
@@ -41,7 +42,8 @@ uint32_t cli__show_zephyr_kernel_runtime_cycle_count(const char* args)
     uint32_t cycle_count = 0;
 
     cycle_count = k_cycle_get_32();
-    snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "Zephyr kernel at %u cycles\n\r", cycle_count);
+    snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "%sZephyr kernel at %u cycles\n\r",
+      ONE_NEWLINE, cycle_count);
     printk_cli(lbuf);
 
     return ROUTINE_OK;
