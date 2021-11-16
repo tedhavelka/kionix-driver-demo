@@ -249,8 +249,10 @@ void main(void)
 
     if (dev_accelerometer == NULL)
     {
-        dmsg("Failed to init Kionix sensor device pointer!\n", PROJECT_DIAG_LEVEL);
-        snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "Zephyr macros '(DT_LABEL(KIONIX_ACCELEROMETER))' expand to value '%s'\n",
+        dmsg("-\n- WARNING - Failed to init Kionix sensor device pointer!\n-\n",
+          PROJECT_DIAG_LEVEL);
+        snprintf(lbuf, DEFAULT_MESSAGE_SIZE,
+          "-\n- INFO - Zephyr macros '(DT_LABEL(KIONIX_ACCELEROMETER))' expand to value '%s'\n-\n",
           (DT_LABEL(KIONIX_ACCELEROMETER)));
         dmsg(lbuf, PROJECT_DIAG_LEVEL);
 //        dmsg("firmware exiting early, done.\n\n", PROJECT_DIAG_LEVEL);

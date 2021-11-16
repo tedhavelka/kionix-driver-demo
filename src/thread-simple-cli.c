@@ -90,6 +90,7 @@
 
 #include "thread-simple-cli.h"     // to provide prototype for printk_cli(),
                                    // ( called earlier than defined in this source file. )
+#include "banner.h"
 
 
 
@@ -144,7 +145,6 @@ static uint32_t argument_count;
 //----------------------------------------------------------------------
 
 void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3);
-//uint32_t printk_cli(const char* output);
 void show_prompt(void);
 
 uint32_t store_args_from(const char* string);
@@ -164,12 +164,14 @@ uint32_t arg_is_hex(const uint32_t index_to_arg, int* value);
 uint32_t output_data_rate_handler(const char* args);
 uint32_t iis2dh_sensor_handler(const char* args);
 uint32_t cli__help_message(const char* args);
-uint32_t banner_message(const char* args);
+//uint32_t banner_message(const char* args);
 
 // cli-zephyr-stack-info.h . . .
 extern uint32_t cli__zephyr_2p6p0_stack_statistics(const char* args);
 // banner.h . . .
 extern uint32_t cli__kd_version(const char* args);
+// banner.h . . .
+extern uint32_t cli__banner_message(const char* args);
 
 
 
@@ -210,7 +212,7 @@ struct cli_command_writers_api kd_command_set[] =
     { "iis2dh", "NOT YET IMPLEMENTED - to be general purpose iis2dh configurations command.", &iis2dh_sensor_handler },
     { "help", "show supported Kionix demo CLI commands.", &cli__help_message },
     { "?", "show supported Kionix demo CLI commands.", &cli__help_message },
-    { "banner", "show brief project identifier string for this Zephyr based app.", &banner_message },
+    { "banner", "show brief project identifier string for this Zephyr based app.", &cli__banner_message },
 //    { "stacks", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
     { "st", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
     { "version", "show this Kionix Driver Demo version info", &cli__kd_version }
@@ -276,9 +278,26 @@ void clear_argument_array(void)
 
 
 
+/*
+ *----------------------------------------------------------------------
+ *  @Description:  routine to initialize simple command line interface,
+ *     carries out following tasks:
+ *
+ *     +  clears command history (history not yet implemented 2021-11-15)
+ *     +  clears index to current command in history (planned to be a ring buffer history)
+ *     +  clears a global index used to traverse bytes in command token
+ *     +  clears array of latest parsed command line arguments (tokens following command)
+ *     +  displays given app banner message
+ *     +  displays first instance of command line prompt
+ *
+ *  @Note  
+ *----------------------------------------------------------------------
+ */
+
 void initialize_command_handler(void)
 {
     int i = 0;
+    uint32_t rstatus = ROUTINE_OK;
 
     memset(latest_command, 0, sizeof(latest_command));
     for ( i = 0; i < SIZE_COMMAND_HISTORY; i++ )
@@ -297,6 +316,7 @@ void initialize_command_handler(void)
 
 // First stuff out the CLI UART:
     printk_cli("\n\n\n\n\n");
+    rstatus = cli__banner_message("placeholder_args");
     show_prompt();
 }
 
@@ -435,7 +455,21 @@ uint32_t build_command_string(const char* latest_input, const struct device* cal
     {
 // When both active, following two lines an effective "\n\r" test:
 //        uart_poll_out(callers_uart, newline_string[0]);
-        uart_poll_out(callers_uart, latest_input[0]);
+
+// --- 1115 DEV BEGIN ---
+// bug fix, attempting to correct prompt and command entered overwriting:
+//        uart_poll_out(callers_uart, latest_input[0]);
+        if ( strlen(latest_input) > 1 )
+        {
+            printk_cli("\n\r");
+        }
+        else
+        {
+            uart_poll_out(callers_uart, latest_input[0]);
+//            printk_cli("\n\r");
+        }
+// --- 1115 DEV END ---
+
         rstatus = command_handler(latest_command);
         clear_latest_command_string();
     }
@@ -747,6 +781,7 @@ uint32_t cli__help_message(const char* args)
 
 
 
+#if 0
 uint32_t banner_message(const char* args)
 {
     printk_cli("\n--\n\r");
@@ -755,7 +790,7 @@ uint32_t banner_message(const char* args)
     printk_cli("--\n\r");
     return 0;
 }
-
+#endif
 
 
 

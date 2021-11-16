@@ -64,7 +64,8 @@ printk("ZZTOP\n\r");
 
     if ( strlen(args) == 0 ) { } // trivial test to start, to avoid compiler warning - TMH
 
-//    thread_analyzer_print();
+    printk_cli("\r");
+//    thread_analyzer_print();  // <-- this routine prints to Zephyr app's preferred console UART
     thread_analyzer_run(kd_thread_print_cb);
 
     return ROUTINE_OK;
