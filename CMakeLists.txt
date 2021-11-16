@@ -51,6 +51,7 @@ zephyr_include_directories($ENV{ZEPHYR_BASE}/drivers/sensor/lis2dh)
 ##zephyr_include_directories($ENV{ZEPHYR_BASE}/include/debug)   // <-- not sufficient
 include_directories(../zephyr/include/debug)
 
+# 2021-11-15 - Unexpected need to add this stanza when today `west update` no longer pulls in kionix-drivers dependency:
 zephyr_include_directories(../kionix-drivers/drivers/kionix/kx132-1211)
 
 

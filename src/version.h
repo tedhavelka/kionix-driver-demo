@@ -8,6 +8,7 @@ enum kionix_driver_branches_e
     KD_BRANCH_MAIN,
 // zephyr-thread-analyzer-work-002
     KD_BRANCH_ZEPHYR_THREAD_ANALYZER_WORK_002,
+    KD_BRANCH_ZEPHYR_THREAD_ANALYZER_WORK_003,
 //    KD_BRANCH_
 
     KD_ENUMERATED_BRANCHES_ENTRY_LAST

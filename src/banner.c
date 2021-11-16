@@ -25,15 +25,9 @@
 
 uint32_t latest_version_string(char* callers_buffer, uint32_t option)
 {
-/*
-#define KD_VERSION_NUMBER_MAJOR    1
-#define KD_VERSION_NUMBER_MINOR    0
-#define KD_VERSION_NUMBER_BRANCH
-*/
-
     if ( callers_buffer != NULL )
     {
-        snprintf(callers_buffer, KD_VERSION_STRING_LENGTH, "Kionix Driver Demo v%u.%u.%u",
+        snprintf(callers_buffer, KD_VERSION_STRING_LENGTH, "KD Demo v%u.%u.%u",
           KD_VERSION_NUMBER_MAJOR, KD_VERSION_NUMBER_MINOR, KD_VERSION_NUMBER_BRANCH);
     }
 
