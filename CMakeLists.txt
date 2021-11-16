@@ -48,11 +48,14 @@ zephyr_include_directories($ENV{ZEPHYR_BASE}/drivers/sensor/iis2dh)
 zephyr_include_directories($ENV{ZEPHYR_BASE}/drivers/sensor/lis2dh)
 
 # 2021-11-11 - trying to bring in thread_analyzer.h:
-##zephyr_include_directories($ENV{ZEPHYR_BASE}/include/debug)   // <-- not sufficient
+##zephyr_include_directories($ENV{ZEPHYR_BASE}/include/debug)   // <-- not sufficient, or rather not a correct path - TMH
 include_directories(../zephyr/include/debug)
 
-# 2021-11-15 - Unexpected need to add this stanza when today `west update` no longer pulls in kionix-drivers dependency:
-zephyr_include_directories(../kionix-drivers/drivers/kionix/kx132-1211)
+### 2021-11-15 - Unexpected need to add this stanza when today `west update` no longer pulls in kionix-drivers dependency:
+##zephyr_include_directories(../kionix-drivers/drivers/kionix/kx132-1211)
+
+# 2021-11-16 - attempt to utilize Zephyr kernel timing reporting:
+include_directories(../zephyr/include)
 
 
 target_sources(app PRIVATE src/main.c)
@@ -61,10 +64,11 @@ target_sources(app PRIVATE src/thread-iis2dh.c)
 target_sources(app PRIVATE src/thread-lis2dh.c)
 
 target_sources(app PRIVATE src/scoreboard.c)
+target_sources(app PRIVATE src/banner.c)
 
 target_sources(app PRIVATE src/thread-simple-cli.c)
 target_sources(app PRIVATE src/cli-zephyr-stack-info.c)
-target_sources(app PRIVATE src/banner.c)
+target_sources(app PRIVATE src/cli-zephyr-kernel-timing.c)
 
 
 

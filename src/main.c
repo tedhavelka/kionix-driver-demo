@@ -1,9 +1,11 @@
 /*
- * Copyright (c) 2021 Neela Nurseries
+ *  Project:  Kionix Driver Demo (Zephyr RTOS based app)
  *
- * Based on 2016 Intel Corporation sample Zephyr app, "basic/blinky"
+ *  Copyright (c) 2021 Neela Nurseries
  *
- * SPDX-License-Identifier: Apache-2.0
+ *  Based on 2016 Intel Corporation sample Zephyr app, "basic/blinky"
+ *
+ *  SPDX-License-Identifier: Apache-2.0
  */
 
 

@@ -83,14 +83,17 @@
 #include "diagnostic.h"
 #include "return-values.h"
 #include "kionix-demo-errors.h"
+#include "banner.h"
 
-#include "scoreboard.h"   // to provide experimental global vars for simple data sharing
+// Thread and module data sharing module:
+#include "scoreboard.h"            // to provide experimental global vars for simple data sharing
 
+// Individual and small command set routine definitions:
 #include "cli-zephyr-stack-info.h"
+#include "cli-zephyr-kernel-timing.h"
 
 #include "thread-simple-cli.h"     // to provide prototype for printk_cli(),
                                    // ( called earlier than defined in this source file. )
-#include "banner.h"
 
 
 
@@ -172,6 +175,7 @@ extern uint32_t cli__zephyr_2p6p0_stack_statistics(const char* args);
 extern uint32_t cli__kd_version(const char* args);
 // banner.h . . .
 extern uint32_t cli__banner_message(const char* args);
+// cli-zephyr-kernel-timing.h . . .
 
 
 
@@ -208,15 +212,17 @@ struct cli_command_writers_api
 
 struct cli_command_writers_api kd_command_set[] =
 {
-    { "odr", "IIS2DH Output Data Rate (ODR) set and get command.", &output_data_rate_handler },
-    { "iis2dh", "NOT YET IMPLEMENTED - to be general purpose iis2dh configurations command.", &iis2dh_sensor_handler },
     { "help", "show supported Kionix demo CLI commands.", &cli__help_message },
     { "?", "show supported Kionix demo CLI commands.", &cli__help_message },
     { "banner", "show brief project identifier string for this Zephyr based app.", &cli__banner_message },
+    { "version", "show this Kionix Driver Demo version info", &cli__kd_version },
+
+    { "odr", "IIS2DH Output Data Rate (ODR) set and get command.", &output_data_rate_handler },
+    { "iis2dh", "NOT YET IMPLEMENTED - to be general purpose iis2dh configurations command.", &iis2dh_sensor_handler },
 //    { "stacks", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
     { "st", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
-    { "version", "show this Kionix Driver Demo version info", &cli__kd_version }
-//    { "ver", "show this Kionix Driver Demo version info", &cli__kd_version }
+
+    { "cyc", "show Zephyr kernel run time cycles count", &cli__show_zephyr_kernel_runtime_cycle_count }
 };
 
 
