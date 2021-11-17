@@ -28,6 +28,22 @@
 
 
 //----------------------------------------------------------------------
+// - SECTION - TO DO
+//----------------------------------------------------------------------
+
+/*
+
+   [ ]  2021-11-17 - Bring default Output Data Rate value out as pound define.
+
+   [ ]  2021-11-17 - Replace calls to printk() with call to diagnostic wrapper function dmsg() where appropriate.
+
+   [ ]  2021-11-17 - Code clean up in '_thread_entry_point' routine.
+
+*/
+
+
+
+//----------------------------------------------------------------------
 // - SECTION - includes
 //----------------------------------------------------------------------
 
@@ -701,21 +717,22 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
         { printk("Success finding iis2dh device,\n"); }
 
     if (!device_is_ready(sensor)) {
-        printf("Device %s is not ready\n", sensor->name);
+        printk("- %s - Device %s is not ready\n", MODULE_ID__THREAD_IIS2DH, sensor->name);
+        printk("- %s - Returning from this thread's entry point . . .\n", MODULE_ID__THREAD_IIS2DH);
         return;
     }
     else
     {
-        printf("Call to device_is_ready() says %s sensor is ready,\n", sensor->name);
+        printk("- %s - Call to device_is_ready() says %s sensor is ready,\n",
+          MODULE_ID__THREAD_IIS2DH, sensor->name);
     }
 
-    printf("Device name (Zephyr compile time setting) found to be '%s'\n", sensor->name);
+    printk("- %s - INFO:  device name (Zephyr compile time setting) found to be '%s'\n",
+      MODULE_ID__THREAD_IIS2DH, sensor->name);
 
-// 2021-10-19 Tuesday work to initialize Kionix sensor:
-//    rc = kd_initialize_sensor_kx132_1211(sensor);
-
-//    accelerator_start_acquisition_no_fifo(sensor, ODR_10_HZ);
-    accelerator_start_acquisition_with_fifo(sensor, ODR_10_HZ);
+// 2021-11-17 - Effective initialization, see 'TO DO' section for note on further required study here:
+//    accelerator_start_acquisition_with_fifo(sensor, ODR_10_HZ);
+    accelerator_start_acquisition_with_fifo(sensor, KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE);
 
     while (1)
     {
@@ -797,7 +814,7 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 // *** review 6cd823d21eeaa begin ******************
 #if 0
         k_msleep(20);
-        printf("- DEV004 - fetching readings just after 20ms delay...\n");
+        printk("- DEV004 - fetching readings just after 20ms delay...\n");
         rc = sensor_sample_fetch(sensor);
 
         rc = sensor_channel_get(sensor, SENSOR_CHAN_ACCEL_XYZ, &accel[0]);
