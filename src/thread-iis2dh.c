@@ -33,11 +33,11 @@
 
 /*
 
-   [ ]  2021-11-17 - Bring default Output Data Rate value out as pound define.
+   [ ] TO DO 2021-11-17 - Bring default Output Data Rate value out as pound define.
 
-   [ ]  2021-11-17 - Replace calls to printk() with call to diagnostic wrapper function dmsg() where appropriate.
+   [ ] TO DO 2021-11-17 - Replace calls to printk() with call to diagnostic wrapper function dmsg() where appropriate.
 
-   [ ]  2021-11-17 - Code clean up in '_thread_entry_point' routine.
+   [ ] TO DO 2021-11-17 - Code clean up in '_thread_entry_point' routine.
 
 */
 
@@ -74,9 +74,10 @@
 #include <drivers/i2c.h>
 
 // Local-to-project headers:
-#include "iis2dh-registers.h"
 #include "return-values.h"
+#include "module-ids.h"
 #include "scoreboard.h"
+#include "iis2dh-registers.h"
 
 
 
@@ -85,18 +86,13 @@
 // - SECTION - defines
 //----------------------------------------------------------------------
 
+//
+// Zephyr Device Tree related:
+// 
+
 // To provide for device specific Zephyr macros, some or all of which
 // generated at project build time:
-
 #define DT_DRV_COMPAT st_iis2dh
-
-
-// defines thread related:
-#define IIS2DH_THREAD_STACK_SIZE 1024
-#define IIS2DH_THREAD_PRIORITY 7
-
-// defines for application or task implemented by this thread:
-#define SLEEP_TIME__IIS2DH_TASK__MS (2000)
 
 // defines to connect with STMicro IIS2DH out-of-tree driver API:
 //#define KX132_1211 DT_INST(0, kionix_kx132_1211)
@@ -109,10 +105,28 @@
 #define IIS2DH_ACCELEROMETER DT_NODELABEL(stmicro_sensor)
 
 
-//#define ROUTINE_OK 0  // <-- NEED TO PULL IN LOCAL PROJECT HEADER WITH ENUMERATION OF ROUTINE RETURN VALUES - TMH
-//        ^^^^^^^^^^ provided by header file return-values.h
+//
+// defines thread related:
+//
+
+#define IIS2DH_THREAD_STACK_SIZE 1024
+#define IIS2DH_THREAD_PRIORITY 7
+
+// defines for application or task implemented by this thread:
+#define SLEEP_TIME__IIS2DH_TASK__MS (2000)
+
+
+//
+// Sensor related:
+//
 
 #define COUNT_BYTES_IN_IIS_CONTROL_REGISTER (1)
+
+#ifndef KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE
+#warning "IIS2DH default data rate found first in IIS2DH thread source file,"
+#warning "using this start up ODR value of:  " KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE
+#define KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE ODR_100_HZ
+#endif
 
 
 
@@ -731,6 +745,8 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
       MODULE_ID__THREAD_IIS2DH, sensor->name);
 
 // 2021-11-17 - Effective initialization, see 'TO DO' section for note on further required study here:
+    rc = scoreboard_set_requested_iis2dh_odr(KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE);
+
 //    accelerator_start_acquisition_with_fifo(sensor, ODR_10_HZ);
     accelerator_start_acquisition_with_fifo(sensor, KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE);
 
