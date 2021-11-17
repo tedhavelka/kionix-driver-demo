@@ -74,6 +74,7 @@
 #include <drivers/i2c.h>
 
 // Local-to-project headers:
+#include "kd-app-config.h"
 #include "return-values.h"
 #include "module-ids.h"
 #include "scoreboard.h"

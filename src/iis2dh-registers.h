@@ -27,18 +27,6 @@
 //  +  LPEN   Low Power Enable
 //  +  ZEN    Z-axis Enable, Y-axis Enable, X-axis Enable
 
-#if 0
-#define ODR_0_POWERED_DOWN                      ( 0 << 4 )
-#define ODR_1_HZ                                ( 1 << 4 )
-#define ODR_10_HZ                               ( 2 << 4 )
-#define ODR_25_HZ                               ( 3 << 4 )
-#define ODR_50_HZ                               ( 4 << 4 )
-#define ODR_100_HZ                              ( 5 << 4 )
-#define ODR_200_HZ                              ( 6 << 4 )
-#define ODR_400_HZ                              ( 7 << 4 )
-
-#define ODR_5p376_HZ_IN_LOW_POWER_MODE          ( 9 << 4 )
-#else
 enum iis2dh_output_data_rates_e
 {
     ODR_0_POWERED_DOWN            = ( 0 << 4 ),
@@ -55,7 +43,6 @@ enum iis2dh_output_data_rates_e
 
 #define LOWEST_DATA_RATE_INDEX (0)
 #define HIGHEST_DATA_RATE_INDEX (9)
-#endif
 
 // Lower four bits of control register 1:
 #define LOW_POWER_DISABLE                       ( 0 << 3 )
@@ -68,6 +55,12 @@ enum iis2dh_output_data_rates_e
 #define AXIS_Z_ENABLE                           ( 1 << 2 )
 #define AXIS_Y_ENABLE                           ( 1 << 1 )
 #define AXIS_X_ENABLE                           ( 1 << 0 )
+
+
+// 2021-11-17 - temperature sensor in IIS2DH:
+#define OUT_TEMP_L (0x0C)
+#define OUT_TEMP_H (0x0D)
+
 
 
 //
