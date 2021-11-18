@@ -57,7 +57,9 @@ LOG_MODULE_REGISTER(demo);
 // Local project includes:
 
 // 2021-10-06 - to add wrapper about Zephyr printk(), for early CLI development work:
+#include "version.h"
 #include "diagnostic.h"
+#include "development-flags.h"
 
 // 2021-10-16 -
 #include "thread-iis2dh.h"
@@ -65,7 +67,6 @@ LOG_MODULE_REGISTER(demo);
 #include "thread-simple-cli.h"
 #include "scoreboard.h"
 
-#include "version.h"
 
 
 
@@ -101,38 +102,6 @@ LOG_MODULE_REGISTER(demo);
 #define PIN      0
 #define FLAGS    0
 #endif
-
-
-
-//----------------------------------------------------------------------
-// - SECTION - DEVELOPMENT FLAGS
-//----------------------------------------------------------------------
-
-// --- DEVELOPMENT FLAGS BEGIN ---
-
-#define PROJECT_DIAG_LEVEL DIAG_NORMAL // DIAG_OFF
-//#define PROJECT_DIAG_LEVEL DIAG_OFF // DIAG_NORMAL
-
-// KX132-1211 Configuration:
-#define DEV_TEST__ENABLE_KX132_1211_ASYNCHRONOUS_READINGS (1)
-#define DEV_TEST__SET_KX132_1211_OUTPUT_DATA_RATE         (0)
-
-// KX132-1211 Readings:
-#define DEV_TEST__FETCH_AND_GET_MANUFACTURER_ID           (1)
-#define DEV_TEST__FETCH_AND_GET_PART_ID                   (1)
-#define DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ        (1)
-
-
-#define NN_DEV__ENABLE_INT_MAIN_TESTS                     (0)
-#define NN_DEV__ENABLE_THREAD_IIS2DH_SENSOR               (1)
-#define NN_DEV__ENABLE_THREAD_LIS2DH_SENSOR               (0)
-#define NN_DEV__ENABLE_THREAD_SIMPLE_CLI                  (1)
-
-#define NN_DEV__ENABLE_IIS2DH_TEMPERATURE_READGINGS       (0)
-
-#define NN_DEV__TEST_SCOREBOARD_GLOBAL_SETTING            (1)
-
-// --- DEVELOPMENT FLAGS END ---
 
 
 

@@ -836,7 +836,7 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 // 2021-11-17 - Effective initialization, see 'TO DO' section for note on further required study here:
     rc = scoreboard_set_requested_iis2dh_odr(KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE);
 
-#if 0
+#if KD_DEV__ENABLE_IIS2DH_TEMPERATURE_READINGS == 1
     printk("- %s - INFO:  enabling iis2dh temperature readings . . .'\n",
       MODULE_ID__THREAD_IIS2DH);
     rc = configure_iis2dh_temperature_enable(sensor);
@@ -874,7 +874,7 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 
 // - 2021-11-17 -
 // Initial test of IIS2DH temperature read:
-#if 0
+#if KD_DEV__ENABLE_IIS2DH_TEMPERATURE_READINGS == 1
         rc = read_of_iis2dh_temperature_registers(sensor, &iis2dh_temperature_reading);
 #endif
 
