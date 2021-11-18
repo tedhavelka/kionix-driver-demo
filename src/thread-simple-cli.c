@@ -848,9 +848,21 @@ uint32_t iis2dh_sensor_handler(const char* args)
         printk_cli("- INPUT ERROR - got invalid configuration register value!\n\r");
     }
 
+
+#include "thread-iis2dh.h"
+    uint8_t value_of_register = 0;
+
     if ( rstatus == ROUTINE_OK )
     {
         printk_cli("- DEV SUMMARY - reading to send updating config value to sensor.\n\r");
+
+        if ( argument_count == 1 )
+        {
+            rstatus = wrapper_iis2dh_register_read(control_register, &value_of_register);
+            snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "from control register %u reading back %u,\n\r",
+              control_register, value_of_register);
+            printk_cli(lbuf);
+        }
     }
 
 

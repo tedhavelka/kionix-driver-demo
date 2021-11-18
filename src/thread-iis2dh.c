@@ -185,8 +185,12 @@ static uint32_t fifo_overrun_count_fsv = 0;
 //
 
 
+// 2021-11-17 - *sensor needed at file scope for new public API routines:
+const struct device *sensor = DEVICE_DT_GET_ANY(st_iis2dh);
+
+
 //----------------------------------------------------------------------
-// - SECTION - development routines
+// - SECTION - routines development
 //----------------------------------------------------------------------
 
 // Note, showing FIFO overrun event counts and details is development in
@@ -208,18 +212,14 @@ void show_fifo_overruns_summary(void)
 
 
 
-
-
 //----------------------------------------------------------------------
-// - SECTION - routine definitions
+// - SECTION - routines production this module
 //----------------------------------------------------------------------
 
 // https://docs.zephyrproject.org/latest/reference/kernel/threads/index.html#c.K_THREAD_STACK_DEFINE
 
 K_THREAD_STACK_DEFINE(iis2dh_thread_stack_area, IIS2DH_THREAD_STACK_SIZE);
 struct k_thread iis2dh_thread_data;
-
-
 
 int initialize_thread_iis2dh_task(void)
 {
@@ -336,6 +336,7 @@ static uint32_t configure_iis2dh_temperature_enable(const struct device *dev)
 #if DEV_TEMPERATURE_READINGS == 1
 // iis2dh_temp_cfg_reg
 // iis2dh_ctrl_reg4
+    cmd[0] = TEMP_CONFIG_REGISTER;
     rstatus |= kd_read_peripheral_register(dev, cmd, &iis2dh_temp_cfg_reg, COUNT_BYTES_IN_IIS2DH_CONTROL_REGISTER);
     printk("- DEV 1117 - top of routine before config TEMP_CONFIG_REGISTER holds %u,\n",
       iis2dh_temp_cfg_reg);
@@ -809,7 +810,9 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
     int loop_count = 0;
 
 // 2021-10-12 - keep assignment on this declarative line so it gets built at compile time:
-    const struct device *sensor = DEVICE_DT_GET_ANY(st_iis2dh);
+// 2021-11-17 - moving *sensor to file scoped vars:
+//    const struct device *sensor = DEVICE_DT_GET_ANY(st_iis2dh);
+// 2021-11-17 - Ted unsure whether following line compiles:
 //    const struct device *sensor = device_get_binding(DT_LABEL(IIS2DH_ACCELEROMETER));
 
     static uint16_t iis2ds12_i2c_periph_addr = DT_INST_REG_ADDR(0);   //<-- 2021-10-17 not available at build time - TMH
@@ -907,7 +910,47 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 
 
 //----------------------------------------------------------------------
-// - SECTION - notes and tests
+// - SECTION - routines public API
+//----------------------------------------------------------------------
+
+uint32_t wrapper_iis2dh_register_read(const uint8_t register_addr, uint8_t* register_value)
+{
+    uint32_t rstatus = ROUTINE_OK;
+
+    if ( sensor == NULL )
+    {
+        rstatus = KD__DEVICE_POINTER_NULL;
+    }
+    else
+    {
+        rstatus = kd_read_peripheral_register(sensor,
+                                              &register_addr,
+                                              register_value,
+                                              1
+                                             ); 
+    }
+
+    return rstatus;
+}
+
+
+uint32_t wrapper_iis2dh_register_write(const uint8_t register_addr, uint8_t* register_value)
+{
+    uint32_t rstatus = ROUTINE_OK;
+
+    if ( sensor == NULL )
+    {
+        rstatus = KD__DEVICE_POINTER_NULL;
+    }
+
+    return rstatus;
+}
+
+
+
+
+//----------------------------------------------------------------------
+// - SECTION - notes and tests ( non-active code )
 //----------------------------------------------------------------------
 
 // BLOCK BEGIN
