@@ -14,6 +14,9 @@ uint32_t wrapper_iis2dh_register_read(const uint8_t register_addr, uint8_t* regi
 
 uint32_t wrapper_iis2dh_register_write(const uint8_t register_addr, uint8_t* register_value);
 
+uint32_t wrapper_iis2dh_register_read_multiple(const uint8_t register_addr, uint8_t* register_value, const uint32_t byte_count);
+
+
 // purely development, should not be needed for production:
 void dev__thread_iis2dh__set_one_shot_message_flag(void);
 

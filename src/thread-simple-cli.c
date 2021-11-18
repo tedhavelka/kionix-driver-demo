@@ -70,11 +70,11 @@
 
 //----------------------------------------------------------------------
 // - SECTION - pound includes
-//----------------------------------------------------------------------
+//---------------------------------^------------------------------------
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>   // to provide memset(),
+#include <string.h>                // to provide memset()
 
 // Zephyr RTOS headers . . .
 #include <zephyr.h>
@@ -88,7 +88,7 @@
 #include <drivers/sensor.h>
 
 // 2021-10-05 - CLI incorporation work, see Zephyr v2.6.0 file "zephyr/subsys/console/tty.c"
-#include <drivers/uart.h>        // to provide uart_poll_in()
+#include <drivers/uart.h>          // to provide uart_poll_in()
 
 
 //
@@ -126,7 +126,7 @@
 
 // Note, for now we limit a token or character strings sans white space
 // to 32 characters, subject to change as needed:
-#define SIZE_COMMAND_TOKEN (32)       //
+//#define SIZE_COMMAND_TOKEN (32)
 
 // Note, space permitting we'll store up to ten user commands in a ring buffer:
 #define SIZE_COMMAND_HISTORY (10)     // 2021-10-25 - not yet implemented
@@ -136,11 +136,7 @@
 
 // Note, we start with support for passing up to ten args to a CLI command herein:
 #define MAX_COUNT_SUPPORTED_ARGS (10)
-#define SUPPORTED_ARG_LENGTH     (16)
-
-
-//#define SIZE_OF_MESSAGE_SHORT (80)
-//#define SIZE_OF_MESSAGE_MEDIUM (160)
+//#define SUPPORTED_ARG_LENGTH     (16)
 
 
 
@@ -181,7 +177,6 @@ uint32_t arg_is_hex(const uint32_t index_to_arg, int* value);
 
 // command handler prototypes:
 uint32_t output_data_rate_handler(const char* args);
-uint32_t iis2dh_sensor_handler(const char* args);
 uint32_t cli__help_message(const char* args);
 //uint32_t banner_message(const char* args);
 
@@ -192,6 +187,9 @@ extern uint32_t cli__kd_version(const char* args);
 // banner.h . . .
 extern uint32_t cli__banner_message(const char* args);
 // cli-zephyr-kernel-timing.h . . .
+
+// . . .
+extern uint32_t iis2dh_sensor_handler(const char* args);
 
 
 
@@ -304,6 +302,12 @@ void clear_argument_array(void)
     argument_count = 0;
 }
 
+
+
+uint32_t argument_count_from_cli_module(void)
+{
+    return argument_count;
+}
 
 
 /*
@@ -629,15 +633,17 @@ uint32_t arg_n(const uint32_t requested_arg, char* return_arg)
  *
  *  @param    index_to_arg . . . index to tokenized argument from latest command line input
  *  @param    pointer to calling code memory space for return integer value
- *  @return   1 when true
- *  @return   0 when false
+ *
+ *  @note     Honoring shell return value convention, and with ease of summing series of test results:
+ *  @return   0 when true
+ *  @return   1 when false
  *
  *  https://www.cs.cmu.edu/~pattis/15-1XX/common/handouts/ascii.html
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  */
 uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return)
 {
-    uint32_t tstatus = 1;  // test status
+    uint32_t tstatus = 0;  // test status
     uint32_t arg_len = strlen(argument_array[index_to_arg]);
     uint32_t multiplier = 1;
 
@@ -656,7 +662,7 @@ uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return)
     {
         if ( ( argument_array[index_to_arg][i] < 0x30 ) || ( argument_array[index_to_arg][i] > 0x39 ) )
         {
-            tstatus = 0 /* false result */;  i = arg_len /* kick out */;
+            tstatus = RESULT_ARG_NOT_DECIMAL /* false result */;  i = arg_len /* kick out */;
         }
     }
 
@@ -664,10 +670,9 @@ uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return)
 
 // Note 0x30 is the ASCII value for the character zero '0':
 
-    if ( tstatus == 1 )
+    if ( tstatus == RESULT_ARG_IS_DECIMAL )
     {
         *value_to_return = 0;
-        tstatus = RESULT_ARG_IS_DECIMAL;
 
         for ( int i = (arg_len - 1); i >= 0; i-- )
         {
@@ -790,7 +795,7 @@ uint32_t output_data_rate_handler(const char* args)
 
 
 
-
+#if 0
 uint32_t iis2dh_sensor_handler(const char* args)
 {
     uint32_t rstatus = ROUTINE_OK;
@@ -870,8 +875,8 @@ uint32_t iis2dh_sensor_handler(const char* args)
 
     printk_cli("- 1117b DEVELOPMENT UNDERWAY -- returning early . . .\n\r");
     return rstatus;
-} 
-
+}
+#endif
 
 
 

@@ -962,7 +962,7 @@ uint32_t wrapper_iis2dh_register_read(const uint8_t register_addr, uint8_t* regi
                                               &register_addr,
                                               register_value,
                                               1
-                                             ); 
+                                             );
     }
 
     return rstatus;
@@ -976,6 +976,28 @@ uint32_t wrapper_iis2dh_register_write(const uint8_t register_addr, uint8_t* reg
     if ( sensor == NULL )
     {
         rstatus = KD__DEVICE_POINTER_NULL;
+    }
+
+    return rstatus;
+}
+
+
+
+uint32_t wrapper_iis2dh_register_read_multiple(const uint8_t register_addr, uint8_t* register_value, const uint32_t byte_count)
+{
+    uint32_t rstatus = ROUTINE_OK;
+
+    if ( sensor == NULL )
+    {
+        rstatus = KD__DEVICE_POINTER_NULL;
+    }
+    else
+    {
+        rstatus = kd_read_peripheral_register(sensor,
+                                              &register_addr,
+                                              register_value,
+                                              byte_count
+                                             );
     }
 
     return rstatus;

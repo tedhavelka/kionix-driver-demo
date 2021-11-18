@@ -8,8 +8,21 @@
 int initialize_thread_simple_cli_task(void);
 
 
-// Function to send character stream to arbitrary, non-Zephyr-chosen UART:
+// routine to send character stream to arbitrary, non-Zephyr-chosen UART:
 uint32_t printk_cli(const char* output);
+
+// routine to share firmware's latest run-time argument count with commands factored into dedicated source files:
+uint32_t argument_count_from_cli_module(void);
+
+uint32_t arg_n(const uint32_t requested_arg, char* return_arg);
+
+uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return);
+
+
+
+// 2021-11-18 - command factoring work:
+#define SIZE_COMMAND_TOKEN   (128)
+#define SUPPORTED_ARG_LENGTH (16)
 
 
 

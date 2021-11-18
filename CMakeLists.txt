@@ -69,6 +69,7 @@ target_sources(app PRIVATE src/banner.c)
 target_sources(app PRIVATE src/thread-simple-cli.c)
 target_sources(app PRIVATE src/cli-zephyr-stack-info.c)
 target_sources(app PRIVATE src/cli-zephyr-kernel-timing.c)
+target_sources(app PRIVATE src/cli-iis2dh-sensor.c)
 
 
 
