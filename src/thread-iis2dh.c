@@ -79,6 +79,7 @@
 #include "module-ids.h"
 #include "scoreboard.h"
 #include "iis2dh-registers.h"
+#include "conversions.h"
 
 
 
