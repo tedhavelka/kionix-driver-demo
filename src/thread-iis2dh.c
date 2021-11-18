@@ -28,6 +28,22 @@
 
 
 //----------------------------------------------------------------------
+// - SECTION - TO DO
+//----------------------------------------------------------------------
+
+/*
+
+   [ ] TO DO 2021-11-17 - Bring default Output Data Rate value out as pound define.
+
+   [ ] TO DO 2021-11-17 - Replace calls to printk() with call to diagnostic wrapper function dmsg() where appropriate.
+
+   [ ] TO DO 2021-11-17 - Code clean up in '_thread_entry_point' routine.
+
+*/
+
+
+
+//----------------------------------------------------------------------
 // - SECTION - includes
 //----------------------------------------------------------------------
 
@@ -57,9 +73,12 @@
 // For tests of hand-rolled IIS2DH register config routines:
 #include <drivers/i2c.h>
 
-#include "iis2dh-registers.h"
-
+// Local-to-project headers:
+#include "kd-app-config.h"
+#include "return-values.h"
+#include "module-ids.h"
 #include "scoreboard.h"
+#include "iis2dh-registers.h"
 
 
 
@@ -68,18 +87,13 @@
 // - SECTION - defines
 //----------------------------------------------------------------------
 
+//
+// Zephyr Device Tree related:
+// 
+
 // To provide for device specific Zephyr macros, some or all of which
 // generated at project build time:
-
 #define DT_DRV_COMPAT st_iis2dh
-
-
-// defines thread related:
-#define IIS2DH_THREAD_STACK_SIZE 1024
-#define IIS2DH_THREAD_PRIORITY 7
-
-// defines for application or task implemented by this thread:
-#define SLEEP_TIME__IIS2DH_TASK__MS (2000)
 
 // defines to connect with STMicro IIS2DH out-of-tree driver API:
 //#define KX132_1211 DT_INST(0, kionix_kx132_1211)
@@ -92,11 +106,28 @@
 #define IIS2DH_ACCELEROMETER DT_NODELABEL(stmicro_sensor)
 
 
-#define ROUTINE_OK 0  // <-- NEED TO PULL IN LOCAL PROJECT HEADER WITH ENUMERATION OF ROUTINE RETURN VALUES - TMH
+//
+// defines thread related:
+//
+
+#define IIS2DH_THREAD_STACK_SIZE 1024
+#define IIS2DH_THREAD_PRIORITY 7
+
+// defines for application or task implemented by this thread:
+#define SLEEP_TIME__IIS2DH_TASK__MS (2000)
+
+
+//
+// Sensor related:
+//
 
 #define COUNT_BYTES_IN_IIS_CONTROL_REGISTER (1)
 
-#define APPR_ACCELERATION_OF_GRAVITY (9.80665)
+#ifndef KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE
+#warning "IIS2DH default data rate found first in IIS2DH thread source file,"
+#warning "using this start up ODR value of:  " KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE
+#define KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE ODR_100_HZ
+#endif
 
 
 
@@ -107,11 +138,16 @@
 void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3);
 
 
+
+//----------------------------------------------------------------------
+// - SECTION - file scoped variables, arrays, structures
+//----------------------------------------------------------------------
+
 // - SECTION - File scoped or global variables -
 
 #define BYTES_PER_XYZ_READINGS_TRIPLET (6)
 #define FIFO_READINGS_MAXIMUM_COUNT (32)
-    uint8_t readings_data[BYTES_PER_XYZ_READINGS_TRIPLET * (FIFO_READINGS_MAXIMUM_COUNT - 1)];
+static uint8_t readings_data[BYTES_PER_XYZ_READINGS_TRIPLET * (FIFO_READINGS_MAXIMUM_COUNT - 1)];
 #define TRIPLETS_TO_FORMAT_PER_LINE (4)
 
 
@@ -123,10 +159,52 @@ static uint8_t iis2dh_ctrl_reg3 = 0;       // 0x22
 // static uint8_t iis2dh_ctrl_reg4 = 0;       // 0x23
 static uint8_t iis2dh_ctrl_reg5 = 0;       // 0x24
 static uint8_t iis2dh_acc_status = 0;      // 0x27
-// static uint8_t iis2dh_fifo_ctrl_reg = 0;   // 0x2F
+static uint8_t iis2dh_fifo_ctrl_reg = 0;   // 0x2F
 #endif
 
-static uint32_t iis2dh_thread_sleep_time_in_ms;
+//static uint32_t iis2dh_thread_sleep_time_in_ms;
+
+// Not fully implemented, meant to track larger sets of time contiguous reagings from FIFO:
+static uint32_t running_total_xyz_readings = 0;
+
+
+//
+// --- FIFO overrun related BEGIN ---
+struct fifo_overrun_event
+{
+    uint32_t reading_index;
+};
+
+#define MAX_OVERRUNS_TRACKED (50)
+struct fifo_overrun_event fifo_overrun_events[MAX_OVERRUNS_TRACKED];
+
+static uint32_t fifo_overrun_count_fsv = 0;
+// --- FIFO overrun related END ---
+//
+
+
+//----------------------------------------------------------------------
+// - SECTION - development routines
+//----------------------------------------------------------------------
+
+// Note, showing FIFO overrun event counts and details is development in
+//  nature, but tracking and responding to them at run time is most
+//  likely real life use case, e.g. production use:
+
+void show_fifo_overruns_summary(void)
+{
+    uint32_t i = 0;
+
+    printk("FIFO overrun events noted from latest x,y,z readings set:\n\n");
+
+    for ( i = 0; i < fifo_overrun_count_fsv; i++ )
+    {   
+        printk("  FIFO overrun %u @ reading %u\n", i, fifo_overrun_events->reading_index);
+    }   
+    printk("\n");
+}
+
+
 
 
 
@@ -137,19 +215,27 @@ static uint32_t iis2dh_thread_sleep_time_in_ms;
 // https://docs.zephyrproject.org/latest/reference/kernel/threads/index.html#c.K_THREAD_STACK_DEFINE
 
 K_THREAD_STACK_DEFINE(iis2dh_thread_stack_area, IIS2DH_THREAD_STACK_SIZE);
-struct k_thread iis2dh_thread_thread_data;
+struct k_thread iis2dh_thread_data;
 
 
 
 int initialize_thread_iis2dh_task(void)
 {
-    k_tid_t iis2dh_task_tid = k_thread_create(&iis2dh_thread_thread_data, iis2dh_thread_stack_area,
+    int rstatus = 0;
+
+    k_tid_t iis2dh_task_tid = k_thread_create(&iis2dh_thread_data, iis2dh_thread_stack_area,
                                             K_THREAD_STACK_SIZEOF(iis2dh_thread_stack_area),
                                             iis2dh_thread_entry_point,
                                             NULL, NULL, NULL,
                                             IIS2DH_THREAD_PRIORITY,
                                             0,
                                             K_MSEC(1300)); // K_NO_WAIT);
+
+// REF https://docs.zephyrproject.org/2.6.0/reference/kernel/threads/index.html?highlight=k_thread_create#c.k_thread_name_set
+// int k_thread_name_set(k_tid_t thread, const char *str)
+    rstatus = k_thread_name_set(iis2dh_task_tid, "kd_thread_iis2dh");
+    if ( rstatus == 0 ) { } // avoid compiler warning about unused variable - TMH
+
     return (int)iis2dh_task_tid;
 }
 
@@ -273,6 +359,23 @@ static uint8_t read_of_iis2dh_acc_status_register(const struct device *dev)
                            );
 
     return acc_status_register_value;
+}
+
+
+static uint8_t read_of_iis2dh_acc_fifo_src_register(const struct device *dev)
+{
+    int status = ROUTINE_OK;
+    uint8_t cmd[] = { IIS2DH_FIFO_SRC_REG };
+    struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
+    uint8_t acc_fifo_src_register_value = 0;
+
+    status = i2c_write_read(device_data_ptr->bus,
+                            DT_INST_REG_ADDR(0),
+                            cmd, sizeof(cmd),
+                            &acc_fifo_src_register_value, 1
+                           );
+
+    return acc_fifo_src_register_value;
 }
 
 
@@ -537,8 +640,11 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
 // Check for FIFO overrun, indicating missed readings:
     if (( source & FIFO_SOURCE_OVERRUN) != 0 )
     {
+#if 1 // TO-DO create development define for this message:
         printk("- FIFO overrun detected!\n");
-        // return (source & FIFO_SOURCE_OVERRUN);
+#endif
+        fifo_overrun_events[fifo_overrun_count_fsv].reading_index = running_total_xyz_readings;
+        fifo_overrun_count_fsv++;
     }
 
 // Check whether FIFO is empty:
@@ -550,13 +656,12 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
 
 #if 1
     rstatus |= kd_read_peripheral_register(dev,
-//                                           (0x80 | IIS2DH_OUT_X_L),
-                                           &iis2dh_x_axis_low_byte_reg, // const at called routine, and Z-API requires pointer type
+                                           &iis2dh_x_axis_low_byte_reg,
                                            readings_data,
                                            (BYTES_PER_XYZ_READINGS_TRIPLET * count)
                                           );
 #else
-    for ( i = 0; i < count; i++ )
+    for ( i = 0; i < count; i += BYTES_PER_XYZ_READINGS_TRIPLET )
     {
         rstatus |= kd_read_peripheral_register(dev,
                                            &iis2dh_x_axis_low_byte_reg,
@@ -566,14 +671,9 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
     }
 #endif
 
-    float scale_by_value = 0.0;
-    int x_axis_reading = readings_data[i];
-    scale_by_value = ( ( 2.0 * APPR_ACCELERATION_OF_GRAVITY ) / 128.0 );   // divide by 128 as 0 to 127 = about 2G range, 
-
     printk("data from %u readings:\n", count);
-    for ( i = 0; i < (count * BYTES_PER_XYZ_READINGS_TRIPLET); i += BYTES_PER_XYZ_READINGS_TRIPLET )
+    for ( i = 0; i < count; i += BYTES_PER_XYZ_READINGS_TRIPLET )
     {
-//        printk(" %02X %02X  %02X %02X  %02X %02X  ",
         printk(" %02X %02X  %02X %02X  %02X %02X  --  x,y,z in G = %2.3fG, %2.3fG, %2.3fG",
           readings_data[i],
           readings_data[i + 1],
@@ -648,24 +748,8 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 
 // From LIS2DH sample app:
     int rc = 0;
-    struct sensor_value odr;
-//    struct sensor_value accel[3];
-//    const char *overrun = "";
 
-// DEV tests:
-//    extern stmdev_ctx_t iis2dh_i2c_ctx;  // Should not need to declare data structure as 'extern'
-                                         // now that we include iis2dh.h.
-// 2021-10-16 - We're trying to send iis2dh device data parameter
-// in the same way we see the lower level STMicro driver
-// routines call with a pointer to this sensor type's data
-// member element:
-//    struct iis2dh_data *iis2dh = sensor->data; // dev->data;
-//    uint32_t whoami_check_status = 0;
-// Defined in [WEST_WORKSPACE]/modules/hal/st/sensor/stmemsc/iis2dh_STdC/driver/iis2dh_reg.h:716: <<closing_curly_brace>> iis2dh_odr_t;
-// (an enumeration with elements equal 0..9)
-//    iis2dh_odr_t sensor_data_rate = 0;
-
-    uint8_t accelerometer_status = 0;
+//    uint8_t accelerometer_status = 0;
 
     enum iis2dh_output_data_rates_e odr_to_set = ODR_0_POWERED_DOWN;
 
@@ -679,21 +763,24 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
         { printk("Success finding iis2dh device,\n"); }
 
     if (!device_is_ready(sensor)) {
-        printf("Device %s is not ready\n", sensor->name);
+        printk("- %s - Device %s is not ready\n", MODULE_ID__THREAD_IIS2DH, sensor->name);
+        printk("- %s - Returning from this thread's entry point . . .\n", MODULE_ID__THREAD_IIS2DH);
         return;
     }
     else
     {
-        printf("Call to device_is_ready() says %s sensor is ready,\n", sensor->name);
+        printk("- %s - Call to device_is_ready() says %s sensor is ready,\n",
+          MODULE_ID__THREAD_IIS2DH, sensor->name);
     }
 
-    printf("Device name (Zephyr compile time setting) found to be '%s'\n", sensor->name);
+    printk("- %s - INFO:  device name (Zephyr compile time setting) found to be '%s'\n",
+      MODULE_ID__THREAD_IIS2DH, sensor->name);
 
-// 2021-10-19 Tuesday work to initialize Kionix sensor:
-//    rc = kd_initialize_sensor_kx132_1211(sensor);
+// 2021-11-17 - Effective initialization, see 'TO DO' section for note on further required study here:
+    rc = scoreboard_set_requested_iis2dh_odr(KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE);
 
-//    accelerator_start_acquisition_no_fifo(sensor, ODR_10_HZ);
-    accelerator_start_acquisition_with_fifo(sensor, ODR_10_HZ);
+//    accelerator_start_acquisition_with_fifo(sensor, ODR_10_HZ);
+    accelerator_start_acquisition_with_fifo(sensor, KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE);
 
     while (1)
     {
@@ -702,21 +789,12 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 
         k_msleep(1);
 
-
-        accelerometer_status = read_of_iis2dh_acc_status_register(sensor);
-        iis2dh_acc_status = accelerometer_status;
-        printk("iis2dh status register 0x%02X holds %u,\n", IIS2DH_STATUS_REG, iis2dh_acc_status);
-
-// 10/17 test:
-// In [WEST_WORKSPACE]/modules/hal/st/sensor/stmemsc/iis2dh_STdC/driver/iis2dh_reg.c:
-// 371 int32_t iis2dh_data_rate_set(stmdev_ctx_t *ctx, iis2dh_odr_t val)
-
-        rc = sensor_attr_get(sensor,
-                             SENSOR_CHAN_ACCEL_XYZ,
-                             SENSOR_ATTR_SAMPLING_FREQUENCY,
-                             &odr
-                            );
-        printk("sampling at Output Data Rate (ODR) setting %u,\n", odr.val1);
+// Read of incorrect register:
+//        iis2dh_acc_status = read_of_iis2dh_acc_status_register(sensor);
+//        printk("iis2dh status register 0x%02X holds %u,\n", IIS2DH_STATUS_REG, iis2dh_acc_status);
+// read_of_iis2dh_acc_fifo_src_register
+        iis2dh_fifo_ctrl_reg = read_of_iis2dh_acc_fifo_src_register(sensor);
+        printk("iis2dh FIFO SRC register 0x%02X holds %u,\n", IIS2DH_FIFO_SRC_REG, iis2dh_fifo_ctrl_reg);
 
         rc = ii_accelerometer_read_xyz(sensor);
 
@@ -728,7 +806,7 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
         accelerator_start_acquisition_with_fifo(sensor, odr_to_set);  // ODR_10_HZ);
 
         printk("\n\n");
-// New static variable this module:  iis2dh_thread_sleep_time_in_ms
+// 2021-10-27 New static variable this module:  iis2dh_thread_sleep_time_in_ms
         k_msleep(SLEEP_TIME__IIS2DH_TASK__MS);
         loop_count++;
 
@@ -784,7 +862,7 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 // *** review 6cd823d21eeaa begin ******************
 #if 0
         k_msleep(20);
-        printf("- DEV004 - fetching readings just after 20ms delay...\n");
+        printk("- DEV004 - fetching readings just after 20ms delay...\n");
         rc = sensor_sample_fetch(sensor);
 
         rc = sensor_channel_get(sensor, SENSOR_CHAN_ACCEL_XYZ, &accel[0]);

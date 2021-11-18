@@ -9,9 +9,13 @@
 //   from CP2102N USB-to-serial interface on UART0:
 //----------------------------------------------------------------------
 
+&uart0 {
+        current-speed = <115200>;
+};
+
 &uart2 {
         status = "okay";
-        current-speed = <9600>;
+        current-speed = <115200>;
         tx-pin = <24>;
         rx-pin = <23>;
 };

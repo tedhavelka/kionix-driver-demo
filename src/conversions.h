@@ -1,0 +1,8 @@
+#ifndef _CONVERSIONS_H
+#define _CONVERSIONS_H
+
+
+#define APPR_ACCELERATION_OF_GRAVITY (9.80665)
+
+
+#endif // _CONVERSIONS_H

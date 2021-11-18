@@ -8,4 +8,9 @@
 int initialize_thread_simple_cli_task(void);
 
 
+// Function to send character stream to arbitrary, non-Zephyr-chosen UART:
+uint32_t printk_cli(const char* output);
+
+
+
 #endif // _THREAD_SIMPLE_CLI

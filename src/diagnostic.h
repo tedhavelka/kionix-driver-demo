@@ -21,6 +21,9 @@ enum nn_diagnostic_levels
 #define DIAG_NORMAL (_NN_DIAG_ERRORS_WARNINGS)
 #define DIAG_VERBOSE (_NN_DIAG_ERRORS_WARNINGS_INFO)
 
+#define SIZE_OF_MESSAGE_SHORT (80)
+#define SIZE_OF_MESSAGE_MEDIUM (160)
+#define DEFAULT_MESSAGE_SIZE (256)
 
 
 // Function prototypes:

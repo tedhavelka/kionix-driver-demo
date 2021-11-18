@@ -53,6 +53,21 @@
  */
 
 
+
+//----------------------------------------------------------------------
+// - SECTION - TO DO
+//----------------------------------------------------------------------
+
+/*
+
+   [ ] TO DO 2021-11-17 - Implement simple backspace character-wise deletion on input line
+
+   [ ] TO DO 2021-11-17 - Implement command history
+
+*/
+
+
+
 //----------------------------------------------------------------------
 // - SECTION - pound includes
 //----------------------------------------------------------------------
@@ -75,11 +90,25 @@
 // 2021-10-05 - CLI incorporation work, see Zephyr v2.6.0 file "zephyr/subsys/console/tty.c"
 #include <drivers/uart.h>        // to provide uart_poll_in()
 
+
+//
+// Project specific includes:
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 #include "diagnostic.h"
 #include "return-values.h"
+#include "kionix-demo-errors.h"
+#include "banner.h"
 
-//#include "thread_simple_cli.h"   // to provide experimental global vars for simple data sharing
-#include "scoreboard.h"   // to provide experimental global vars for simple data sharing
+// Thread and module data sharing module:
+#include "scoreboard.h"            // to provide experimental global vars for simple data sharing
+
+// Individual and small command set routine definitions:
+#include "cli-zephyr-stack-info.h"
+#include "cli-zephyr-kernel-timing.h"
+
+#include "thread-simple-cli.h"     // to provide prototype for printk_cli(),
+                                   // ( called earlier than defined in this source file. )
 
 
 
@@ -109,8 +138,8 @@
 #define SUPPORTED_ARG_LENGTH     (16)
 
 
-#define SIZE_OF_MESSAGE_SHORT (80)
-#define SIZE_OF_MESSAGE_MEDIUM (160)
+//#define SIZE_OF_MESSAGE_SHORT (80)
+//#define SIZE_OF_MESSAGE_MEDIUM (160)
 
 
 
@@ -134,7 +163,6 @@ static uint32_t argument_count;
 //----------------------------------------------------------------------
 
 void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3);
-uint32_t printk_cli(const char* output);
 void show_prompt(void);
 
 uint32_t store_args_from(const char* string);
@@ -153,9 +181,17 @@ uint32_t arg_is_hex(const uint32_t index_to_arg, int* value);
 // command handler prototypes:
 uint32_t output_data_rate_handler(const char* args);
 uint32_t iis2dh_sensor_handler(const char* args);
-uint32_t help_message(const char* args);
-uint32_t banner_message(const char* args);
-// uint32_t (const char* args);
+uint32_t cli__help_message(const char* args);
+//uint32_t banner_message(const char* args);
+
+// cli-zephyr-stack-info.h . . .
+extern uint32_t cli__zephyr_2p6p0_stack_statistics(const char* args);
+// banner.h . . .
+extern uint32_t cli__kd_version(const char* args);
+// banner.h . . .
+extern uint32_t cli__banner_message(const char* args);
+// cli-zephyr-kernel-timing.h . . .
+
 
 
 //----------------------------------------------------------------------
@@ -191,11 +227,17 @@ struct cli_command_writers_api
 
 struct cli_command_writers_api kd_command_set[] =
 {
-    { "odr", "IN PROGRESS - to be iis2dh Output Data Rate (ODR) set and get command.", &output_data_rate_handler },
+    { "help", "show supported Kionix demo CLI commands.", &cli__help_message },
+    { "?", "show supported Kionix demo CLI commands.", &cli__help_message },
+    { "banner", "show brief project identifier string for this Zephyr based app.", &cli__banner_message },
+    { "version", "show this Kionix Driver Demo version info", &cli__kd_version },
+
+    { "odr", "IIS2DH Output Data Rate (ODR) set and get command.", &output_data_rate_handler },
     { "iis2dh", "NOT YET IMPLEMENTED - to be general purpose iis2dh configurations command.", &iis2dh_sensor_handler },
-    { "help", "show supported Kionix demo CLI commands.", &help_message },
-    { "?", "show supported Kionix demo CLI commands.", &help_message },
-    { "banner", "show brief project identifier string for this Zephyr based app.", &banner_message }
+//    { "stacks", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
+    { "st", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
+
+    { "cyc", "show Zephyr kernel run time cycles count", &cli__show_zephyr_kernel_runtime_cycle_count }
 };
 
 
@@ -224,6 +266,25 @@ int initialize_thread_simple_cli_task(void)
 
 
 
+uint32_t printk_cli(const char* message)
+{
+    uint32_t rstatus = 0;
+    uint32_t message_byte_count = strlen(message);
+
+    if ( uart_for_cli == NULL )
+    {
+        return KD_ERROR__HANDLE_TO_ALTERNATE_UART_NULL;
+    }
+
+    for ( int i = 0; i < message_byte_count; i++ )
+    {
+        uart_poll_out(uart_for_cli, message[i]);
+    }
+    return rstatus;
+} 
+
+
+
 void clear_argument_array(void)
 {
     int i = 0;
@@ -238,9 +299,26 @@ void clear_argument_array(void)
 
 
 
+/*
+ *----------------------------------------------------------------------
+ *  @Description:  routine to initialize simple command line interface,
+ *     carries out following tasks:
+ *
+ *     +  clears command history (history not yet implemented 2021-11-15)
+ *     +  clears index to current command in history (planned to be a ring buffer history)
+ *     +  clears a global index used to traverse bytes in command token
+ *     +  clears array of latest parsed command line arguments (tokens following command)
+ *     +  displays given app banner message
+ *     +  displays first instance of command line prompt
+ *
+ *  @Note  
+ *----------------------------------------------------------------------
+ */
+
 void initialize_command_handler(void)
 {
     int i = 0;
+    uint32_t rstatus = ROUTINE_OK;
 
     memset(latest_command, 0, sizeof(latest_command));
     for ( i = 0; i < SIZE_COMMAND_HISTORY; i++ )
@@ -259,27 +337,9 @@ void initialize_command_handler(void)
 
 // First stuff out the CLI UART:
     printk_cli("\n\n\n\n\n");
+    rstatus = cli__banner_message("placeholder_args");
     show_prompt();
 }
-
-
-
-uint32_t printk_cli(const char* output)
-{
-    uint32_t rstatus = 0;
-    uint32_t output_byte_count = strlen(output);
-
-    if ( uart_for_cli == NULL )
-    {
-        return 1;
-    }
-
-    for ( int i = 0; i < output_byte_count; i++ )
-    {
-        uart_poll_out(uart_for_cli, output[i]);
-    }
-    return rstatus;
-} 
 
 
 
@@ -416,7 +476,21 @@ uint32_t build_command_string(const char* latest_input, const struct device* cal
     {
 // When both active, following two lines an effective "\n\r" test:
 //        uart_poll_out(callers_uart, newline_string[0]);
-        uart_poll_out(callers_uart, latest_input[0]);
+
+// --- 1115 DEV BEGIN ---
+// bug fix, attempting to correct prompt and command entered overwriting:
+//        uart_poll_out(callers_uart, latest_input[0]);
+        if ( strlen(latest_input) > 1 )
+        {
+            printk_cli("\n\r");
+        }
+        else
+        {
+            uart_poll_out(callers_uart, latest_input[0]);
+//            printk_cli("\n\r");
+        }
+// --- 1115 DEV END ---
+
         rstatus = command_handler(latest_command);
         clear_latest_command_string();
     }
@@ -700,7 +774,7 @@ uint32_t iis2dh_sensor_handler(const char* args)
 
 
 
-uint32_t help_message(const char* args)
+uint32_t cli__help_message(const char* args)
 {
 #define WIDTH_OF_BULLET_POINT (3)
 #define WIDTH_OF_COMMAND_TOKEN_OR_NAME (12)
@@ -708,18 +782,15 @@ uint32_t help_message(const char* args)
 
     char lbuf[SIZE_OF_MESSAGE_MEDIUM];
 
-    printk_cli("Kionix demo CLI commands:\n\r");
+    printk_cli("Kionix demo CLI commands:\n\r\n\r");
     for ( int i = 0; i < implemented_command_count; i++ )
     {
-//        snprintf(lbuf, SIZE_OF_SHORT_MESSAGE, "  %u)  %s\n\r", i, kd_command_set[i].token_to_represent_command);
-        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "  %*u)  %s%*s   . . . %s\n\r",
+        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, " %*u)  %s%*s   . . . %s\n\r",
                    WIDTH_OF_BULLET_POINT,
-                   i,
+                   (i + 1),
                    kd_command_set[i].token_to_represent_command,
-//                   WIDTH_OF_COMMAND_TOKEN_OR_NAME,
                    (WIDTH_OF_COMMAND_TOKEN_OR_NAME - strlen(kd_command_set[i].token_to_represent_command)),
                    " ",
-//                   WIDTH_OF_COMMAND_DESCRIPTION,
                    kd_command_set[i].description
                  );
 
@@ -731,6 +802,7 @@ uint32_t help_message(const char* args)
 
 
 
+#if 0
 uint32_t banner_message(const char* args)
 {
     printk_cli("\n--\n\r");
@@ -739,7 +811,7 @@ uint32_t banner_message(const char* args)
     printk_cli("--\n\r");
     return 0;
 }
-
+#endif
 
 
 
@@ -830,6 +902,31 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
     printk("parsed command '%s',\n", command);
     printk("and arguments '%s'\n", args);
     printk("checking %u implemented Kionix demo commands...\n", ((sizeof(kd_command_set) / sizeof(struct cli_command_writers_api)) - 0));
+#endif
+
+
+
+
+#if 0
+// Formatting example from cli__help_message routine:
+
+    printk_cli("Kionix demo CLI commands:\n\r\n\r");
+    for ( int i = 0; i < implemented_command_count; i++ )
+    {
+//        snprintf(lbuf, SIZE_OF_SHORT_MESSAGE, "  %u)  %s\n\r", i, kd_command_set[i].token_to_represent_command);
+        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "  %*u)  %s%*s   . . . %s\n\r",
+                   WIDTH_OF_BULLET_POINT,
+                   i,
+                   kd_command_set[i].token_to_represent_command,
+//                   WIDTH_OF_COMMAND_TOKEN_OR_NAME,
+                   (WIDTH_OF_COMMAND_TOKEN_OR_NAME - strlen(kd_command_set[i].token_to_represent_command)),
+                   " ",
+//                   WIDTH_OF_COMMAND_DESCRIPTION,
+                   kd_command_set[i].description
+                 );
+
+        printk_cli(lbuf);
+    }
 #endif
 
 
