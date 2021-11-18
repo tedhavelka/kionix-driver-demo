@@ -324,8 +324,13 @@ static uint32_t kd_read_peripheral_register(const struct device *dev,
     {
         flag_one_shot_diag_message_enabled = 0;
         char lbuf[SIZE_OF_MESSAGE_SHORT];
-        snprintf(lbuf, SIZE_OF_MESSAGE_SHORT, "- DEV 1118 %s - reg %u holds %u\n\r",
-          MODULE_ID__THREAD_IIS2DH, (uint32_t)device_register, (uint32_t)data);
+        snprintf(lbuf, SIZE_OF_MESSAGE_SHORT, "-\n\r- DEV 1118 %s - called to read %u bytes from reg 0x%02X\n\r",
+          MODULE_ID__THREAD_IIS2DH, count_bytes_to_read, *device_register);
+        printk_cli(lbuf);
+        snprintf(lbuf, SIZE_OF_MESSAGE_SHORT, "- DEV 1118 %s - reg 0x%02X holds %u\n\r-\n\r",
+//          MODULE_ID__THREAD_IIS2DH, (uint32_t)device_register, (uint32_t)data);
+//          MODULE_ID__THREAD_IIS2DH, (uint32_t)(*device_register & 0xFF), (uint32_t)(*data & 0xFF));
+          MODULE_ID__THREAD_IIS2DH, (*device_register & 0xFF), (*data & 0xFF));
         printk_cli(lbuf);
     }
 #endif

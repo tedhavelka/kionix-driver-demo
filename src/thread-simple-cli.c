@@ -860,8 +860,8 @@ uint32_t iis2dh_sensor_handler(const char* args)
         {
             dev__thread_iis2dh__set_one_shot_message_flag();
             rstatus = wrapper_iis2dh_register_read(control_register, &value_of_register);
-            snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "from control register %u reading back %u,\n\r",
-              control_register, value_of_register);
+            snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "register 0x%02X holds %u,\n\r",
+              (control_register & 0xFF), (value_of_register & 0xFF));
             printk_cli(lbuf);
         }
     }
