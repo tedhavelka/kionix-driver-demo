@@ -83,6 +83,9 @@
 #include "scoreboard.h"
 #include "iis2dh-registers.h"
 
+#if KD_DEV__CLI_DIAG_ON_IN_IIS2DH_TASK
+#include "thread-simple-cli.h"
+#endif
 
 
 
@@ -189,6 +192,12 @@ static uint32_t fifo_overrun_count_fsv = 0;
 const struct device *sensor = DEVICE_DT_GET_ANY(st_iis2dh);
 
 
+#if KD_DEV__CLI_ONE_SHOT_MESSAGE_FLAG == 1
+static uint32_t flag_one_shot_diag_message_enabled = 0;
+#endif
+
+
+
 //----------------------------------------------------------------------
 // - SECTION - routines development
 //----------------------------------------------------------------------
@@ -209,6 +218,15 @@ void show_fifo_overruns_summary(void)
     }   
     printk("\n");
 }
+
+
+#if KD_DEV__CLI_ONE_SHOT_MESSAGE_FLAG == 1
+void dev__thread_iis2dh__set_one_shot_message_flag(void)
+{
+    flag_one_shot_diag_message_enabled = 1;
+}
+#endif
+
 
 
 
@@ -300,6 +318,18 @@ static uint32_t kd_read_peripheral_register(const struct device *dev,
                          data,
                          count_bytes_to_read
                         );
+
+#if KD_DEV__CLI_DIAG_ON_REGISTER_READS == 1
+    if ( flag_one_shot_diag_message_enabled == 1 )
+    {
+        flag_one_shot_diag_message_enabled = 0;
+        char lbuf[SIZE_OF_MESSAGE_SHORT];
+        snprintf(lbuf, SIZE_OF_MESSAGE_SHORT, "- DEV 1118 %s - reg %u holds %u\n\r",
+          MODULE_ID__THREAD_IIS2DH, (uint32_t)device_register, (uint32_t)data);
+        printk_cli(lbuf);
+    }
+#endif
+
     return status;
 }
 

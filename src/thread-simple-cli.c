@@ -798,7 +798,7 @@ uint32_t iis2dh_sensor_handler(const char* args)
     char argument[SIZE_OF_MESSAGE_SHORT];
 
 
-    printk_cli("- DEV 1117b - iis2dh stub function\n\r");
+    printk_cli("\n\r\n\r- DEV 1117b - iis2dh stub function\n\r");
 
     snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "- DEV 1117b - working with args '%s',\n\r", args);
     printk_cli(lbuf);
@@ -858,6 +858,7 @@ uint32_t iis2dh_sensor_handler(const char* args)
 
         if ( argument_count == 1 )
         {
+            dev__thread_iis2dh__set_one_shot_message_flag();
             rstatus = wrapper_iis2dh_register_read(control_register, &value_of_register);
             snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "from control register %u reading back %u,\n\r",
               control_register, value_of_register);

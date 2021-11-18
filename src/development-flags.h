@@ -32,8 +32,13 @@
 
 
 // 2021-11-17 -
+// IIS2DH Configuration work:
 #define KD_DEV__ENABLE_IIS2DH_TEMPERATURE_READINGS        (0)
 #define KD_DEV__SET_BDU_BEFORE_TEMP_READING_THEN_UNSET    (1)
+
+#define KD_DEV__CLI_DIAG_ON_IN_IIS2DH_TASK                (1)
+#define KD_DEV__CLI_DIAG_ON_REGISTER_READS                (1)
+#define KD_DEV__CLI_ONE_SHOT_MESSAGE_FLAG                 (1)
 
 
 // --- DEVELOPMENT FLAGS END ---
