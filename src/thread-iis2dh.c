@@ -77,9 +77,11 @@
 #include "kd-app-config.h"
 #include "return-values.h"
 #include "module-ids.h"
+#include "development-flags.h"
+
+#include "conversions.h"
 #include "scoreboard.h"
 #include "iis2dh-registers.h"
-#include "conversions.h"
 
 
 
@@ -373,11 +375,23 @@ static uint32_t configure_iis2dh_temperature_enable(const struct device *dev)
 static uint32_t read_of_iis2dh_temperature_registers(const struct device *dev, struct sensor_value *value)
 {
     uint32_t rstatus = ROUTINE_OK;
-    uint8_t cmd[] = { OUT_TEMP_L };
+//    uint8_t cmd[] = { OUT_TEMP_L };
+    uint8_t cmd[] = { 0, 0 };
     struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
     uint8_t scratch_pad_bytes[] = {0, 0};
 
     char lbuf[DEFAULT_MESSAGE_SIZE];
+
+#if KD_DEV__SET_BDU_BEFORE_TEMP_READING_THEN_UNSET == 1
+    cmd[0] = IIS2DH_CTRL_REG4;
+    printk("- DEV 1117 - reading iis2dh control register %u . . .\n", IIS2DH_CTRL_REG4);
+    rstatus |= kd_read_peripheral_register(dev, cmd, &iis2dh_ctrl_reg4, COUNT_BYTES_IN_IIS2DH_CONTROL_REGISTER);
+
+    iis2dh_ctrl_reg4 |= BLOCK_DATA_UPDATE_NON_CONTINUOUS;
+    printk("- DEV 1117 - setting iis2dh control register 4 to %u,\n", iis2dh_ctrl_reg4);
+    cmd[1] = iis2dh_ctrl_reg4;
+    rstatus |= kd_write_peripheral_register(dev, cmd, 2);  // magic number '2' here refers to reg' addr and value to write
+#endif
 
     rstatus = i2c_write_read(device_data_ptr->bus,   // data_struc_ptr->i2c_dev,
                              DT_INST_REG_ADDR(0),
@@ -390,6 +404,13 @@ static uint32_t read_of_iis2dh_temperature_registers(const struct device *dev, s
     snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "-\n- %s - IIS2DH reports temperature of %u C\n-\n",
       MODULE_ID__THREAD_IIS2DH, value->val1);
     dmsg(lbuf, DIAG_NORMAL);
+
+#if KD_DEV__SET_BDU_BEFORE_TEMP_READING_THEN_UNSET == 1
+    iis2dh_ctrl_reg4 &= ~(BLOCK_DATA_UPDATE_NON_CONTINUOUS);
+    printk("- DEV 1117 - setting iis2dh control register 4 to %u after temperature reading,\n", iis2dh_ctrl_reg4);
+    cmd[1] = iis2dh_ctrl_reg4;
+    rstatus |= kd_write_peripheral_register(dev, cmd, 2);  // magic number '2' here refers to reg' addr and value to write
+#endif
 
     return rstatus;
 }
@@ -852,10 +873,6 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 
         k_msleep(1);
 
-// Read of incorrect register:
-//        iis2dh_acc_status = read_of_iis2dh_acc_status_register(sensor);
-//        printk("iis2dh status register 0x%02X holds %u,\n", IIS2DH_STATUS_REG, iis2dh_acc_status);
-// read_of_iis2dh_acc_fifo_src_register
         iis2dh_fifo_ctrl_reg = read_of_iis2dh_acc_fifo_src_register(sensor);
         printk("iis2dh FIFO SRC register 0x%02X holds %u,\n", IIS2DH_FIFO_SRC_REG, iis2dh_fifo_ctrl_reg);
 
@@ -866,10 +883,6 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
         rc = scoreboard_get_requested_iis2dh_odr(&odr_to_set);
         printk("- iis2dh thread - using scoreboard ODR equal to %u,\n", odr_to_set);
 
-        accelerator_start_acquisition_with_fifo(sensor, odr_to_set);  // ODR_10_HZ);
-
-        printk("\n\n");
-
 
 
 // - 2021-11-17 -
@@ -877,6 +890,12 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 #if KD_DEV__ENABLE_IIS2DH_TEMPERATURE_READINGS == 1
         rc = read_of_iis2dh_temperature_registers(sensor, &iis2dh_temperature_reading);
 #endif
+
+
+        accelerator_start_acquisition_with_fifo(sensor, odr_to_set);  // ODR_10_HZ);
+
+        printk("\n\n");
+
 
 
 // 2021-10-27 New static variable this module:  iis2dh_thread_sleep_time_in_ms

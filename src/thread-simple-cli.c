@@ -96,6 +96,7 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 #include "diagnostic.h"
+#include "module-ids.h"
 #include "return-values.h"
 #include "kionix-demo-errors.h"
 #include "banner.h"
@@ -254,6 +255,8 @@ struct k_thread simple_cli_thread_thread_data;
 
 int initialize_thread_simple_cli_task(void)
 {
+    uint32_t rstatus = ROUTINE_OK;
+
     k_tid_t simple_cli_task_tid = k_thread_create(&simple_cli_thread_thread_data, simple_cli_thread_stack_area,
                                             K_THREAD_STACK_SIZEOF(simple_cli_thread_stack_area),
                                             simple_cli_thread_entry_point,
@@ -261,6 +264,10 @@ int initialize_thread_simple_cli_task(void)
                                             SIMPLE_CLI_THREAD_PRIORITY,
                                             0,
                                             K_MSEC(1000)); // K_NO_WAIT);
+
+    rstatus = k_thread_name_set(simple_cli_task_tid, MODULE_ID__THREAD_SIMPLE_CLI);
+    if ( rstatus == 0 ) { } // avoid compiler warning about unused variable - TMH
+
     return (int)simple_cli_task_tid;
 }
 
@@ -619,6 +626,9 @@ uint32_t arg_n(const uint32_t requested_arg, char* return_arg)
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  *  @brief    Test whether argument contains only characters [0-9],
  *             when numeric convert to integer value.
+ *
+ *  @param    index_to_arg . . . index to tokenized argument from latest command line input
+ *  @param    pointer to calling code memory space for return integer value
  *  @return   1 when true
  *  @return   0 when false
  *
@@ -630,6 +640,17 @@ uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return)
     uint32_t tstatus = 1;  // test status
     uint32_t arg_len = strlen(argument_array[index_to_arg]);
     uint32_t multiplier = 1;
+
+
+// Bounds checking:
+    if (( index_to_arg >= 0 ) && ( index_to_arg < MAX_COUNT_SUPPORTED_ARGS ))
+    {
+    }
+    else
+    {
+        return ERROR_CLI_ARGUMENT_INDEX_OUT_OF_RANGE;
+    }
+
 
     for ( int i = 0; i < arg_len; i++ )
     {
@@ -766,11 +787,69 @@ uint32_t output_data_rate_handler(const char* args)
 }
 
 
+
+
 uint32_t iis2dh_sensor_handler(const char* args)
 {
-    printk_cli("iis2dh stub function\n");
+    uint32_t rstatus = ROUTINE_OK;
+    char lbuf[DEFAULT_MESSAGE_SIZE];
+    char argument[SIZE_OF_MESSAGE_SHORT];
+
+
+    printk_cli("- DEV 1117b - iis2dh stub function\n\r");
+
+    snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "- DEV 1117b - working with args '%s'\n\r", args);
+    printk_cli(lbuf);
+
+    rstatus = arg_n(0, argument);
+    snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "argument 1 is '%s'\n\r", argument);
+    printk_cli(lbuf);
+
+    rstatus = arg_n(1, argument);
+    snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "argument 2 is '%s'\n\r", argument);
+    printk_cli(lbuf);
+
+#if 0
+    rstatus = arg_n(2, argument);
+    snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "argument 3 is '%s'\n\r", argument);
+    printk_cli(lbuf);
+#endif
+
+    uint8_t control_register = 0;
+    uint8_t config_value = 0;
+
+    rstatus |= arg_is_decimal(0, &control_register);
+    if ( rstatus == ROUTINE_OK )
+    {
+        snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "parsed sensor register addr %u\n\r", control_register);
+        printk_cli(lbuf);
+    }
+    else
+    {
+        printk_cli("- INPUT ERROR - got invalid register address!");
+    }
+
+    rstatus |= arg_is_decimal(1, &config_value);
+    if ( rstatus == ROUTINE_OK )
+    {
+        snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "parsed configuration value of %u\n\r", config_value);
+        printk_cli(lbuf);
+    }
+    else
+    {
+        printk_cli("- INPUT ERROR - got invalid configuration register value!");
+    }
+
+    if ( rstatus == ROUTINE_OK )
+    {
+        printk_cli("- DEV SUMMARY - reading to send updating config value to sensor.");
+    }
+
+
+    printk_cli("- 1117b DEVELOPMENT UNDERWAY -- returning early . . .");
     return 0;
 } 
+
 
 
 
@@ -782,7 +861,9 @@ uint32_t cli__help_message(const char* args)
 
     char lbuf[SIZE_OF_MESSAGE_MEDIUM];
 
-    printk_cli("Kionix demo CLI commands:\n\r\n\r");
+//    printk_cli("Kionix demo CLI commands:\n\r\n\r");
+    printk_cli("\n\rKionix demo CLI commands:\n\r\n\r");
+
     for ( int i = 0; i < implemented_command_count; i++ )
     {
         snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, " %*u)  %s%*s   . . . %s\n\r",
