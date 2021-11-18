@@ -146,8 +146,6 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3);
 // - SECTION - file scoped variables, arrays, structures
 //----------------------------------------------------------------------
 
-// - SECTION - File scoped or global variables -
-
 #define BYTES_PER_XYZ_READINGS_TRIPLET (6)
 #define FIFO_READINGS_MAXIMUM_COUNT (32)
 static uint8_t readings_data[BYTES_PER_XYZ_READINGS_TRIPLET * (FIFO_READINGS_MAXIMUM_COUNT - 1)];

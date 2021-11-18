@@ -667,6 +667,8 @@ uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return)
     if ( tstatus == 1 )
     {
         *value_to_return = 0;
+        tstatus = RESULT_ARG_IS_DECIMAL;
+
         for ( int i = (arg_len - 1); i >= 0; i-- )
         {
             *value_to_return += ( (argument_array[index_to_arg][i] - 0x30) * multiplier );
@@ -742,7 +744,7 @@ uint32_t output_data_rate_handler(const char* args)
         printk_cli(lbuf);
 #endif // DEV BLOCK END
 
-        if ( rstatus == 1 )
+        if ( rstatus == RESULT_ARG_IS_DECIMAL )
         {
             if ( (new_data_rate >= LOWEST_DATA_RATE_INDEX) && (new_data_rate <= HIGHEST_DATA_RATE_INDEX) )
             {
@@ -798,7 +800,10 @@ uint32_t iis2dh_sensor_handler(const char* args)
 
     printk_cli("- DEV 1117b - iis2dh stub function\n\r");
 
-    snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "- DEV 1117b - working with args '%s'\n\r", args);
+    snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "- DEV 1117b - working with args '%s',\n\r", args);
+    printk_cli(lbuf);
+
+    snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "present argument count is '%u',\n\r", argument_count);
     printk_cli(lbuf);
 
     rstatus = arg_n(0, argument);
@@ -815,39 +820,43 @@ uint32_t iis2dh_sensor_handler(const char* args)
     printk_cli(lbuf);
 #endif
 
-    uint8_t control_register = 0;
-    uint8_t config_value = 0;
+    uint32_t type_of_arg = 0;
+    uint32_t control_register = 0;
+    uint32_t config_value = 0;
 
-    rstatus |= arg_is_decimal(0, &control_register);
-    if ( rstatus == ROUTINE_OK )
+    type_of_arg = arg_is_decimal(0, &control_register);
+    if ( type_of_arg == RESULT_ARG_IS_DECIMAL )
     {
         snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "parsed sensor register addr %u\n\r", control_register);
         printk_cli(lbuf);
     }
     else
     {
-        printk_cli("- INPUT ERROR - got invalid register address!");
+        rstatus = ERROR_UNEXPECTED_ARGUMENT_TYPE;
+        printk_cli("- INPUT ERROR - got invalid register address!\n\r");
     }
 
-    rstatus |= arg_is_decimal(1, &config_value);
-    if ( rstatus == ROUTINE_OK )
+    type_of_arg = arg_is_decimal(1, &config_value);
+    if ( type_of_arg == RESULT_ARG_IS_DECIMAL )
     {
         snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "parsed configuration value of %u\n\r", config_value);
         printk_cli(lbuf);
     }
     else
     {
-        printk_cli("- INPUT ERROR - got invalid configuration register value!");
+        rstatus = ERROR_UNEXPECTED_ARGUMENT_TYPE;
+        printk_cli("- INPUT ERROR - got invalid configuration register value!\n\r");
     }
 
     if ( rstatus == ROUTINE_OK )
     {
-        printk_cli("- DEV SUMMARY - reading to send updating config value to sensor.");
+        printk_cli("- DEV SUMMARY - reading to send updating config value to sensor.\n\r");
     }
 
 
-    printk_cli("- 1117b DEVELOPMENT UNDERWAY -- returning early . . .");
-    return 0;
+
+    printk_cli("- 1117b DEVELOPMENT UNDERWAY -- returning early . . .\n\r");
+    return rstatus;
 } 
 
 
