@@ -122,7 +122,7 @@
 // Sensor related:
 //
 
-#define COUNT_BYTES_IN_IIS_CONTROL_REGISTER (1)
+#define COUNT_BYTES_IN_IIS2DH_CONTROL_REGISTER (1)
 
 #ifndef KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE
 #warning "IIS2DH default data rate found first in IIS2DH thread source file,"
@@ -154,10 +154,11 @@ static uint8_t readings_data[BYTES_PER_XYZ_READINGS_TRIPLET * (FIFO_READINGS_MAX
 
 #if 1
 // Possible run-time copies of sensor configuration register settings:
+static uint8_t iis2dh_temp_cfg_reg = 0;    // 0x1F
 // static uint8_t iis2dh_ctrl_reg1 = 0;       // 0x20
 // static uint8_t iis2dh_ctrl_reg2 = 0;       // 0x21
 static uint8_t iis2dh_ctrl_reg3 = 0;       // 0x22
-// static uint8_t iis2dh_ctrl_reg4 = 0;       // 0x23
+static uint8_t iis2dh_ctrl_reg4 = 0;       // 0x23
 static uint8_t iis2dh_ctrl_reg5 = 0;       // 0x24
 static uint8_t iis2dh_acc_status = 0;      // 0x27
 static uint8_t iis2dh_fifo_ctrl_reg = 0;   // 0x2F
@@ -234,7 +235,8 @@ int initialize_thread_iis2dh_task(void)
 
 // REF https://docs.zephyrproject.org/2.6.0/reference/kernel/threads/index.html?highlight=k_thread_create#c.k_thread_name_set
 // int k_thread_name_set(k_tid_t thread, const char *str)
-    rstatus = k_thread_name_set(iis2dh_task_tid, "kd_thread_iis2dh");
+//    rstatus = k_thread_name_set(iis2dh_task_tid, "kd_thread_iis2dh");
+    rstatus = k_thread_name_set(iis2dh_task_tid, MODULE_ID__THREAD_IIS2DH);
     if ( rstatus == 0 ) { } // avoid compiler warning about unused variable - TMH
 
     return (int)iis2dh_task_tid;
@@ -321,25 +323,76 @@ static uint32_t read_of_iis2dh_whoami_register(const struct device *dev, struct 
 
     return status;
 }
+#endif
 
 
-static uint32_t read_of_iis2dh_temperature_registers(const struct device *dev, struct sensor_value value)
+static uint32_t configure_iis2dh_temperature_enable(const struct device *dev)
 {
-    int status = ROUTINE_OK;
-    uint8_t cmd[] = { 0x0C };
+    uint32_t rstatus = ROUTINE_OK;
+    uint8_t cmd[] = { 0, 0, 0 };
+//    struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
+
+#define DEV_TEMPERATURE_READINGS 1
+#if DEV_TEMPERATURE_READINGS == 1
+// iis2dh_temp_cfg_reg
+// iis2dh_ctrl_reg4
+    rstatus |= kd_read_peripheral_register(dev, cmd, &iis2dh_temp_cfg_reg, COUNT_BYTES_IN_IIS2DH_CONTROL_REGISTER);
+    printk("- DEV 1117 - top of routine before config TEMP_CONFIG_REGISTER holds %u,\n",
+      iis2dh_temp_cfg_reg);
+#endif
+
+    cmd[0] = TEMP_CONFIG_REGISTER;
+    iis2dh_temp_cfg_reg = ( TEMP_ENABLE_1 | TEMP_ENABLE_0 );
+    cmd[1] = iis2dh_temp_cfg_reg;
+    rstatus |= kd_write_peripheral_register(dev, cmd, 2);
+#if DEV_TEMPERATURE_READINGS == 1
+    printk("- DEV 1117 - after config TEMP_CONFIG_REGISTER holds %u,\n",
+      iis2dh_temp_cfg_reg);
+#endif
+
+    cmd[0] = IIS2DH_CTRL_REG4;
+// NEED to read control register 4 . . .
+    rstatus |= kd_read_peripheral_register(dev, cmd, &iis2dh_ctrl_reg4, COUNT_BYTES_IN_IIS2DH_CONTROL_REGISTER);
+#if DEV_TEMPERATURE_READINGS == 1
+    printk("- DEV 1117 - before config IIS2DH_CTRL_REG4 holds %u,\n",
+      iis2dh_ctrl_reg4);
+#endif
+    iis2dh_ctrl_reg4 |= BLOCK_DATA_UPDATE_NON_CONTINUOUS;
+    cmd[1] = iis2dh_ctrl_reg4;
+#if DEV_TEMPERATURE_READINGS == 1
+    printk("- DEV 1117 - after config IIS2DH_CTRL_REG4 holds %u,\n",
+      iis2dh_ctrl_reg4);
+#endif
+    rstatus |= kd_write_peripheral_register(dev, cmd, 2);
+
+    return rstatus;
+}
+
+
+
+static uint32_t read_of_iis2dh_temperature_registers(const struct device *dev, struct sensor_value *value)
+{
+    uint32_t rstatus = ROUTINE_OK;
+    uint8_t cmd[] = { OUT_TEMP_L };
     struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
     uint8_t scratch_pad_bytes[] = {0, 0};
 
-    status = i2c_write_read(device_data_ptr->bus,   // data_struc_ptr->i2c_dev,
-                            DT_INST_REG_ADDR(0),
-                            cmd, sizeof(cmd),
-                            &scratch_pad_bytes, sizeof(scratch_pad_bytes));
+    char lbuf[DEFAULT_MESSAGE_SIZE];
 
-    value.val1 = ((scratch_pad_bytes[0] << 8) | scratch_pad_bytes[0]);
+    rstatus = i2c_write_read(device_data_ptr->bus,   // data_struc_ptr->i2c_dev,
+                             DT_INST_REG_ADDR(0),
+                             cmd, 1,
+                             &scratch_pad_bytes, 2
+                            );
 
-    return status;
+    value->val1 = ((scratch_pad_bytes[0] << 8) | scratch_pad_bytes[0]);
+
+    snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "-\n- %s - IIS2DH reports temperature of %u C\n-\n",
+      MODULE_ID__THREAD_IIS2DH, value->val1);
+    dmsg(lbuf, DIAG_NORMAL);
+
+    return rstatus;
 }
-#endif
 
 
 /*
@@ -443,7 +496,7 @@ static uint32_t accelerator_start_acquisition_no_fifo(const struct device* dev, 
 // Whether using interrupts or not we'll clear them here per example code:
     cmd[0] = IIS2DH_CTRL_REG3;
     cmd[1] = 0;
-    rstatus |= kd_read_peripheral_register(dev, cmd, &register_value, COUNT_BYTES_IN_IIS_CONTROL_REGISTER);
+    rstatus |= kd_read_peripheral_register(dev, cmd, &register_value, COUNT_BYTES_IN_IIS2DH_CONTROL_REGISTER);
     printk("Clearing any interrupts we read from CTRL_REG3:  %u\n", register_value);
 
 // In another IIS2DH configuration that utilizes FIFO we would enable FIFO here.
@@ -523,7 +576,7 @@ static uint32_t accelerator_start_acquisition_with_fifo(const struct device* dev
 // Whether using interrupts or not we'll clear them here per example code:
     cmd[0] = IIS2DH_CTRL_REG3;
     cmd[1] = 0;
-    rstatus |= kd_read_peripheral_register(dev, cmd, &register_value, COUNT_BYTES_IN_IIS_CONTROL_REGISTER);
+    rstatus |= kd_read_peripheral_register(dev, cmd, &register_value, COUNT_BYTES_IN_IIS2DH_CONTROL_REGISTER);
     printk("Clearing any interrupts we read from CTRL_REG3:  %u\n", register_value);
 
 // (9) Enable FIFO:
@@ -567,7 +620,7 @@ static uint32_t ii_accelerometer_stop_acquisition(const struct device *dev)
     cmd[0] = IIS2DH_CTRL_REG3;
     cmd[1] = 0;
 //    printk("333 - \n");
-    rstatus |= kd_read_peripheral_register(dev, cmd, &register_value, COUNT_BYTES_IN_IIS_CONTROL_REGISTER);
+    rstatus |= kd_read_peripheral_register(dev, cmd, &register_value, COUNT_BYTES_IN_IIS2DH_CONTROL_REGISTER);
 //    printk("333 - from IIS2DH register CTRL3 read back %u\n", register_value);
 
 // (5) Disable data rate (power down mode)
@@ -628,12 +681,12 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
 // -- VAR END ---
 
 // IIS2DH_FIFO_SRC_REG
-#define COUNT_BYTES_IN_IIS_CONTROL_REGISTER_FIFO_SRC (1)
+#define COUNT_BYTES_IN_IIS2DH_CONTROL_REGISTER_FIFO_SRC (1)
 
 // (1) Query for present FIFO level and overrun status flag:
     cmd[0] = IIS2DH_FIFO_SRC_REG;
     cmd[1] = 0;
-    rstatus |= kd_read_peripheral_register(dev, cmd, &register_value, COUNT_BYTES_IN_IIS_CONTROL_REGISTER_FIFO_SRC);
+    rstatus |= kd_read_peripheral_register(dev, cmd, &register_value, COUNT_BYTES_IN_IIS2DH_CONTROL_REGISTER_FIFO_SRC);
     count = (register_value & FIFO_SRC_FSS_MASK);
     printk("222 - IIS2DH FIFO source register holds %u, buffered reading count is %u,\n",
       register_value, count);
@@ -742,7 +795,10 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 
     static uint16_t iis2ds12_i2c_periph_addr = DT_INST_REG_ADDR(0);   //<-- 2021-10-17 not available at build time - TMH
 
+// Early development variable of type Zephyr sensor reading structure:
 //    struct sensor_value acceleration_readings;
+// 2021-11-17:
+    struct sensor_value iis2dh_temperature_reading;
 
     uint8_t buff[10];
     memset(buff, 0, sizeof(buff));
@@ -780,6 +836,12 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 // 2021-11-17 - Effective initialization, see 'TO DO' section for note on further required study here:
     rc = scoreboard_set_requested_iis2dh_odr(KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE);
 
+#if 0
+    printk("- %s - INFO:  enabling iis2dh temperature readings . . .'\n",
+      MODULE_ID__THREAD_IIS2DH);
+    rc = configure_iis2dh_temperature_enable(sensor);
+#endif
+
 //    accelerator_start_acquisition_with_fifo(sensor, ODR_10_HZ);
     accelerator_start_acquisition_with_fifo(sensor, KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE);
 
@@ -807,6 +869,16 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
         accelerator_start_acquisition_with_fifo(sensor, odr_to_set);  // ODR_10_HZ);
 
         printk("\n\n");
+
+
+
+// - 2021-11-17 -
+// Initial test of IIS2DH temperature read:
+#if 0
+        rc = read_of_iis2dh_temperature_registers(sensor, &iis2dh_temperature_reading);
+#endif
+
+
 // 2021-10-27 New static variable this module:  iis2dh_thread_sleep_time_in_ms
         k_msleep(SLEEP_TIME__IIS2DH_TASK__MS);
         loop_count++;

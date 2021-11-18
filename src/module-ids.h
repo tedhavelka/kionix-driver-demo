@@ -3,7 +3,7 @@
 
 
 
-#define MODULE_ID__THREAD_IIS2DH "kd_thread_iis2dh"
+#define MODULE_ID__THREAD_IIS2DH "zzz_kd_thread_iis2dh"
 
 
 
