@@ -75,8 +75,6 @@ uint32_t iis2dh_sensor_handler(const char* args)
 // --- VAR END ---
 
 
-    printk_cli("\n\r\n\r- DEV 1117b - iis2dh stub function (now factored to separate source file)\n\r");
-
 // - NOTE 1 - <--dev code removed from this point
 
 // GENERALIZED COMMAND PARSING MACROS - ALLOW FOR CERTAIN ONE-LINE ARGUMENT CHECKS:
@@ -118,10 +116,6 @@ match += arg_is_decimal(n, &placeholder_decimal_value);
         STRNCMP_ARGUMENT(2, "from", SUPPORTED_ARG_LENGTH);
         CHECK_IF_DECIMAL_AT_ARG_INDEX(3);
 
-        snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "checking arguments for `read n from reg` command, match = %u\n\r",
-          match);
-        printk_cli(lbuf);
-
         if ( match == 0 )
             { command_to_execute = KD__IIS2DH_CMD__FROM_REG_READ_MULTIPLE_BYTES; }
     }
@@ -134,11 +128,10 @@ match += arg_is_decimal(n, &placeholder_decimal_value);
 #define LOCAL_CAP_ON_VALUES_CAPTURED 24
             uint8_t register_values[LOCAL_CAP_ON_VALUES_CAPTURED];
 
-            snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "user wants %u bytes read from register 0x%02X,\n\r",
-              dec_value_at_arg_index(1), dec_value_at_arg_index(3));
-            printk_cli(lbuf);
+//            snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "user wants %u bytes read from register 0x%02X,\n\r",
+//              dec_value_at_arg_index(1), dec_value_at_arg_index(3));
+//            printk_cli(lbuf);
 
-//            printk_cli("match == 0, ready to proceed with command,\n\r");
 #if 1
             uint32_t count_bytes_to_read = (
               dec_value_at_arg_index(1) <= LOCAL_CAP_ON_VALUES_CAPTURED ?
@@ -146,26 +139,32 @@ match += arg_is_decimal(n, &placeholder_decimal_value);
               LOCAL_CAP_ON_VALUES_CAPTURED
             );
 
+//            dev__thread_iis2dh__set_one_shot_message_flag();
+
             rstatus = wrapper_iis2dh_register_read_multiple(
                                                              dec_value_at_arg_index(3),
                                                              register_values,
                                                              count_bytes_to_read
                                                            );
 #endif
-            snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "%s", "bytes read back from register:\n\r");
-            printk_cli(lbuf);
-            for ( int i = 0; i < count_bytes_to_read; i++ )
-            {
-                if ( ( i % 4 ) == 0 ) { printk_cli(" "); }
-                snprintf(lbuf, DEFAULT_MESSAGE_SIZE, " 0x%02X", register_values[i]);
-                printk_cli(lbuf);
-            }
-
             if ( count_bytes_to_read == 1 )
             {
                 integer_to_binary_string(register_values[0], binary_rep, BINARY_REPRESENTATION_EIGHT_BITS_AS_STRING);
-                snprintf(lbuf, DEFAULT_MESSAGE_SIZE, " equal to 0b%s\n\r\n\r", binary_rep);
+                snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "\n\rregister 0x%02X holds 0x%02X equal to 0b%s\n\r",
+                  dec_value_at_arg_index(3), register_values[0], binary_rep);
                 printk_cli(lbuf);
+            }
+            else
+            {
+                printk_cli("\n\rbytes read back from register:\n\r");
+                for ( int i = 0; i < count_bytes_to_read; i++ )
+                {
+// two modulo tests support spacing to highlight accelerometer x,y,z triplet data:
+                    if ( ( i % 2 ) == 0 ) { printk_cli(" "); }
+                    if ( ( i % 6 ) == 0 ) { printk_cli(" "); }
+                    snprintf(lbuf, DEFAULT_MESSAGE_SIZE, " 0x%02X", register_values[i]);
+                    printk_cli(lbuf);
+                }
             }
 
             printk_cli(ONE_NEWLINE);

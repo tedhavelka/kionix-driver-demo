@@ -40,6 +40,10 @@
 #define KD_DEV__CLI_DIAG_ON_REGISTER_READS                (1)
 #define KD_DEV__CLI_ONE_SHOT_MESSAGE_FLAG                 (1)
 
+// 2021-11-19 -
+#define KD_DEV__CONFIG_REGISTERS_SUMMARY_ENABLED          (1)
+#define KD_DEV__I2C_WRITE_STATUS                          (1)
+
 
 // --- DEVELOPMENT FLAGS END ---
 
