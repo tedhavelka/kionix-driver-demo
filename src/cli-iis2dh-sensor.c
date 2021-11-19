@@ -120,7 +120,7 @@ match += arg_is_decimal(n, &placeholder_decimal_value);
 #define LOCAL_CAP_ON_VALUES_CAPTURED 24
             uint8_t register_values[LOCAL_CAP_ON_VALUES_CAPTURED];
 
-            snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "user wants %u bytes read from register %02X,\n\r",
+            snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "user wants %u bytes read from register 0x%02X,\n\r",
               dec_value_at_arg_index(1), dec_value_at_arg_index(3));
             printk_cli(lbuf);
 

@@ -14,10 +14,21 @@
  *
  *  @References:
  *
- *     +  https://docs.zephyrproject.org/latest/reference/kernel/threads/index.html#spawning-a-thread
+ *     +  REF https://docs.zephyrproject.org/latest/reference/kernel/threads/index.html#spawning-a-thread
  *
- *    2021-10-05 . . .
+ *    2021-10-05
  *     +  REF https://lists.zephyrproject.org/g/devel/topic/help_required_on_reading_uart/16760425
+ *
+ *    2021-11-18
+ *     +  REF https://www.asciihex.com/character/control/8/0x08/bs-backspace
+ *
+ *
+ *  @Key routines:
+ *
+ *     +  build_command_string(...)
+ *
+ *     +  command_handler(const char* latest_input)
+ *
  *
  *
  *  @Implementation:
@@ -60,7 +71,10 @@
 
 /*
 
-   [ ] TO DO 2021-11-17 - Implement simple backspace character-wise deletion on input line
+   [x] TO DO 2021-11-17 - Implement simple backspace character-wise deletion on input line
+        DONE 2021-11-18
+
+        DONE 2021-11-18 - '/' echoes present input on new prompt and continues to 'listen'
 
    [ ] TO DO 2021-11-17 - Implement command history
 
@@ -95,6 +109,7 @@
 // Project specific includes:
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+#include "common.h"
 #include "diagnostic.h"
 #include "module-ids.h"
 #include "return-values.h"
@@ -148,10 +163,14 @@
 //#define PROJECT_DIAG_LEVEL DIAG_OFF // DIAG_NORMAL
 
 
-
+// Latest parsed arguments:
 static char argument_array[MAX_COUNT_SUPPORTED_ARGS][SUPPORTED_ARG_LENGTH];
+
+// Count of latest parsed arguments, tokens following latest command:
 static uint32_t argument_count;
 
+// Flag to indicate present input character is first backspace in latest series of backspaces:
+static uint32_t flag_fresh_backspace_keypress = TRUE;
 
 
 
@@ -232,7 +251,7 @@ struct cli_command_writers_api kd_command_set[] =
     { "version", "show this Kionix Driver Demo version info", &cli__kd_version },
 
     { "odr", "IIS2DH Output Data Rate (ODR) set and get command.", &output_data_rate_handler },
-    { "iis2dh", "NOT YET IMPLEMENTED - to be general purpose iis2dh configurations command.", &iis2dh_sensor_handler },
+    { "iis2dh", "IMPLEMENTATION UNDERWAY - general purpose iis2dh configuration command.", &iis2dh_sensor_handler },
 //    { "stacks", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
     { "st", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
 
@@ -363,11 +382,66 @@ void clear_latest_command_string(void)
 
 
 
+// --- 1118 b DEV BEGIN ---
+void delete_one_char_from_latest_command_string(void)
+{
+    char lbuf[DEFAULT_MESSAGE_SIZE];
+    uint32_t command_length = strlen(latest_command);
+
+#define BACKSPACE_DEBUG 1
+#if BACKSPACE_DEBUG == 1
+    snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "- before backspace - present command length is %u\n\r", command_length);
+    printk_cli(lbuf);
+#endif
+#if 0
+    if ( flag_fresh_backspace_keypress == TRUE )
+    {
+#if BACKSPACE_DEBUG == 1
+        printk_cli("deleting a character, ");
+#endif
+        --index_within_cmd_token;
+        latest_command[index_within_cmd_token] = 0;
+        flag_fresh_backspace_keypress = FALSE;
+        command_length = strlen(latest_command);
+    }
+#endif
+
+    if ( command_length > 0 )
+    {
+#if BACKSPACE_DEBUG == 1
+        printk_cli("deleting a character,\n\r");
+#endif
+        --index_within_cmd_token;
+        latest_command[index_within_cmd_token] = 0;
+        command_length = strlen(latest_command);
+    }
+
+#if BACKSPACE_DEBUG == 1
+    snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "- after backspace - present command length is %u\n\r", command_length);
+    printk_cli(lbuf);
+#endif
+    show_prompt();
+    printk_cli(latest_command);
+}
+// --- 1118 b DEV END ---
+
+
+
+
+
 #define PS1 "\n\rkd-demo > "
 
 void show_prompt(void)
 {
     printk_cli(PS1);
+}
+
+
+
+void show_prompt_and_latest_command(void)
+{
+    printk_cli(PS1);
+    printk_cli(latest_command);
 }
 
 
@@ -459,13 +533,39 @@ uint32_t build_command_string(const char* latest_input, const struct device* cal
 {
     uint32_t rstatus = 0;
 
+
+// --- 1118 b DEV BEGIN ---
+    if ( latest_input[0] == 0x08 )    // . . . <BACKSPACE> key 
+    {
+        delete_one_char_from_latest_command_string();
+    }
+    else
+    {
+        flag_fresh_backspace_keypress = TRUE;
+    }
+
+
+    if ( latest_input[0] == 0x2F )    // . . . '/' forward slash character
+    {
+        show_prompt_and_latest_command();
+    }
+
+// --- 1118 b DEV END ---
+
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// - STEP - store and echo latest CLI character wise input
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 // If latest character printable and not '\r' . . . append latest command string:
-    if ( (latest_input[0] >= 0x20) && (latest_input[0] < 0x7F) && (latest_input[0] != '\r') )
+//    if ( (latest_input[0] >= 0x20) && (latest_input[0] < 0x7F) && (latest_input[0] != '\r') 
+    else if ( (latest_input[0] >= 0x20) && (latest_input[0] < 0x7F) && (latest_input[0] != '\r') 
+           && (latest_input[0] != 0x08) )
 //       ~~~~~~~~~~~~~~~~~~~~~~~~~    ~~~~~~~~~~~~~~~~~~~~~~~~    ~~~~~~~~~~~~~~~~~~~~~~~~~
     {
         if ( index_within_cmd_token >= SIZE_COMMAND_TOKEN )
         {
-            printk("Supported commnd length exceeded!\n");
+            printk("Supported command length exceeded!\n");
             printk("Press <ENTER> to process or <ESC> to start over.\n");
         }
         else
@@ -476,20 +576,33 @@ uint32_t build_command_string(const char* latest_input, const struct device* cal
         }
     }
 
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// - STEP - respond to supported control characters
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 // If latest character is <ESC> then clear the latest captured command string:
-    if ( latest_input[0] == 0x1B )
+
+    else if ( latest_input[0] == 0x1B )    // . . . <ESCAPE> key 
     {
         clear_latest_command_string();
     }
 
-// If latest character is <ENTER> then call the command handler:
-    if ( latest_input[0] == '\r' )
+#if 0
+// --- 1118 b DEV BEGIN ---
+    else if ( latest_input[0] == 0x08 )    // . . . <BACKSPACE> key 
     {
-// When both active, following two lines an effective "\n\r" test:
-//        uart_poll_out(callers_uart, newline_string[0]);
+        delete_one_char_from_latest_command_string();
+    }
+// --- 1118 b DEV END ---
+#endif
 
+// If latest character is <ENTER> then call the command handler:
+
+    else if ( latest_input[0] == '\r' )
+    {
 // --- 1115 DEV BEGIN ---
-// bug fix, attempting to correct prompt and command entered overwriting:
+// bug fix, attempting to correct overwriting of CLI prompt and latest command:
 //        uart_poll_out(callers_uart, latest_input[0]);
         if ( strlen(latest_input) > 1 )
         {
@@ -498,7 +611,6 @@ uint32_t build_command_string(const char* latest_input, const struct device* cal
         else
         {
             uart_poll_out(callers_uart, latest_input[0]);
-//            printk_cli("\n\r");
         }
 // --- 1115 DEV END ---
 
@@ -804,7 +916,8 @@ uint32_t output_data_rate_handler(const char* args)
     {
         enum iis2dh_output_data_rates_e present_odr_flags;
         rstatus = scoreboard_get_requested_iis2dh_odr(&present_odr_flags);
-        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "present ODR flags = %u,\n\r", (uint32_t)present_odr_flags);
+        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "\n\rpresent ODR flags = %u,\n\r",
+          (uint32_t)present_odr_flags);
         printk_cli(lbuf);
     }
 
