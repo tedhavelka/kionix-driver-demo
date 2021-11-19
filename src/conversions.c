@@ -33,6 +33,47 @@
 
 /*
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ *  @Brief   routine to convert eight-bit two's compliment reading
+ *           into a value in units of G, gravitational force at surface
+ *           of Earth.
+ * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ */
+
+float reading_in_g(const uint32_t reading_in_twos_comp, const uint32_t full_scale, const uint32_t resolution_in_bits)
+{
+    uint32_t reading = reading_in_twos_comp;
+    uint32_t reading_bounded = (reading & 0xFF);
+    float reading_as_float = 0.0;
+    float scale_by_value = ( ( 2.0 * APPR_ACCELERATION_OF_GRAVITY ) / 128.0 );
+    (void)full_scale;
+    (void)resolution_in_bits;
+
+#if 0
+#include <sys/printk.h>            // to provide printk() function
+//printk("- zzz - converting reading value %u to float value in units of G,\n", reading_in_twos_comp);
+printk(" - PASSED VALUE %u -", reading_in_twos_comp);
+#endif
+
+// Later add check for values > 255, 1023, 4095, e.g. 8- 10- 12-bit readings
+    if ( reading & 0x80 )
+    {
+        reading_bounded = ~(reading_bounded);
+        reading_bounded &= 0xFF;   // keep 8-bit bounded reading bounded,
+        reading_bounded++;
+    }
+
+    reading_as_float = ( (float)reading_bounded * scale_by_value );
+
+    if ( reading & 0x80 )
+        { reading_as_float *= -1.0; }
+
+    return reading_as_float;
+}
+
+
+
+/*
+ * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  *
  *  @brief  Routine to convert integer up to 32-bits in length to
  *          string in binary format.  Caller sends pointer to memory

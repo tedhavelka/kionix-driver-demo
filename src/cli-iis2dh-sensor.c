@@ -98,14 +98,14 @@ match += arg_is_decimal(n, &placeholder_decimal_value);
 
     else if ( argument_count == 3 )
     {
-        printk_cli("checking for `iis2dh write <reg> <data>` command...\n\r");
+//        printk_cli("checking for `iis2dh write <reg> <data>` command...\n\r");
         STRNCMP_ARGUMENT(0, "write", SUPPORTED_ARG_LENGTH);
         CHECK_IF_DECIMAL_AT_ARG_INDEX(1);   // <-- here expect peripheral register address
         CHECK_IF_DECIMAL_AT_ARG_INDEX(2);   // <-- here expect byte value to write to peripheral register
         if ( match == 0 )
             { command_to_execute = KD__IIS2DH_CMD__TO_REG_WRITE_ONE_BYTE; }
-        else
-            { printk_cli("iis2dh write command not found.\n\r"); }
+//        else
+//            { printk_cli("iis2dh write command not found.\n\r"); }
     }
 
 // 2021-11-18 - check for input of the form "iis2dh read n from n":
@@ -150,8 +150,8 @@ match += arg_is_decimal(n, &placeholder_decimal_value);
             if ( count_bytes_to_read == 1 )
             {
                 integer_to_binary_string(register_values[0], binary_rep, BINARY_REPRESENTATION_EIGHT_BITS_AS_STRING);
-                snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "\n\rregister 0x%02X holds 0x%02X equal to 0b%s\n\r",
-                  dec_value_at_arg_index(3), register_values[0], binary_rep);
+                snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "\n\rregister 0x%02X holds 0x%02X, equal to %u and 0b%s\n\r",
+                  dec_value_at_arg_index(3), register_values[0], register_values[0], binary_rep);
                 printk_cli(lbuf);
             }
             else
@@ -176,7 +176,8 @@ match += arg_is_decimal(n, &placeholder_decimal_value);
         case KD__IIS2DH_CMD__TO_REG_WRITE_ONE_BYTE:
         {
 #if 1
-            printk_cli("calling wrapper routine to write config register . . .\n\r");
+            printk_cli("\n\rcalling wrapper routine to write config register . . .\n\r");
+            dev__thread_iis2dh__set_one_shot_message_flag();
 #endif
             rstatus = wrapper_iis2dh_register_write(
                                                      dec_value_at_arg_index(1),

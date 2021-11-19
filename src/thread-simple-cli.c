@@ -133,7 +133,7 @@
 //----------------------------------------------------------------------
 
 // defines thread related:
-#define SIMPLE_CLI_THREAD_STACK_SIZE 1536 // 3072 // 2048 // 1024
+#define SIMPLE_CLI_THREAD_STACK_SIZE 2048 // 1536 // 3072 // 1024
 #define SIMPLE_CLI_THREAD_PRIORITY 8   // NEED to implement project enum of project thread priorities - TMH
 
 // defines for application or task implemented by this thread:

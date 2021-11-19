@@ -49,7 +49,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>   // to provide memset(),
+#include <string.h>                // to provide memset(),
 
 // Zephyr RTOS headers . . .
 #include <zephyr.h>
@@ -762,7 +762,7 @@ static uint32_t ii_accelerometer_stop_acquisition(const struct device *dev)
 
 
 
-
+#if 0
 float reading_in_g(const uint32_t reading_in_twos_comp, const uint32_t full_scale, const uint32_t res_in_bits)
 {
     uint32_t reading = reading_in_twos_comp;
@@ -787,7 +787,7 @@ float reading_in_g(const uint32_t reading_in_twos_comp, const uint32_t full_scal
 
     return reading_as_float;
 }
-
+#endif
 
 
 
@@ -835,9 +835,10 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
     }
 
 #if 1
-    rstatus |= kd_read_peripheral_register(dev,
-                                           &iis2dh_x_axis_low_byte_reg,
-                                           readings_data,
+    rstatus |= kd_read_peripheral_register(
+                                            dev,
+                                            &iis2dh_x_axis_low_byte_reg,
+                                            readings_data,
                                            (BYTES_PER_XYZ_READINGS_TRIPLET * count)
                                           );
 #else
@@ -855,20 +856,18 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
     for ( i = 0; i < count; i += BYTES_PER_XYZ_READINGS_TRIPLET )
     {
         printk(" %02X %02X  %02X %02X  %02X %02X  --  x,y,z in G = %2.3fG, %2.3fG, %2.3fG",
-          readings_data[i],
+          readings_data[i + 0],
           readings_data[i + 1],
           readings_data[i + 2],
           readings_data[i + 3],
           readings_data[i + 4],
           readings_data[i + 5],
-          reading_in_g((uint32_t)readings_data[i], 0, 0),
-          reading_in_g((uint32_t)readings_data[i + 2], 0, 0),
-          reading_in_g((uint32_t)readings_data[i + 4], 0, 0)
+          reading_in_g((uint32_t)readings_data[i + 1], 0, 0),
+          reading_in_g((uint32_t)readings_data[i + 3], 0, 0),
+          reading_in_g((uint32_t)readings_data[i + 5], 0, 0)
         );
 
-// ---** CODING MARK **---
-
-//        if ( ( (i+1) % TRIPLETS_TO_FORMAT_PER_LINE ) == 0 )
+// 
 
 #define EVERY_SIX_LINES (6)
         if ( ( (i+1) % EVERY_SIX_LINES ) == 0 )
@@ -1066,11 +1065,19 @@ uint32_t wrapper_iis2dh_register_write(const uint8_t register_addr, const uint8_
                                               );
     }
 
-    char lbuf[DEFAULT_MESSAGE_SIZE];
-    printk_cli("- DEV 1119 -\n\r");
-    snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "after call to write, reg_addr_plus_data[] = { 0x%02X, 0x%02X, 0x%02X }\n\r",
-      reg_addr_plus_data[0], reg_addr_plus_data[1], reg_addr_plus_data[2]);
-    printk_cli(lbuf);
+
+    if ( flag_one_shot_diag_message_enabled == 1 )
+    {
+        flag_one_shot_diag_message_enabled = 0;
+
+#if KD_DEV__CLI_DIAG_ON_REGISTER_WRITES == 1
+        char lbuf[DEFAULT_MESSAGE_SIZE];
+        printk_cli("- DEV 1119 -\n\r");
+        snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "after call to write, reg_addr_plus_data[] = { 0x%02X, 0x%02X, 0x%02X }\n\r",
+          reg_addr_plus_data[0], reg_addr_plus_data[1], reg_addr_plus_data[2]);
+        printk_cli(lbuf);
+#endif
+    }
 
     return rstatus;
 }

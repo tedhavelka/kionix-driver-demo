@@ -38,6 +38,7 @@
 
 #define KD_DEV__CLI_DIAG_ON_IN_IIS2DH_TASK                (1)
 #define KD_DEV__CLI_DIAG_ON_REGISTER_READS                (1)
+#define KD_DEV__CLI_DIAG_ON_REGISTER_WRITES               (1)
 #define KD_DEV__CLI_ONE_SHOT_MESSAGE_FLAG                 (1)
 
 // 2021-11-19 -
