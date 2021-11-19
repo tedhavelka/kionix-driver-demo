@@ -14,10 +14,21 @@
  *
  *  @References:
  *
- *     +  https://docs.zephyrproject.org/latest/reference/kernel/threads/index.html#spawning-a-thread
+ *     +  REF https://docs.zephyrproject.org/latest/reference/kernel/threads/index.html#spawning-a-thread
  *
- *    2021-10-05 . . .
+ *    2021-10-05
  *     +  REF https://lists.zephyrproject.org/g/devel/topic/help_required_on_reading_uart/16760425
+ *
+ *    2021-11-18
+ *     +  REF https://www.asciihex.com/character/control/8/0x08/bs-backspace
+ *
+ *
+ *  @Key routines:
+ *
+ *     +  build_command_string(...)
+ *
+ *     +  command_handler(const char* latest_input)
+ *
  *
  *
  *  @Implementation:
@@ -60,7 +71,10 @@
 
 /*
 
-   [ ] TO DO 2021-11-17 - Implement simple backspace character-wise deletion on input line
+   [x] TO DO 2021-11-17 - Implement simple backspace character-wise deletion on input line
+        DONE 2021-11-18
+
+        DONE 2021-11-18 - '/' echoes present input on new prompt and continues to 'listen'
 
    [ ] TO DO 2021-11-17 - Implement command history
 
@@ -70,11 +84,11 @@
 
 //----------------------------------------------------------------------
 // - SECTION - pound includes
-//----------------------------------------------------------------------
+//---------------------------------^------------------------------------
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>   // to provide memset(),
+#include <string.h>                // to provide memset()
 
 // Zephyr RTOS headers . . .
 #include <zephyr.h>
@@ -88,14 +102,16 @@
 #include <drivers/sensor.h>
 
 // 2021-10-05 - CLI incorporation work, see Zephyr v2.6.0 file "zephyr/subsys/console/tty.c"
-#include <drivers/uart.h>        // to provide uart_poll_in()
+#include <drivers/uart.h>          // to provide uart_poll_in()
 
 
 //
 // Project specific includes:
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+#include "common.h"
 #include "diagnostic.h"
+#include "module-ids.h"
 #include "return-values.h"
 #include "kionix-demo-errors.h"
 #include "banner.h"
@@ -117,7 +133,7 @@
 //----------------------------------------------------------------------
 
 // defines thread related:
-#define SIMPLE_CLI_THREAD_STACK_SIZE 1536 // 3072 // 2048 // 1024
+#define SIMPLE_CLI_THREAD_STACK_SIZE 2048 // 1536 // 3072 // 1024
 #define SIMPLE_CLI_THREAD_PRIORITY 8   // NEED to implement project enum of project thread priorities - TMH
 
 // defines for application or task implemented by this thread:
@@ -125,7 +141,7 @@
 
 // Note, for now we limit a token or character strings sans white space
 // to 32 characters, subject to change as needed:
-#define SIZE_COMMAND_TOKEN (32)       //
+//#define SIZE_COMMAND_TOKEN (32)
 
 // Note, space permitting we'll store up to ten user commands in a ring buffer:
 #define SIZE_COMMAND_HISTORY (10)     // 2021-10-25 - not yet implemented
@@ -135,11 +151,7 @@
 
 // Note, we start with support for passing up to ten args to a CLI command herein:
 #define MAX_COUNT_SUPPORTED_ARGS (10)
-#define SUPPORTED_ARG_LENGTH     (16)
-
-
-//#define SIZE_OF_MESSAGE_SHORT (80)
-//#define SIZE_OF_MESSAGE_MEDIUM (160)
+//#define SUPPORTED_ARG_LENGTH     (16)
 
 
 
@@ -151,10 +163,14 @@
 //#define PROJECT_DIAG_LEVEL DIAG_OFF // DIAG_NORMAL
 
 
-
+// Latest parsed arguments:
 static char argument_array[MAX_COUNT_SUPPORTED_ARGS][SUPPORTED_ARG_LENGTH];
+
+// Count of latest parsed arguments, tokens following latest command:
 static uint32_t argument_count;
 
+//// Flag to indicate present input character is first backspace in latest series of backspaces:
+//static uint32_t flag_fresh_backspace_keypress = TRUE;
 
 
 
@@ -180,7 +196,6 @@ uint32_t arg_is_hex(const uint32_t index_to_arg, int* value);
 
 // command handler prototypes:
 uint32_t output_data_rate_handler(const char* args);
-uint32_t iis2dh_sensor_handler(const char* args);
 uint32_t cli__help_message(const char* args);
 //uint32_t banner_message(const char* args);
 
@@ -191,6 +206,9 @@ extern uint32_t cli__kd_version(const char* args);
 // banner.h . . .
 extern uint32_t cli__banner_message(const char* args);
 // cli-zephyr-kernel-timing.h . . .
+
+// . . .
+extern uint32_t iis2dh_sensor_handler(const char* args);
 
 
 
@@ -233,7 +251,7 @@ struct cli_command_writers_api kd_command_set[] =
     { "version", "show this Kionix Driver Demo version info", &cli__kd_version },
 
     { "odr", "IIS2DH Output Data Rate (ODR) set and get command.", &output_data_rate_handler },
-    { "iis2dh", "NOT YET IMPLEMENTED - to be general purpose iis2dh configurations command.", &iis2dh_sensor_handler },
+    { "iis2dh", "IMPLEMENTATION UNDERWAY - general purpose iis2dh configuration command.", &iis2dh_sensor_handler },
 //    { "stacks", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
     { "st", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
 
@@ -254,6 +272,8 @@ struct k_thread simple_cli_thread_thread_data;
 
 int initialize_thread_simple_cli_task(void)
 {
+    uint32_t rstatus = ROUTINE_OK;
+
     k_tid_t simple_cli_task_tid = k_thread_create(&simple_cli_thread_thread_data, simple_cli_thread_stack_area,
                                             K_THREAD_STACK_SIZEOF(simple_cli_thread_stack_area),
                                             simple_cli_thread_entry_point,
@@ -261,6 +281,10 @@ int initialize_thread_simple_cli_task(void)
                                             SIMPLE_CLI_THREAD_PRIORITY,
                                             0,
                                             K_MSEC(1000)); // K_NO_WAIT);
+
+    rstatus = k_thread_name_set(simple_cli_task_tid, MODULE_ID__THREAD_SIMPLE_CLI);
+    if ( rstatus == 0 ) { } // avoid compiler warning about unused variable - TMH
+
     return (int)simple_cli_task_tid;
 }
 
@@ -297,6 +321,12 @@ void clear_argument_array(void)
     argument_count = 0;
 }
 
+
+
+uint32_t argument_count_from_cli_module(void)
+{
+    return argument_count;
+}
 
 
 /*
@@ -352,11 +382,57 @@ void clear_latest_command_string(void)
 
 
 
+// --- 1118 b DEV BEGIN ---
+void delete_one_char_from_latest_command_string(void)
+{
+    char lbuf[DEFAULT_MESSAGE_SIZE];
+    uint32_t command_length = strlen(latest_command);
+
+#define BACKSPACE_DEBUG 0
+#if BACKSPACE_DEBUG == 1
+    snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "- before backspace - present command length is %u\n\r", command_length);
+    printk_cli(lbuf);
+#endif
+#if 0
+//    if ( flag_fresh_backspace_keypress == TRUE )
+#endif
+
+    if ( command_length > 0 )
+    {
+#if BACKSPACE_DEBUG == 1
+        printk_cli("deleting a character,\n\r");
+#endif
+        --index_within_cmd_token;
+        latest_command[index_within_cmd_token] = 0;
+        command_length = strlen(latest_command);
+    }
+
+#if BACKSPACE_DEBUG == 1
+    snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "- after backspace - present command length is %u\n\r", command_length);
+    printk_cli(lbuf);
+#endif
+    show_prompt();
+    printk_cli(latest_command);
+}
+// --- 1118 b DEV END ---
+
+
+
+
+
 #define PS1 "\n\rkd-demo > "
 
 void show_prompt(void)
 {
     printk_cli(PS1);
+}
+
+
+
+void show_prompt_and_latest_command(void)
+{
+    printk_cli(PS1);
+    printk_cli(latest_command);
 }
 
 
@@ -448,13 +524,39 @@ uint32_t build_command_string(const char* latest_input, const struct device* cal
 {
     uint32_t rstatus = 0;
 
+
+// --- 1118 b DEV BEGIN ---
+    if ( latest_input[0] == 0x08 )    // . . . <BACKSPACE> key 
+    {
+        delete_one_char_from_latest_command_string();
+    }
+//    else
+//    {
+//        flag_fresh_backspace_keypress = TRUE;
+//    }
+
+
+    if ( latest_input[0] == 0x2F )    // . . . '/' forward slash character
+    {
+        show_prompt_and_latest_command();
+    }
+
+// --- 1118 b DEV END ---
+
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// - STEP - store and echo latest CLI character wise input
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 // If latest character printable and not '\r' . . . append latest command string:
-    if ( (latest_input[0] >= 0x20) && (latest_input[0] < 0x7F) && (latest_input[0] != '\r') )
+//    if ( (latest_input[0] >= 0x20) && (latest_input[0] < 0x7F) && (latest_input[0] != '\r') 
+    else if ( (latest_input[0] >= 0x20) && (latest_input[0] < 0x7F) && (latest_input[0] != '\r') 
+           && (latest_input[0] != 0x08) )
 //       ~~~~~~~~~~~~~~~~~~~~~~~~~    ~~~~~~~~~~~~~~~~~~~~~~~~    ~~~~~~~~~~~~~~~~~~~~~~~~~
     {
         if ( index_within_cmd_token >= SIZE_COMMAND_TOKEN )
         {
-            printk("Supported commnd length exceeded!\n");
+            printk("Supported command length exceeded!\n");
             printk("Press <ENTER> to process or <ESC> to start over.\n");
         }
         else
@@ -465,20 +567,33 @@ uint32_t build_command_string(const char* latest_input, const struct device* cal
         }
     }
 
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// - STEP - respond to supported control characters
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 // If latest character is <ESC> then clear the latest captured command string:
-    if ( latest_input[0] == 0x1B )
+
+    else if ( latest_input[0] == 0x1B )    // . . . <ESCAPE> key 
     {
         clear_latest_command_string();
     }
 
-// If latest character is <ENTER> then call the command handler:
-    if ( latest_input[0] == '\r' )
+#if 0
+// --- 1118 b DEV BEGIN ---
+    else if ( latest_input[0] == 0x08 )    // . . . <BACKSPACE> key 
     {
-// When both active, following two lines an effective "\n\r" test:
-//        uart_poll_out(callers_uart, newline_string[0]);
+        delete_one_char_from_latest_command_string();
+    }
+// --- 1118 b DEV END ---
+#endif
 
+// If latest character is <ENTER> then call the command handler:
+
+    else if ( latest_input[0] == '\r' )
+    {
 // --- 1115 DEV BEGIN ---
-// bug fix, attempting to correct prompt and command entered overwriting:
+// bug fix, attempting to correct overwriting of CLI prompt and latest command:
 //        uart_poll_out(callers_uart, latest_input[0]);
         if ( strlen(latest_input) > 1 )
         {
@@ -487,7 +602,6 @@ uint32_t build_command_string(const char* latest_input, const struct device* cal
         else
         {
             uart_poll_out(callers_uart, latest_input[0]);
-//            printk_cli("\n\r");
         }
 // --- 1115 DEV END ---
 
@@ -619,31 +733,39 @@ uint32_t arg_n(const uint32_t requested_arg, char* return_arg)
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  *  @brief    Test whether argument contains only characters [0-9],
  *             when numeric convert to integer value.
- *  @return   1 when true
- *  @return   0 when false
+ *
+ *  @param    index_to_arg . . . index to tokenized argument from latest command line input
+ *  @param    pointer to calling code memory space for return integer value
+ *
+ *  @note     Honoring shell return value convention, and with ease of summing series of test results:
+ *  @return   0 when true
+ *  @return   1 when false
  *
  *  https://www.cs.cmu.edu/~pattis/15-1XX/common/handouts/ascii.html
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  */
 uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return)
 {
-    uint32_t tstatus = 1;  // test status
+    uint32_t tstatus = 0;  // test status
     uint32_t arg_len = strlen(argument_array[index_to_arg]);
     uint32_t multiplier = 1;
+
+// Bounds checking:
+    if (( index_to_arg >= 0 ) && ( index_to_arg < MAX_COUNT_SUPPORTED_ARGS ))
+        { }
+    else
+        { return ERROR_CLI_ARGUMENT_INDEX_OUT_OF_RANGE; }
 
     for ( int i = 0; i < arg_len; i++ )
     {
         if ( ( argument_array[index_to_arg][i] < 0x30 ) || ( argument_array[index_to_arg][i] > 0x39 ) )
         {
-            tstatus = 0 /* false result */;  i = arg_len /* kick out */;
+            tstatus = RESULT_ARG_NOT_DECIMAL /* false result */;  i = arg_len /* kick out */;
         }
     }
 
-//printk("ZZZZZ - arg-is-decimal - looking at arg '%s' of length %u,\n", argument_array[index_to_arg], arg_len);
-
 // Note 0x30 is the ASCII value for the character zero '0':
-
-    if ( tstatus == 1 )
+    if ( tstatus == RESULT_ARG_IS_DECIMAL )
     {
         *value_to_return = 0;
         for ( int i = (arg_len - 1); i >= 0; i-- )
@@ -661,6 +783,33 @@ uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return)
 uint32_t arg_is_hex(const uint32_t arg, int* value_to_return)
 {
     return 0;
+}
+
+
+
+uint32_t dec_value_at_arg_index(const uint32_t index_to_arg)
+{
+    uint32_t multiplier = 1;
+    uint32_t value_to_return = 0;
+
+// Bounds checking:
+    if (( index_to_arg >= 0 ) && ( index_to_arg < MAX_COUNT_SUPPORTED_ARGS ))
+        { }
+    else
+        { return ERROR_CLI_ARGUMENT_INDEX_OUT_OF_RANGE; }
+
+// Note 0x30 is the ASCII value for the character zero '0':
+    uint32_t arg_len = strlen(argument_array[index_to_arg]);
+    {
+        value_to_return = 0;
+        for ( int i = (arg_len - 1); i >= 0; i-- )
+        {
+            value_to_return += ( (argument_array[index_to_arg][i] - 0x30) * multiplier );
+            multiplier *= 10;
+        }
+    }
+
+    return value_to_return;
 }
 
 
@@ -721,7 +870,7 @@ uint32_t output_data_rate_handler(const char* args)
         printk_cli(lbuf);
 #endif // DEV BLOCK END
 
-        if ( rstatus == 1 )
+        if ( rstatus == RESULT_ARG_IS_DECIMAL )
         {
             if ( (new_data_rate >= LOWEST_DATA_RATE_INDEX) && (new_data_rate <= HIGHEST_DATA_RATE_INDEX) )
             {
@@ -758,19 +907,13 @@ uint32_t output_data_rate_handler(const char* args)
     {
         enum iis2dh_output_data_rates_e present_odr_flags;
         rstatus = scoreboard_get_requested_iis2dh_odr(&present_odr_flags);
-        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "present ODR flags = %u,\n\r", (uint32_t)present_odr_flags);
+        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "\n\rpresent ODR flags = %u,\n\r",
+          (uint32_t)present_odr_flags);
         printk_cli(lbuf);
     }
 
     return rstatus;
 }
-
-
-uint32_t iis2dh_sensor_handler(const char* args)
-{
-    printk_cli("iis2dh stub function\n");
-    return 0;
-} 
 
 
 
@@ -782,7 +925,9 @@ uint32_t cli__help_message(const char* args)
 
     char lbuf[SIZE_OF_MESSAGE_MEDIUM];
 
-    printk_cli("Kionix demo CLI commands:\n\r\n\r");
+//    printk_cli("Kionix demo CLI commands:\n\r\n\r");
+    printk_cli("\n\rKionix demo CLI commands:\n\r\n\r");
+
     for ( int i = 0; i < implemented_command_count; i++ )
     {
         snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, " %*u)  %s%*s   . . . %s\n\r",

@@ -58,6 +58,9 @@ enum iis2dh_output_data_rates_e
 
 
 // 2021-11-17 - temperature sensor in IIS2DH:
+#define TEMP_CONFIG_REGISTER       (0x1F)
+#define TEMP_ENABLE_1          ( 1 << 7 )
+#define TEMP_ENABLE_0          ( 1 << 6 )
 #define OUT_TEMP_L (0x0C)
 #define OUT_TEMP_H (0x0D)
 

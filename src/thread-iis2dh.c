@@ -33,7 +33,7 @@
 
 /*
 
-   [ ] TO DO 2021-11-17 - Bring default Output Data Rate value out as pound define.
+   [x] TO DO 2021-11-17 - Bring default Output Data Rate value out as pound define.
 
    [ ] TO DO 2021-11-17 - Replace calls to printk() with call to diagnostic wrapper function dmsg() where appropriate.
 
@@ -49,7 +49,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>   // to provide memset(),
+#include <string.h>                // to provide memset(),
 
 // Zephyr RTOS headers . . .
 #include <zephyr.h>
@@ -77,10 +77,15 @@
 #include "kd-app-config.h"
 #include "return-values.h"
 #include "module-ids.h"
+#include "development-flags.h"
+
+#include "conversions.h"
 #include "scoreboard.h"
 #include "iis2dh-registers.h"
-#include "conversions.h"
 
+#if KD_DEV__CLI_DIAG_ON_IN_IIS2DH_TASK
+#include "thread-simple-cli.h"
+#endif
 
 
 
@@ -122,7 +127,7 @@
 // Sensor related:
 //
 
-#define COUNT_BYTES_IN_IIS_CONTROL_REGISTER (1)
+#define COUNT_BYTES_IN_IIS2DH_CONTROL_REGISTER (1)
 
 #ifndef KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE
 #warning "IIS2DH default data rate found first in IIS2DH thread source file,"
@@ -144,8 +149,6 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3);
 // - SECTION - file scoped variables, arrays, structures
 //----------------------------------------------------------------------
 
-// - SECTION - File scoped or global variables -
-
 #define BYTES_PER_XYZ_READINGS_TRIPLET (6)
 #define FIFO_READINGS_MAXIMUM_COUNT (32)
 static uint8_t readings_data[BYTES_PER_XYZ_READINGS_TRIPLET * (FIFO_READINGS_MAXIMUM_COUNT - 1)];
@@ -154,10 +157,11 @@ static uint8_t readings_data[BYTES_PER_XYZ_READINGS_TRIPLET * (FIFO_READINGS_MAX
 
 #if 1
 // Possible run-time copies of sensor configuration register settings:
+static uint8_t iis2dh_temp_cfg_reg = 0;    // 0x1F
 // static uint8_t iis2dh_ctrl_reg1 = 0;       // 0x20
 // static uint8_t iis2dh_ctrl_reg2 = 0;       // 0x21
 static uint8_t iis2dh_ctrl_reg3 = 0;       // 0x22
-// static uint8_t iis2dh_ctrl_reg4 = 0;       // 0x23
+static uint8_t iis2dh_ctrl_reg4 = 0;       // 0x23
 static uint8_t iis2dh_ctrl_reg5 = 0;       // 0x24
 static uint8_t iis2dh_acc_status = 0;      // 0x27
 static uint8_t iis2dh_fifo_ctrl_reg = 0;   // 0x2F
@@ -184,8 +188,46 @@ static uint32_t fifo_overrun_count_fsv = 0;
 //
 
 
+// 2021-11-17 - *sensor needed at file scope for new public API routines:
+const struct device *sensor = DEVICE_DT_GET_ANY(st_iis2dh);
+
+
+#if KD_DEV__CLI_ONE_SHOT_MESSAGE_FLAG == 1
+static uint32_t flag_one_shot_diag_message_enabled = 0;
+#endif
+
+#if KD_DEV__CONFIG_REGISTERS_SUMMARY_ENABLED == 1
+#define REGISTER_NAME_SIZE 40
+struct config_register
+{
+    char name[REGISTER_NAME_SIZE];
+    uint8_t value_default;
+    uint8_t value_latest;
+};
+
+#define COUNT_REGISTERS_IIS2DH_FOLLOWED 6
+struct config_register registers_iis2dh[COUNT_REGISTERS_IIS2DH_FOLLOWED];
+
+void register_summary(void)
+{
+    for ( int i = 0; i < COUNT_REGISTERS_IIS2DH_FOLLOWED; i++ )
+    {
+        if ( strlen(registers_iis2dh[i].name) > 0 )
+        {
+            printk("%s holds %u\n", registers_iis2dh[i].name, registers_iis2dh[i].value_latest);
+        }
+        else
+        {
+            i = COUNT_REGISTERS_IIS2DH_FOLLOWED;
+        }
+    }
+}
+#endif
+
+
+
 //----------------------------------------------------------------------
-// - SECTION - development routines
+// - SECTION - routines development
 //----------------------------------------------------------------------
 
 // Note, showing FIFO overrun event counts and details is development in
@@ -206,19 +248,24 @@ void show_fifo_overruns_summary(void)
 }
 
 
+#if KD_DEV__CLI_ONE_SHOT_MESSAGE_FLAG == 1
+void dev__thread_iis2dh__set_one_shot_message_flag(void)
+{
+    flag_one_shot_diag_message_enabled = 1;
+}
+#endif
+
 
 
 
 //----------------------------------------------------------------------
-// - SECTION - routine definitions
+// - SECTION - routines production this module
 //----------------------------------------------------------------------
 
 // https://docs.zephyrproject.org/latest/reference/kernel/threads/index.html#c.K_THREAD_STACK_DEFINE
 
 K_THREAD_STACK_DEFINE(iis2dh_thread_stack_area, IIS2DH_THREAD_STACK_SIZE);
 struct k_thread iis2dh_thread_data;
-
-
 
 int initialize_thread_iis2dh_task(void)
 {
@@ -234,7 +281,8 @@ int initialize_thread_iis2dh_task(void)
 
 // REF https://docs.zephyrproject.org/2.6.0/reference/kernel/threads/index.html?highlight=k_thread_create#c.k_thread_name_set
 // int k_thread_name_set(k_tid_t thread, const char *str)
-    rstatus = k_thread_name_set(iis2dh_task_tid, "kd_thread_iis2dh");
+//    rstatus = k_thread_name_set(iis2dh_task_tid, "kd_thread_iis2dh");
+    rstatus = k_thread_name_set(iis2dh_task_tid, MODULE_ID__THREAD_IIS2DH);
     if ( rstatus == 0 ) { } // avoid compiler warning about unused variable - TMH
 
     return (int)iis2dh_task_tid;
@@ -262,15 +310,25 @@ static uint32_t kd_write_peripheral_register(const struct device *dev,
                                              const uint8_t* device_register_and_data,
                                              const uint32_t count_bytes_to_write)
 {
-    int status = ROUTINE_OK;
+    int rstatus = ROUTINE_OK;
     struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
 
-    status = i2c_write(device_data_ptr->bus,
-                       device_register_and_data,
-                       count_bytes_to_write,
-                       DT_INST_REG_ADDR(0)
+    rstatus = i2c_write(
+                        device_data_ptr->bus,
+                        device_register_and_data,
+                        count_bytes_to_write,
+                        DT_INST_REG_ADDR(0)
                       );
-    return status;
+
+#if KD_DEV__I2C_WRITE_STATUS == 1
+if ( rstatus != 0 )
+{
+    printk("Z - WARNING - Zephyr i2c_write API returns non-zero %u!\n", rstatus);
+    printk("Z   ( DT_INST_REG_ADDR(0) this comm' is %u, peripheral reg addr is %u )\n",
+      DT_INST_REG_ADDR(0), device_register_and_data[0]);
+}
+#endif
+    return rstatus;
 }
 
 
@@ -288,17 +346,41 @@ static uint32_t kd_read_peripheral_register(const struct device *dev,
                                             uint8_t* data,
                                             const uint8_t count_bytes_to_read)
 {
-    int status = ROUTINE_OK;
+    int rstatus = ROUTINE_OK;
     struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
 
-    status = i2c_write_read(
-                         device_data_ptr->bus,
-                         DT_INST_REG_ADDR(0),
-                         device_register, sizeof(device_register),
-                         data,
-                         count_bytes_to_read
-                        );
-    return status;
+    rstatus = i2c_write_read(
+                              device_data_ptr->bus,
+                              DT_INST_REG_ADDR(0),
+                              device_register,
+//                              sizeof(device_register),
+                              1,
+                              data,
+                              count_bytes_to_read
+                            );
+
+// REF https://docs.zephyrproject.org/2.6.0/reference/peripherals/i2c.html?highlight=i2c_write#c.i2c_write_read
+
+#if KD_DEV__CLI_DIAG_ON_REGISTER_READS == 1
+    if ( flag_one_shot_diag_message_enabled == 1 )
+    {
+        flag_one_shot_diag_message_enabled = 0;
+        char lbuf[SIZE_OF_MESSAGE_SHORT];
+        snprintf(lbuf, SIZE_OF_MESSAGE_SHORT, "-\n\r- DEV 1118 %s - called to read %u bytes from reg 0x%02X\n\r",
+          MODULE_ID__THREAD_IIS2DH, count_bytes_to_read, *device_register);
+        printk_cli(lbuf);
+
+        snprintf(lbuf, SIZE_OF_MESSAGE_SHORT, "- DEV 1118 - Zephyr I2C write_read returns %u,\n\r", rstatus);
+        printk_cli(lbuf);
+
+        snprintf(lbuf, SIZE_OF_MESSAGE_SHORT, "- DEV 1118 - reg 0x%02X holds %u\n\r-\n\r",
+//          MODULE_ID__THREAD_IIS2DH, (*device_register & 0xFF), (*data & 0xFF));
+          (*device_register & 0xFF), (*data & 0xFF));
+        printk_cli(lbuf);
+    }
+#endif
+
+    return rstatus;
 }
 
 
@@ -321,25 +403,96 @@ static uint32_t read_of_iis2dh_whoami_register(const struct device *dev, struct 
 
     return status;
 }
+#endif
 
 
-static uint32_t read_of_iis2dh_temperature_registers(const struct device *dev, struct sensor_value value)
+static uint32_t configure_iis2dh_temperature_enable(const struct device *dev)
 {
-    int status = ROUTINE_OK;
-    uint8_t cmd[] = { 0x0C };
+    uint32_t rstatus = ROUTINE_OK;
+    uint8_t cmd[] = { 0, 0, 0 };
+//    struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
+
+#define DEV_TEMPERATURE_READINGS 1
+#if DEV_TEMPERATURE_READINGS == 1
+// iis2dh_temp_cfg_reg
+// iis2dh_ctrl_reg4
+    cmd[0] = TEMP_CONFIG_REGISTER;
+    rstatus |= kd_read_peripheral_register(dev, cmd, &iis2dh_temp_cfg_reg, COUNT_BYTES_IN_IIS2DH_CONTROL_REGISTER);
+    printk("- DEV 1117 - top of routine before config TEMP_CONFIG_REGISTER holds %u,\n",
+      iis2dh_temp_cfg_reg);
+#endif
+
+    cmd[0] = TEMP_CONFIG_REGISTER;
+    iis2dh_temp_cfg_reg = ( TEMP_ENABLE_1 | TEMP_ENABLE_0 );
+    cmd[1] = iis2dh_temp_cfg_reg;
+    rstatus |= kd_write_peripheral_register(dev, cmd, 2);
+#if DEV_TEMPERATURE_READINGS == 1
+    printk("- DEV 1117 - after config TEMP_CONFIG_REGISTER holds %u,\n",
+      iis2dh_temp_cfg_reg);
+#endif
+
+    cmd[0] = IIS2DH_CTRL_REG4;
+// NEED to read control register 4 . . .
+    rstatus |= kd_read_peripheral_register(dev, cmd, &iis2dh_ctrl_reg4, COUNT_BYTES_IN_IIS2DH_CONTROL_REGISTER);
+#if DEV_TEMPERATURE_READINGS == 1
+    printk("- DEV 1117 - before config IIS2DH_CTRL_REG4 holds %u,\n",
+      iis2dh_ctrl_reg4);
+#endif
+    iis2dh_ctrl_reg4 |= BLOCK_DATA_UPDATE_NON_CONTINUOUS;
+    cmd[1] = iis2dh_ctrl_reg4;
+#if DEV_TEMPERATURE_READINGS == 1
+    printk("- DEV 1117 - after config IIS2DH_CTRL_REG4 holds %u,\n",
+      iis2dh_ctrl_reg4);
+#endif
+    rstatus |= kd_write_peripheral_register(dev, cmd, 2);
+
+    return rstatus;
+}
+
+
+
+static uint32_t read_of_iis2dh_temperature_registers(const struct device *dev, struct sensor_value *value)
+{
+    uint32_t rstatus = ROUTINE_OK;
+//    uint8_t cmd[] = { OUT_TEMP_L };
+    uint8_t cmd[] = { 0, 0 };
     struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
     uint8_t scratch_pad_bytes[] = {0, 0};
 
-    status = i2c_write_read(device_data_ptr->bus,   // data_struc_ptr->i2c_dev,
-                            DT_INST_REG_ADDR(0),
-                            cmd, sizeof(cmd),
-                            &scratch_pad_bytes, sizeof(scratch_pad_bytes));
+    char lbuf[DEFAULT_MESSAGE_SIZE];
 
-    value.val1 = ((scratch_pad_bytes[0] << 8) | scratch_pad_bytes[0]);
+#if KD_DEV__SET_BDU_BEFORE_TEMP_READING_THEN_UNSET == 1
+    cmd[0] = IIS2DH_CTRL_REG4;
+    printk("- DEV 1117 - reading iis2dh control register %u . . .\n", IIS2DH_CTRL_REG4);
+    rstatus |= kd_read_peripheral_register(dev, cmd, &iis2dh_ctrl_reg4, COUNT_BYTES_IN_IIS2DH_CONTROL_REGISTER);
 
-    return status;
-}
+    iis2dh_ctrl_reg4 |= BLOCK_DATA_UPDATE_NON_CONTINUOUS;
+    printk("- DEV 1117 - setting iis2dh control register 4 to %u,\n", iis2dh_ctrl_reg4);
+    cmd[1] = iis2dh_ctrl_reg4;
+    rstatus |= kd_write_peripheral_register(dev, cmd, 2);  // magic number '2' here refers to reg' addr and value to write
 #endif
+
+    rstatus = i2c_write_read(device_data_ptr->bus,   // data_struc_ptr->i2c_dev,
+                             DT_INST_REG_ADDR(0),
+                             cmd, 1,
+                             &scratch_pad_bytes, 2
+                            );
+
+    value->val1 = ((scratch_pad_bytes[0] << 8) | scratch_pad_bytes[0]);
+
+    snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "-\n- %s - IIS2DH reports temperature of %u C\n-\n",
+      MODULE_ID__THREAD_IIS2DH, value->val1);
+    dmsg(lbuf, DIAG_NORMAL);
+
+#if KD_DEV__SET_BDU_BEFORE_TEMP_READING_THEN_UNSET == 1
+    iis2dh_ctrl_reg4 &= ~(BLOCK_DATA_UPDATE_NON_CONTINUOUS);
+    printk("- DEV 1117 - setting iis2dh control register 4 to %u after temperature reading,\n", iis2dh_ctrl_reg4);
+    cmd[1] = iis2dh_ctrl_reg4;
+    rstatus |= kd_write_peripheral_register(dev, cmd, 2);  // magic number '2' here refers to reg' addr and value to write
+#endif
+
+    return rstatus;
+}
 
 
 /*
@@ -443,7 +596,7 @@ static uint32_t accelerator_start_acquisition_no_fifo(const struct device* dev, 
 // Whether using interrupts or not we'll clear them here per example code:
     cmd[0] = IIS2DH_CTRL_REG3;
     cmd[1] = 0;
-    rstatus |= kd_read_peripheral_register(dev, cmd, &register_value, COUNT_BYTES_IN_IIS_CONTROL_REGISTER);
+    rstatus |= kd_read_peripheral_register(dev, cmd, &register_value, COUNT_BYTES_IN_IIS2DH_CONTROL_REGISTER);
     printk("Clearing any interrupts we read from CTRL_REG3:  %u\n", register_value);
 
 // In another IIS2DH configuration that utilizes FIFO we would enable FIFO here.
@@ -460,6 +613,12 @@ static uint32_t accelerator_start_acquisition_with_fifo(const struct device* dev
     uint8_t register_value = 0;
     uint32_t rstatus = 0;  // status of this routine, OR'd sum of register read and write calls
 
+#if KD_DEV__CONFIG_REGISTERS_SUMMARY_ENABLED == 1
+    snprintf(registers_iis2dh[0].name, REGISTER_NAME_SIZE, "%s", "IIS2DH_CTRL_REG5");
+    snprintf(registers_iis2dh[1].name, REGISTER_NAME_SIZE, "%s", "IIS2DH_FIFO_CTRL_REG");
+    snprintf(registers_iis2dh[2].name, REGISTER_NAME_SIZE, "%s", "IIS2DH_CTRL_REG4");
+    snprintf(registers_iis2dh[3].name, REGISTER_NAME_SIZE, "%s", "IIS2DH_CTRL_REG1");
+#endif
 
 
 // Prepare accelerometer for data acquisition without FIFO:
@@ -470,6 +629,9 @@ static uint32_t accelerator_start_acquisition_with_fifo(const struct device* dev
     cmd[0] = IIS2DH_CTRL_REG5;
     iis2dh_ctrl_reg5 &= ~(FIFO_ENABLE);
     cmd[1] = iis2dh_ctrl_reg5;
+#if KD_DEV__CONFIG_REGISTERS_SUMMARY_ENABLED == 1
+    registers_iis2dh[0].value_latest = cmd[1];
+#endif
     rstatus |= kd_write_peripheral_register(dev, cmd, 2);  // magic number '2' here refers to reg' addr and value to write
 
 // (2) Reset FIFO by briefly setting bypass mode:
@@ -477,6 +639,9 @@ static uint32_t accelerator_start_acquisition_with_fifo(const struct device* dev
 
     cmd[0] = IIS2DH_FIFO_CTRL_REG;
     cmd[1] = FIFO_MODE_BYPASS; 
+#if KD_DEV__CONFIG_REGISTERS_SUMMARY_ENABLED == 1
+    registers_iis2dh[1].value_latest = cmd[1];
+#endif
     rstatus |= kd_write_peripheral_register(dev, cmd, 2);
 
 // (3) Set full scale (+/- 2g, 4g, 8g, 16g), normal versus high resolution, block update mode:
@@ -491,6 +656,9 @@ static uint32_t accelerator_start_acquisition_with_fifo(const struct device* dev
              | IIS2DH_SELF_TEST_NORMAL_MODE             // normal (no test), test 0, test 1
              | SPI_MODE_THREE_WIRE                      // 3-wire | 4-wire
              );
+#if KD_DEV__CONFIG_REGISTERS_SUMMARY_ENABLED == 1
+    registers_iis2dh[2].value_latest = cmd[1];
+#endif
     rstatus |= kd_write_peripheral_register(dev, cmd, 2);
 
 // (4) Set data rate, enable accelerometer axes x, y, z:
@@ -504,6 +672,9 @@ static uint32_t accelerator_start_acquisition_with_fifo(const struct device* dev
              | AXIS_Y_ENABLE
              | AXIS_X_ENABLE
              );
+#if KD_DEV__CONFIG_REGISTERS_SUMMARY_ENABLED == 1
+    registers_iis2dh[3].value_latest = cmd[1];
+#endif
     rstatus |= kd_write_peripheral_register(dev, cmd, 2);
 
 // Note, we could configure high pass filter here.
@@ -523,7 +694,7 @@ static uint32_t accelerator_start_acquisition_with_fifo(const struct device* dev
 // Whether using interrupts or not we'll clear them here per example code:
     cmd[0] = IIS2DH_CTRL_REG3;
     cmd[1] = 0;
-    rstatus |= kd_read_peripheral_register(dev, cmd, &register_value, COUNT_BYTES_IN_IIS_CONTROL_REGISTER);
+    rstatus |= kd_read_peripheral_register(dev, cmd, &register_value, COUNT_BYTES_IN_IIS2DH_CONTROL_REGISTER);
     printk("Clearing any interrupts we read from CTRL_REG3:  %u\n", register_value);
 
 // (9) Enable FIFO:
@@ -531,7 +702,15 @@ static uint32_t accelerator_start_acquisition_with_fifo(const struct device* dev
     iis2dh_ctrl_reg5 |= FIFO_ENABLE;
 //printk("-- DEV006 -- control register 5 shadow holds 0x%02X, should be decimal 64.\n", iis2dh_ctrl_reg5);
     cmd[1] = iis2dh_ctrl_reg5;
+#if KD_DEV__CONFIG_REGISTERS_SUMMARY_ENABLED == 1
+    registers_iis2dh[0].value_latest = cmd[1];
+#endif
     rstatus |= kd_write_peripheral_register(dev, cmd, 2);
+
+
+#if KD_DEV__CONFIG_REGISTERS_SUMMARY_ENABLED == 1
+    register_summary();
+#endif
 
     return rstatus;
 
@@ -567,7 +746,7 @@ static uint32_t ii_accelerometer_stop_acquisition(const struct device *dev)
     cmd[0] = IIS2DH_CTRL_REG3;
     cmd[1] = 0;
 //    printk("333 - \n");
-    rstatus |= kd_read_peripheral_register(dev, cmd, &register_value, COUNT_BYTES_IN_IIS_CONTROL_REGISTER);
+    rstatus |= kd_read_peripheral_register(dev, cmd, &register_value, COUNT_BYTES_IN_IIS2DH_CONTROL_REGISTER);
 //    printk("333 - from IIS2DH register CTRL3 read back %u\n", register_value);
 
 // (5) Disable data rate (power down mode)
@@ -583,7 +762,7 @@ static uint32_t ii_accelerometer_stop_acquisition(const struct device *dev)
 
 
 
-
+#if 0
 float reading_in_g(const uint32_t reading_in_twos_comp, const uint32_t full_scale, const uint32_t res_in_bits)
 {
     uint32_t reading = reading_in_twos_comp;
@@ -608,7 +787,7 @@ float reading_in_g(const uint32_t reading_in_twos_comp, const uint32_t full_scal
 
     return reading_as_float;
 }
-
+#endif
 
 
 
@@ -628,12 +807,12 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
 // -- VAR END ---
 
 // IIS2DH_FIFO_SRC_REG
-#define COUNT_BYTES_IN_IIS_CONTROL_REGISTER_FIFO_SRC (1)
+#define COUNT_BYTES_IN_IIS2DH_CONTROL_REGISTER_FIFO_SRC (1)
 
 // (1) Query for present FIFO level and overrun status flag:
     cmd[0] = IIS2DH_FIFO_SRC_REG;
     cmd[1] = 0;
-    rstatus |= kd_read_peripheral_register(dev, cmd, &register_value, COUNT_BYTES_IN_IIS_CONTROL_REGISTER_FIFO_SRC);
+    rstatus |= kd_read_peripheral_register(dev, cmd, &register_value, COUNT_BYTES_IN_IIS2DH_CONTROL_REGISTER_FIFO_SRC);
     count = (register_value & FIFO_SRC_FSS_MASK);
     printk("222 - IIS2DH FIFO source register holds %u, buffered reading count is %u,\n",
       register_value, count);
@@ -656,9 +835,10 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
     }
 
 #if 1
-    rstatus |= kd_read_peripheral_register(dev,
-                                           &iis2dh_x_axis_low_byte_reg,
-                                           readings_data,
+    rstatus |= kd_read_peripheral_register(
+                                            dev,
+                                            &iis2dh_x_axis_low_byte_reg,
+                                            readings_data,
                                            (BYTES_PER_XYZ_READINGS_TRIPLET * count)
                                           );
 #else
@@ -676,20 +856,18 @@ static uint32_t ii_accelerometer_read_xyz(const struct device *dev)
     for ( i = 0; i < count; i += BYTES_PER_XYZ_READINGS_TRIPLET )
     {
         printk(" %02X %02X  %02X %02X  %02X %02X  --  x,y,z in G = %2.3fG, %2.3fG, %2.3fG",
-          readings_data[i],
+          readings_data[i + 0],
           readings_data[i + 1],
           readings_data[i + 2],
           readings_data[i + 3],
           readings_data[i + 4],
           readings_data[i + 5],
-          reading_in_g((uint32_t)readings_data[i], 0, 0),
-          reading_in_g((uint32_t)readings_data[i + 2], 0, 0),
-          reading_in_g((uint32_t)readings_data[i + 4], 0, 0)
+          reading_in_g((uint32_t)readings_data[i + 1], 0, 0),
+          reading_in_g((uint32_t)readings_data[i + 3], 0, 0),
+          reading_in_g((uint32_t)readings_data[i + 5], 0, 0)
         );
 
-// ---** CODING MARK **---
-
-//        if ( ( (i+1) % TRIPLETS_TO_FORMAT_PER_LINE ) == 0 )
+// 
 
 #define EVERY_SIX_LINES (6)
         if ( ( (i+1) % EVERY_SIX_LINES ) == 0 )
@@ -737,12 +915,17 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
     int loop_count = 0;
 
 // 2021-10-12 - keep assignment on this declarative line so it gets built at compile time:
-    const struct device *sensor = DEVICE_DT_GET_ANY(st_iis2dh);
+// 2021-11-17 - moving *sensor to file scoped vars:
+//    const struct device *sensor = DEVICE_DT_GET_ANY(st_iis2dh);
+// 2021-11-17 - Ted unsure whether following line compiles:
 //    const struct device *sensor = device_get_binding(DT_LABEL(IIS2DH_ACCELEROMETER));
 
     static uint16_t iis2ds12_i2c_periph_addr = DT_INST_REG_ADDR(0);   //<-- 2021-10-17 not available at build time - TMH
 
+// Early development variable of type Zephyr sensor reading structure:
 //    struct sensor_value acceleration_readings;
+// 2021-11-17:
+    struct sensor_value iis2dh_temperature_reading;
 
     uint8_t buff[10];
     memset(buff, 0, sizeof(buff));
@@ -780,6 +963,12 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 // 2021-11-17 - Effective initialization, see 'TO DO' section for note on further required study here:
     rc = scoreboard_set_requested_iis2dh_odr(KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE);
 
+#if KD_DEV__ENABLE_IIS2DH_TEMPERATURE_READINGS == 1
+    printk("- %s - INFO:  enabling iis2dh temperature readings . . .'\n",
+      MODULE_ID__THREAD_IIS2DH);
+    rc = configure_iis2dh_temperature_enable(sensor);
+#endif
+
 //    accelerator_start_acquisition_with_fifo(sensor, ODR_10_HZ);
     accelerator_start_acquisition_with_fifo(sensor, KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE);
 
@@ -790,10 +979,6 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 
         k_msleep(1);
 
-// Read of incorrect register:
-//        iis2dh_acc_status = read_of_iis2dh_acc_status_register(sensor);
-//        printk("iis2dh status register 0x%02X holds %u,\n", IIS2DH_STATUS_REG, iis2dh_acc_status);
-// read_of_iis2dh_acc_fifo_src_register
         iis2dh_fifo_ctrl_reg = read_of_iis2dh_acc_fifo_src_register(sensor);
         printk("iis2dh FIFO SRC register 0x%02X holds %u,\n", IIS2DH_FIFO_SRC_REG, iis2dh_fifo_ctrl_reg);
 
@@ -804,9 +989,22 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
         rc = scoreboard_get_requested_iis2dh_odr(&odr_to_set);
         printk("- iis2dh thread - using scoreboard ODR equal to %u,\n", odr_to_set);
 
+
+
+// - 2021-11-17 -
+// Initial test of IIS2DH temperature read:
+#if KD_DEV__ENABLE_IIS2DH_TEMPERATURE_READINGS == 1
+        rc = read_of_iis2dh_temperature_registers(sensor, &iis2dh_temperature_reading);
+#endif
+
+
+// NOTE:  here is where iis2dh Output Data Rate is read from scoreboard and soon written to iis2dh sensor:
         accelerator_start_acquisition_with_fifo(sensor, odr_to_set);  // ODR_10_HZ);
 
         printk("\n\n");
+
+
+
 // 2021-10-27 New static variable this module:  iis2dh_thread_sleep_time_in_ms
         k_msleep(SLEEP_TIME__IIS2DH_TASK__MS);
         loop_count++;
@@ -818,7 +1016,100 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 
 
 //----------------------------------------------------------------------
-// - SECTION - notes and tests
+// - SECTION - routines public API
+//----------------------------------------------------------------------
+
+uint32_t wrapper_iis2dh_register_read(const uint8_t register_addr, uint8_t* register_value)
+{
+    uint32_t rstatus = ROUTINE_OK;
+
+    if ( sensor == NULL )
+    {
+        rstatus = KD__DEVICE_POINTER_NULL;
+    }
+    else
+    {
+        rstatus = kd_read_peripheral_register(
+                                               sensor,
+                                               &register_addr,
+                                               register_value,
+                                               1
+                                             );
+    }
+
+    return rstatus;
+}
+
+
+#define I2C_ADDR_PLUS_DATA_BYTE_COUNT_OF_2  (2)
+
+uint32_t wrapper_iis2dh_register_write(const uint8_t register_addr, const uint8_t register_value)
+{
+    uint32_t rstatus = ROUTINE_OK;
+//    uint8_t reg_addr_plus_data[] = { register_addr, register_value, 0 };
+    uint8_t reg_addr_plus_data[3];
+    reg_addr_plus_data[0] = register_addr;
+    reg_addr_plus_data[1] = register_value;
+    reg_addr_plus_data[2] = 0;
+
+    if ( sensor == NULL )
+    {
+        rstatus = KD__DEVICE_POINTER_NULL;
+    }
+    else
+    {
+        rstatus = kd_write_peripheral_register(
+                                                sensor,
+                                                reg_addr_plus_data,
+                                                I2C_ADDR_PLUS_DATA_BYTE_COUNT_OF_2
+                                              );
+    }
+
+
+    if ( flag_one_shot_diag_message_enabled == 1 )
+    {
+        flag_one_shot_diag_message_enabled = 0;
+
+#if KD_DEV__CLI_DIAG_ON_REGISTER_WRITES == 1
+        char lbuf[DEFAULT_MESSAGE_SIZE];
+        printk_cli("- DEV 1119 -\n\r");
+        snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "after call to write, reg_addr_plus_data[] = { 0x%02X, 0x%02X, 0x%02X }\n\r",
+          reg_addr_plus_data[0], reg_addr_plus_data[1], reg_addr_plus_data[2]);
+        printk_cli(lbuf);
+#endif
+    }
+
+    return rstatus;
+}
+
+
+
+uint32_t wrapper_iis2dh_register_read_multiple(const uint8_t register_addr, uint8_t* register_value, const uint32_t byte_count)
+{
+    uint32_t rstatus = ROUTINE_OK;
+
+    if ( sensor == NULL )
+    {
+        rstatus = KD__DEVICE_POINTER_NULL;
+    }
+    else
+    {
+        rstatus = kd_read_peripheral_register(
+                                               sensor,
+                                               &register_addr,
+                                               register_value,
+                                               byte_count
+                                             );
+    }
+
+    return rstatus;
+}
+
+
+
+
+//----------------------------------------------------------------------
+// - SECTION - notes and tests ( non-active code )
 //----------------------------------------------------------------------
 
 // BLOCK BEGIN
