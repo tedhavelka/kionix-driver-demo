@@ -46,8 +46,9 @@ uint32_t cli__kd_version(const char* args)
     char lbuf[KD_VERSION_STRING_LENGTH] = { 0 };
     uint32_t rstatus = ROUTINE_OK;
 
+    printk_cli("\n\r");
     rstatus = latest_version_string(lbuf, KD_ROUTINE_OPTION__RETURN_AND_DISPLAY_APP_VERSION);
-    printk_cli("\n\r\n\r");
+    printk_cli("\n\r");
 
     return rstatus;
 }

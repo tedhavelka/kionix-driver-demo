@@ -928,6 +928,7 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 #endif
 
 
+// NOTE:  here is where iis2dh Output Data Rate is read from scoreboard and soon written to iis2dh sensor:
         accelerator_start_acquisition_with_fifo(sensor, odr_to_set);  // ODR_10_HZ);
 
         printk("\n\n");

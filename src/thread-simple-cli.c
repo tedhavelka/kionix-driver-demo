@@ -169,8 +169,8 @@ static char argument_array[MAX_COUNT_SUPPORTED_ARGS][SUPPORTED_ARG_LENGTH];
 // Count of latest parsed arguments, tokens following latest command:
 static uint32_t argument_count;
 
-// Flag to indicate present input character is first backspace in latest series of backspaces:
-static uint32_t flag_fresh_backspace_keypress = TRUE;
+//// Flag to indicate present input character is first backspace in latest series of backspaces:
+//static uint32_t flag_fresh_backspace_keypress = TRUE;
 
 
 
@@ -388,22 +388,13 @@ void delete_one_char_from_latest_command_string(void)
     char lbuf[DEFAULT_MESSAGE_SIZE];
     uint32_t command_length = strlen(latest_command);
 
-#define BACKSPACE_DEBUG 1
+#define BACKSPACE_DEBUG 0
 #if BACKSPACE_DEBUG == 1
     snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "- before backspace - present command length is %u\n\r", command_length);
     printk_cli(lbuf);
 #endif
 #if 0
-    if ( flag_fresh_backspace_keypress == TRUE )
-    {
-#if BACKSPACE_DEBUG == 1
-        printk_cli("deleting a character, ");
-#endif
-        --index_within_cmd_token;
-        latest_command[index_within_cmd_token] = 0;
-        flag_fresh_backspace_keypress = FALSE;
-        command_length = strlen(latest_command);
-    }
+//    if ( flag_fresh_backspace_keypress == TRUE )
 #endif
 
     if ( command_length > 0 )
@@ -539,10 +530,10 @@ uint32_t build_command_string(const char* latest_input, const struct device* cal
     {
         delete_one_char_from_latest_command_string();
     }
-    else
-    {
-        flag_fresh_backspace_keypress = TRUE;
-    }
+//    else
+//    {
+//        flag_fresh_backspace_keypress = TRUE;
+//    }
 
 
     if ( latest_input[0] == 0x2F )    // . . . '/' forward slash character

@@ -15,6 +15,7 @@
 
 // app and development supporting:
 #include "common.h"
+#include "conversions.h"
 #include "diagnostic.h"
 #include "module-ids.h"
 #include "return-values.h"
@@ -56,6 +57,7 @@ uint32_t iis2dh_sensor_handler(const char* args)
 // --- VAR BEGIN ---
     uint32_t rstatus = ROUTINE_OK;
     char lbuf[DEFAULT_MESSAGE_SIZE];
+    char binary_rep[BINARY_REPRESENTATION_EIGHT_BITS_AS_STRING];
     uint32_t argument_count = argument_count_from_cli_module();
 
 // for generalized command parsing:
@@ -136,7 +138,7 @@ match += arg_is_decimal(n, &placeholder_decimal_value);
               dec_value_at_arg_index(1), dec_value_at_arg_index(3));
             printk_cli(lbuf);
 
-            printk_cli("match == 0, ready to proceed with command,\n\r");
+//            printk_cli("match == 0, ready to proceed with command,\n\r");
 #if 1
             uint32_t count_bytes_to_read = (
               dec_value_at_arg_index(1) <= LOCAL_CAP_ON_VALUES_CAPTURED ?
@@ -158,6 +160,14 @@ match += arg_is_decimal(n, &placeholder_decimal_value);
                 snprintf(lbuf, DEFAULT_MESSAGE_SIZE, " 0x%02X", register_values[i]);
                 printk_cli(lbuf);
             }
+
+            if ( count_bytes_to_read == 1 )
+            {
+                integer_to_binary_string(register_values[0], binary_rep, BINARY_REPRESENTATION_EIGHT_BITS_AS_STRING);
+                snprintf(lbuf, DEFAULT_MESSAGE_SIZE, " equal to 0b%s\n\r\n\r", binary_rep);
+                printk_cli(lbuf);
+            }
+
             printk_cli(ONE_NEWLINE);
 
             break;

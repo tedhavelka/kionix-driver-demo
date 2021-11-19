@@ -58,18 +58,28 @@ include_directories(../zephyr/include/debug)
 include_directories(../zephyr/include)
 
 
+# Originally called Kionix out-of-tree driver code (no new thread yet created to do this):
 target_sources(app PRIVATE src/main.c)
+
+# Identifying modules:
+target_sources(app PRIVATE src/banner.c)
+
+# Development modules:
 target_sources(app PRIVATE src/diagnostic.c)
+
+# Sensors related:
 target_sources(app PRIVATE src/thread-iis2dh.c)
 target_sources(app PRIVATE src/thread-lis2dh.c)
 
-target_sources(app PRIVATE src/scoreboard.c)
-target_sources(app PRIVATE src/banner.c)
-
+# Command Line Interface related:
 target_sources(app PRIVATE src/thread-simple-cli.c)
 target_sources(app PRIVATE src/cli-zephyr-stack-info.c)
 target_sources(app PRIVATE src/cli-zephyr-kernel-timing.c)
 target_sources(app PRIVATE src/cli-iis2dh-sensor.c)
+
+# Internals:
+target_sources(app PRIVATE src/conversions.c)
+target_sources(app PRIVATE src/scoreboard.c)
 
 
 
