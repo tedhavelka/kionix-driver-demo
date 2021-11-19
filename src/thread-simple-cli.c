@@ -647,16 +647,11 @@ uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return)
     uint32_t arg_len = strlen(argument_array[index_to_arg]);
     uint32_t multiplier = 1;
 
-
 // Bounds checking:
     if (( index_to_arg >= 0 ) && ( index_to_arg < MAX_COUNT_SUPPORTED_ARGS ))
-    {
-    }
+        { }
     else
-    {
-        return ERROR_CLI_ARGUMENT_INDEX_OUT_OF_RANGE;
-    }
-
+        { return ERROR_CLI_ARGUMENT_INDEX_OUT_OF_RANGE; }
 
     for ( int i = 0; i < arg_len; i++ )
     {
@@ -666,14 +661,10 @@ uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return)
         }
     }
 
-//printk("ZZZZZ - arg-is-decimal - looking at arg '%s' of length %u,\n", argument_array[index_to_arg], arg_len);
-
 // Note 0x30 is the ASCII value for the character zero '0':
-
     if ( tstatus == RESULT_ARG_IS_DECIMAL )
     {
         *value_to_return = 0;
-
         for ( int i = (arg_len - 1); i >= 0; i-- )
         {
             *value_to_return += ( (argument_array[index_to_arg][i] - 0x30) * multiplier );
@@ -689,6 +680,33 @@ uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return)
 uint32_t arg_is_hex(const uint32_t arg, int* value_to_return)
 {
     return 0;
+}
+
+
+
+uint32_t dec_value_at_arg_index(const uint32_t index_to_arg)
+{
+    uint32_t multiplier = 1;
+    uint32_t value_to_return = 0;
+
+// Bounds checking:
+    if (( index_to_arg >= 0 ) && ( index_to_arg < MAX_COUNT_SUPPORTED_ARGS ))
+        { }
+    else
+        { return ERROR_CLI_ARGUMENT_INDEX_OUT_OF_RANGE; }
+
+// Note 0x30 is the ASCII value for the character zero '0':
+    uint32_t arg_len = strlen(argument_array[index_to_arg]);
+    {
+        value_to_return = 0;
+        for ( int i = (arg_len - 1); i >= 0; i-- )
+        {
+            value_to_return += ( (argument_array[index_to_arg][i] - 0x30) * multiplier );
+            multiplier *= 10;
+        }
+    }
+
+    return value_to_return;
 }
 
 

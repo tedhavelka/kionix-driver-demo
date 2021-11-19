@@ -18,6 +18,8 @@ uint32_t arg_n(const uint32_t requested_arg, char* return_arg);
 
 uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return);
 
+uint32_t dec_value_at_arg_index(const uint32_t index_to_arg);
+
 
 
 // 2021-11-18 - command factoring work:
