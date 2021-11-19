@@ -958,10 +958,11 @@ uint32_t wrapper_iis2dh_register_read(const uint8_t register_addr, uint8_t* regi
     }
     else
     {
-        rstatus = kd_read_peripheral_register(sensor,
-                                              &register_addr,
-                                              register_value,
-                                              1
+        rstatus = kd_read_peripheral_register(
+                                               sensor,
+                                               &register_addr,
+                                               register_value,
+                                               1
                                              );
     }
 
@@ -969,14 +970,35 @@ uint32_t wrapper_iis2dh_register_read(const uint8_t register_addr, uint8_t* regi
 }
 
 
-uint32_t wrapper_iis2dh_register_write(const uint8_t register_addr, uint8_t* register_value)
+#define I2C_ADDR_PLUS_DATA_BYTE_COUNT_OF_2  (2)
+
+uint32_t wrapper_iis2dh_register_write(const uint8_t register_addr, const uint8_t register_value)
 {
     uint32_t rstatus = ROUTINE_OK;
+//    uint8_t reg_addr_plus_data[] = { register_addr, register_value, 0 };
+    uint8_t reg_addr_plus_data[3];
+    reg_addr_plus_data[0] = register_addr;
+    reg_addr_plus_data[1] = register_value;
+    reg_addr_plus_data[2] = 0;
 
     if ( sensor == NULL )
     {
         rstatus = KD__DEVICE_POINTER_NULL;
     }
+    else
+    {
+        rstatus = kd_write_peripheral_register(
+                                                sensor,
+                                                reg_addr_plus_data,
+                                                I2C_ADDR_PLUS_DATA_BYTE_COUNT_OF_2
+                                              );
+    }
+
+    char lbuf[DEFAULT_MESSAGE_SIZE];
+    printk_cli("- DEV 1119 -\n\r");
+    snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "after call to write, reg_addr_plus_data[] = { 0x%02X, 0x%02X, 0x%02X }\n\r",
+      reg_addr_plus_data[0], reg_addr_plus_data[1], reg_addr_plus_data[2]);
+    printk_cli(lbuf);
 
     return rstatus;
 }

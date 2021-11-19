@@ -96,6 +96,18 @@ match += arg_is_decimal(n, &placeholder_decimal_value);
             { command_to_execute = KD__IIS2DH_CMD__FROM_REG_READ_ONE_BYTE; }
     }
 
+    else if ( argument_count == 3 )
+    {
+        printk_cli("checking for `iis2dh write <reg> <data>` command...\n\r");
+        STRNCMP_ARGUMENT(0, "write", SUPPORTED_ARG_LENGTH);
+        CHECK_IF_DECIMAL_AT_ARG_INDEX(1);   // <-- here expect peripheral register address
+        CHECK_IF_DECIMAL_AT_ARG_INDEX(2);   // <-- here expect byte value to write to peripheral register
+        if ( match == 0 )
+            { command_to_execute = KD__IIS2DH_CMD__TO_REG_WRITE_ONE_BYTE; }
+        else
+            { printk_cli("iis2dh write command not found.\n\r"); }
+    }
+
 // 2021-11-18 - check for input of the form "iis2dh read n from n":
     else if ( argument_count == 4 )
     {
@@ -150,6 +162,20 @@ match += arg_is_decimal(n, &placeholder_decimal_value);
 
             break;
         }
+ 
+
+        case KD__IIS2DH_CMD__TO_REG_WRITE_ONE_BYTE:
+        {
+#if 1
+            printk_cli("calling wrapper routine to write config register . . .\n\r");
+#endif
+            rstatus = wrapper_iis2dh_register_write(
+                                                     dec_value_at_arg_index(1),
+                                                     dec_value_at_arg_index(2)
+                                                   );
+            break;
+        }
+
 
         default:
             break;

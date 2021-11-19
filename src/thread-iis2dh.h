@@ -12,7 +12,7 @@ int initialize_thread_iis2dh_task(void);
 // mostly development:
 uint32_t wrapper_iis2dh_register_read(const uint8_t register_addr, uint8_t* register_value);
 
-uint32_t wrapper_iis2dh_register_write(const uint8_t register_addr, uint8_t* register_value);
+uint32_t wrapper_iis2dh_register_write(const uint8_t register_addr, const uint8_t register_value);
 
 uint32_t wrapper_iis2dh_register_read_multiple(const uint8_t register_addr, uint8_t* register_value, const uint32_t byte_count);
 
