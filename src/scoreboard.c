@@ -52,18 +52,21 @@
 
 #include <sys/printk.h>            // to provide printk() function
 
+
 // Scoreboard module's header file:
 #include "scoreboard.h"
 
-// General Pulse Stage 1 header files:
+// Development:
+#include "diagnostic.h"
+
+// Internals:
 #include "common.h"
 #include "return-values.h"
 #include "routine-options.h"
-#include "diagnostic.h"
 
-// Specific modules this scoreboard needs know about:
-//#include "data-model-stage1.h"
+// Specific modules this scoreboard modules needs know about:
 #include "main.h"
+#include "thread-iis2dh.h"
 
 //extern uint32_t on_event__temperature_readings_requested__query_iis2dh(uint32_t event);
 
@@ -209,7 +212,7 @@ static flag_callback_t table_of_callbacks_for_flag_clear[COUNT_CALLBACKS_SUPPORT
 
 // (5)  Routine to check for and execute callbacks:
 
-uint32_t handle_flag_callbacks(enum pulse_stage1_supported_flags_e flag, enum flag_event_e event);
+uint32_t handle_flag_callbacks(enum kionix_driver_demo_supported_flags_e flag, enum flag_event_e event);
 
 // --- 1103-B DEV END ---
 
@@ -237,7 +240,7 @@ void assign_function_callback_pointers(void)
 {
 // (1)
 // Assign the function pointer for event when readings sets are completely gathered and stored:
-    table_of_callbacks_for_flag_set[RS__ACCELEROMETER_READINGS_SET_COMPLETE] = &on_event__readings_done__calculate_vrms;
+    table_of_callbacks_for_flag_set[RS__ACCELEROMETER_READINGS_SET_COMPLETE] = NULL;
 // Connect scoreboard flag for this event to above callback:
 // ( NOTE these bit flags implemented but not yet checked by callback orchestrating routine in first draft scoreboard - TMH )
     table_of_flags[RS__ACCELEROMETER_READINGS_SET_COMPLETE].callbacks_0_to_31_enabled_when_set |= ( 1 << RS__ACCELEROMETER_READINGS_SET_COMPLETE );
@@ -437,7 +440,7 @@ uint32_t scoreboard__update_flag_accelerometer_readings_ready(enum flag_event_e 
 
 
 
-uint32_t handle_flag_callbacks(enum pulse_stage1_supported_flags_e flag_index, enum flag_event_e event)
+uint32_t handle_flag_callbacks(enum kionix_driver_demo_supported_flags_e flag_index, enum flag_event_e event)
 {
     uint32_t callback_status = 0;
 
@@ -447,19 +450,15 @@ uint32_t handle_flag_callbacks(enum pulse_stage1_supported_flags_e flag_index, e
 //
 // Note, in first draft of this routine the callback pointer is the
 // one at the index of the flag's position in the enumeration of
-// supported flags.  In Pulse Stage 1 pre-release firmware
-// there are ten supported flags, but each flag has two associated integer
-// variables to specify associated callbacks.  These integers each
-// contain 32 bits which by design indicate up to 32 callbacks a flag
+// supported flags.  As of 2021-11-19 there are ten supported flags but
+// each flag has two associated integer variables to specify associated
+// callbacks.  These integers each contain 32 bits which by design
+// indicate up to 32 callbacks a flag
 // may trigger when set, and alternately when given flag is cleared.
 //
-// NOTE:  We are not yet reading those two ints to make multiple callbacks.
-//  
-// If we have fewer than ten event-driven callbacks needed in Pulse
-// Stage 1 firmware, we can hold off implementing the logic to read those
-// two integers.  Instead specific flag update routines can call this
-// callback orchestrator two or more times as needed.  Less elegant but
-// also less and simpler coding.  - TMH
+// NOTE:  We are not yet reading those two integer variables to make
+// multiple callbacks.  We may not need these, they're a feature to
+// review.  - TMH
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     if ( event == VALUE_OF_FLAG_SET )
     {

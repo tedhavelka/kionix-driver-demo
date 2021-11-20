@@ -42,7 +42,7 @@
 #define COUNT_FLAGS_SUPPORTED (20)
 #define FLAG_DESCRIPTION_LENGTH_IN_BYTES (64)
 
-enum pulse_stage1_supported_flags_e
+enum kionix_driver_demo_supported_flags_e
 {
     RS__ACCELEROMETER_READINGS_SET_COMPLETE = 0,     // RS = Readings Set module
     TI__FIFO_OVERRUN_IN_LATEST_READINGS_GATHERING,   // TI = Thread IIS2DH

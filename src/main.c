@@ -292,25 +292,6 @@ void main(void)
     {
         thread_set_up_status = 1;
     }
-
-
-#if 0
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-// - DEV START -
-
-// 2021-10-06 - work to add and test Zephyr thread:
-// - DEV THREAD WORK BEGIN -
-
-// Set up first development thread, code for this one entirely in main.c:
-        k_tid_t cli_tid = k_thread_create(&cli_thread_data, cli_stack_area,
-                                          K_THREAD_STACK_SIZEOF(cli_stack_area),
-                                          cli_entry_point,
-                                          NULL, NULL, NULL,
-                                          CLI_THREAD_PRIORITY, 0, K_NO_WAIT);
-// - DEV END -
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-#endif
-
 // - DEV THREAD WORK END -
 
 
@@ -331,25 +312,11 @@ void main(void)
     thread_set_up_status = initialize_thread_simple_cli_task();
 #endif
 
-#if NN_DEV__TEST_SCOREBOARD_GLOBAL_SETTING == 1
-// Note this static var declared in thread_simple_cli.h:
-//    dmsg("- DEV - setting scoreboard test value to 4 . . .\n", DIAG_NORMAL);
-//    global_test_value = 4;
-//    dmsg("- DEV - (this assignment doesn't seem to work.)\n", DIAG_NORMAL);
-        dmsg("- DEV - setting scoreboard test value to 5 . . .\n", DIAG_NORMAL);
-        rstatus = set_global_test_value(5);
-#endif
-
 
     while ( 1 )
     {
         gpio_pin_set(dev, PIN, (int)led_is_on);
         led_is_on = !led_is_on;
-
-#if NN_DEV__TEST_SCOREBOARD_GLOBAL_SETTING == 1
-//        dmsg("- DEV - setting scoreboard test value to 5 in while loop . . .\n", DIAG_NORMAL);
-//        rc = set_global_test_value(5);
-#endif
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Calls to KX132-1211 driver API:

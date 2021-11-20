@@ -961,7 +961,7 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
       MODULE_ID__THREAD_IIS2DH, sensor->name);
 
 // 2021-11-17 - Effective initialization, see 'TO DO' section for note on further required study here:
-    rc = scoreboard_set_requested_iis2dh_odr(KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE);
+    rc = scoreboard__set_requested_iis2dh_odr(KD_APP_DEFAULT_IIS2DH_OUTPUT_DATA_RATE);
 
 #if KD_DEV__ENABLE_IIS2DH_TEMPERATURE_READINGS == 1
     printk("- %s - INFO:  enabling iis2dh temperature readings . . .'\n",
@@ -986,7 +986,7 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 
         rc = ii_accelerometer_stop_acquisition(sensor);
 
-        rc = scoreboard_get_requested_iis2dh_odr(&odr_to_set);
+        rc = scoreboard__get_requested_iis2dh_odr(&odr_to_set);
         printk("- iis2dh thread - using scoreboard ODR equal to %u,\n", odr_to_set);
 
 
@@ -1018,6 +1018,17 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 //----------------------------------------------------------------------
 // - SECTION - routines public API
 //----------------------------------------------------------------------
+
+uint32_t on_event__temperature_readings_requested__query_iis2dh(const uint32_t event)
+{
+    uint32_t rstatus = ROUTINE_OK;
+
+    printk("-\n- DEV 1119-b - STUB ROUTINE FOR TEMPERATURE READING REQUESTED ---\n-\n");
+
+    return rstatus;
+}
+
+
 
 uint32_t wrapper_iis2dh_register_read(const uint8_t register_addr, uint8_t* register_value)
 {

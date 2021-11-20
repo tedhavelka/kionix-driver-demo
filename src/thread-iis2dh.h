@@ -21,5 +21,9 @@ uint32_t wrapper_iis2dh_register_read_multiple(const uint8_t register_addr, uint
 void dev__thread_iis2dh__set_one_shot_message_flag(void);
 
 
+// Callback routines to respond to flags set and cleared:
+uint32_t on_event__temperature_readings_requested__query_iis2dh(const uint32_t event);
+
+
 
 #endif // _THREAD_IIS2DH_ACCELEROMETER_H

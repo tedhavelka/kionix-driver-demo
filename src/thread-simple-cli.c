@@ -893,7 +893,7 @@ uint32_t output_data_rate_handler(const char* args)
                 }
 
                 printk("- output_data_rate_handler - calling scoreboard to post new requested data rate...\n");
-                rstatus = scoreboard_set_requested_iis2dh_odr(new_rate);
+                rstatus = scoreboard__set_requested_iis2dh_odr(new_rate);
             }
             else
             {
@@ -906,7 +906,7 @@ uint32_t output_data_rate_handler(const char* args)
     else
     {
         enum iis2dh_output_data_rates_e present_odr_flags;
-        rstatus = scoreboard_get_requested_iis2dh_odr(&present_odr_flags);
+        rstatus = scoreboard__get_requested_iis2dh_odr(&present_odr_flags);
         snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "\n\rpresent ODR flags = %u,\n\r",
           (uint32_t)present_odr_flags);
         printk_cli(lbuf);
