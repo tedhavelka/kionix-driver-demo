@@ -23,6 +23,8 @@
  *   +  https://docs.zephyrproject.org/latest/guides/dts/howtos.html#get-a-struct-device-from-a-devicetree-node
  *
  *   +  [west_workspace]/modules/hal/st/sensor/stmemsc/iis2dh_STdC/driver/iis2dh.h, iis2dh.c
+ *
+ *   +  https://decaforum.decawave.com/t/reading-temperature-sensor-data-from-lis2dh12-ic/5392/2
  */
 
 
@@ -517,6 +519,8 @@ static uint8_t read_of_iis2dh_acc_status_register(const struct device *dev)
 }
 
 
+
+#if DEFINE_FOR_USE__READ_OF_IIS2DH_ACC_STATUS_REGISTER == 1
 static uint8_t read_of_iis2dh_acc_fifo_src_register(const struct device *dev)
 {
     int status = ROUTINE_OK;
@@ -532,12 +536,15 @@ static uint8_t read_of_iis2dh_acc_fifo_src_register(const struct device *dev)
 
     return acc_fifo_src_register_value;
 }
+#endif
+
 
 
 /*
  *  @Note:  assign values to several iis2dh registers, for data acquisition.
  */
 
+#if DEFINE_FOR_USE__ACCELERATOR_START_ACQUISITION_NO_FIFO == 1
 static uint32_t accelerator_start_acquisition_no_fifo(const struct device* dev, const uint8_t output_data_rate)
 {
     uint8_t cmd[] = { 0, 0, 0 };
@@ -605,6 +612,7 @@ static uint32_t accelerator_start_acquisition_no_fifo(const struct device* dev, 
     return rstatus;
 
 } // end routine accelerator_start_acquisition_no_fifo()
+#endif // DEFINE_FOR_USE__ACCELERATOR_START_ACQUISITION_NO_FIFO
 
 
 
@@ -926,7 +934,8 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 // Early development variable of type Zephyr sensor reading structure:
 //    struct sensor_value acceleration_readings;
 // 2021-11-17:
-    struct sensor_value iis2dh_temperature_reading;
+//    struct sensor_value iis2dh_temperature_reading; // 2021-11-19 temperature work taking place in couple of branches and
+//                                                       +  multiple other places in this app code - TMH
 
     uint8_t buff[10];
     memset(buff, 0, sizeof(buff));
@@ -1025,8 +1034,10 @@ uint32_t on_event__temperature_readings_requested__query_iis2dh(const uint32_t e
     uint32_t rstatus = ROUTINE_OK;
     uint8_t temperature_two_comp[2] = { 0, 0 };
     uint8_t peripheral_register_addr;
+    char lbuf[DEFAULT_MESSAGE_SIZE];
+    char temperature_in_binary[BINARY_REPRESENTATION_EIGHT_BITS_AS_STRING + 0];
 
-    printk("-\n- DEV 1119-b - STUB ROUTINE FOR TEMPERATURE READING REQUESTED ---\n-\n");
+    printk("-\n- DEV 1119-b - ROUTINE FOR TEMPERATURE READING REQUESTED ---\n-\n");
         scoreboard__update_flag__temperature_reading_requested(CLEAR_FLAG);
 
     peripheral_register_addr = OUT_TEMP_L;
@@ -1045,11 +1056,23 @@ uint32_t on_event__temperature_readings_requested__query_iis2dh(const uint32_t e
                                             1 
                                           );
 
+// Output to default console UART:
     printk("- read iis2dh temperature in two's compliment equal to %u C\n",
 //      ((temperature_two_comp[0] << 8) + temperature_two_comp[1]));
       temperature_two_comp[0]);
 
     printk("- RO register OUT_TEMP_L holds %u\n-\n\n", temperature_two_comp[1]);
+
+// Output to CLI UART:
+memset(temperature_in_binary, 0, BINARY_REPRESENTATION_EIGHT_BITS_AS_STRING);
+    integer_to_binary_string(temperature_two_comp[0], temperature_in_binary, BINARY_REPRESENTATION_EIGHT_BITS_AS_STRING);
+    snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "\n\rtemperature reading raw %u, equal to 0b%s\n\r",
+      temperature_two_comp[0], temperature_in_binary);
+    printk_cli(lbuf);
+
+    snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "- ZZZ - test message, test value '%s' - ZZZ -\n\r",
+      temperature_in_binary);
+    printk_cli(lbuf);
 
     return rstatus;
 }

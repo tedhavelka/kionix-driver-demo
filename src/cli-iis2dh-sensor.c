@@ -130,10 +130,6 @@ match += arg_is_decimal(n, &placeholder_decimal_value);
 #define LOCAL_CAP_ON_VALUES_CAPTURED 24
             uint8_t register_values[LOCAL_CAP_ON_VALUES_CAPTURED];
 
-//            snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "user wants %u bytes read from register 0x%02X,\n\r",
-//              dec_value_at_arg_index(1), dec_value_at_arg_index(3));
-//            printk_cli(lbuf);
-
 #if 1
             uint32_t count_bytes_to_read = (
               dec_value_at_arg_index(1) <= LOCAL_CAP_ON_VALUES_CAPTURED ?
@@ -151,6 +147,7 @@ match += arg_is_decimal(n, &placeholder_decimal_value);
 #endif
             if ( count_bytes_to_read == 1 )
             {
+memset(binary_rep, 0, BINARY_REPRESENTATION_EIGHT_BITS_AS_STRING);
                 integer_to_binary_string(register_values[0], binary_rep, BINARY_REPRESENTATION_EIGHT_BITS_AS_STRING);
                 snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "\n\rregister 0x%02X holds 0x%02X, equal to %u and 0b%s\n\r",
                   dec_value_at_arg_index(3), register_values[0], register_values[0], binary_rep);
@@ -161,7 +158,7 @@ match += arg_is_decimal(n, &placeholder_decimal_value);
                 printk_cli("\n\rbytes read back from register:\n\r");
                 for ( int i = 0; i < count_bytes_to_read; i++ )
                 {
-// two modulo tests support spacing to highlight accelerometer x,y,z triplet data:
+// two modulo tests provide white space to highlight accelerometer x,y,z triplet data:
                     if ( ( i % 2 ) == 0 ) { printk_cli(" "); }
                     if ( ( i % 6 ) == 0 ) { printk_cli(" "); }
                     snprintf(lbuf, DEFAULT_MESSAGE_SIZE, " 0x%02X", register_values[i]);
