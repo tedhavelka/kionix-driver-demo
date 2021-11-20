@@ -1023,9 +1023,33 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 uint32_t on_event__temperature_readings_requested__query_iis2dh(const uint32_t event)
 {
     uint32_t rstatus = ROUTINE_OK;
+    uint8_t temperature_two_comp[2] = { 0, 0 };
+    uint8_t peripheral_register_addr;
 
     printk("-\n- DEV 1119-b - STUB ROUTINE FOR TEMPERATURE READING REQUESTED ---\n-\n");
         scoreboard__update_flag__temperature_reading_requested(CLEAR_FLAG);
+
+    peripheral_register_addr = OUT_TEMP_L;
+    rstatus = kd_read_peripheral_register(
+                                           sensor,
+                                           &peripheral_register_addr,
+                                           &temperature_two_comp[1],
+                                           1 
+                                         );
+
+    peripheral_register_addr = OUT_TEMP_H;
+    rstatus |= kd_read_peripheral_register(
+                                            sensor,
+                                            &peripheral_register_addr,
+                                            &temperature_two_comp[0],
+                                            1 
+                                          );
+
+    printk("- read iis2dh temperature in two's compliment equal to %u C\n",
+//      ((temperature_two_comp[0] << 8) + temperature_two_comp[1]));
+      temperature_two_comp[0]);
+
+    printk("- RO register OUT_TEMP_L holds %u\n-\n\n", temperature_two_comp[1]);
 
     return rstatus;
 }

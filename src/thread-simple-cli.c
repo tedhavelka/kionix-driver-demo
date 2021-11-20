@@ -257,9 +257,9 @@ struct cli_command_writers_api kd_command_set[] =
     { "temp", "request iis2dh temperature reading", &cli__request_temperature_reading},
 
     { "st", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
-    { "stacks", "", &cli__zephyr_2p6p0_stack_statistics },
+    { "stacks", "alias to `st`", &cli__zephyr_2p6p0_stack_statistics },
     { "cyc", "show Zephyr kernel run time cycles count", &cli__show_zephyr_kernel_runtime_cycle_count },
-    { "cycles", "", &cli__show_zephyr_kernel_runtime_cycle_count }
+    { "cycles", "alias to `cyc`", &cli__show_zephyr_kernel_runtime_cycle_count }
 };
 
 
