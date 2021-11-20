@@ -295,11 +295,16 @@ void main(void)
 // - DEV THREAD WORK END -
 
 
+//
+// 2021-11-19 FRIDAY, adding important step:
+    rstatus = initialize_scoreboard();
+//
+//
+
+
 #if NN_DEV__ENABLE_THREAD_IIS2DH_SENSOR == 1
-    {
-        dmsg("- DEV - starting IIS2DH test thread . . .\n", DIAG_NORMAL);
-        thread_set_up_status = initialize_thread_iis2dh_task();
-    }
+    dmsg("- DEV - starting IIS2DH test thread . . .\n", DIAG_NORMAL);
+    thread_set_up_status = initialize_thread_iis2dh_task();
 #endif
 
 #if NN_DEV__ENABLE_THREAD_LIS2DH_SENSOR == 1

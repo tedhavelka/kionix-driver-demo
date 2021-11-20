@@ -434,11 +434,30 @@ uint32_t scoreboard__update_flag_accelerometer_readings_ready(enum flag_event_e 
         table_of_flags[RS__ACCELEROMETER_READINGS_SET_COMPLETE].flag = event_or_updating_value;
         handle_flag_callbacks(RS__ACCELEROMETER_READINGS_SET_COMPLETE, event_or_updating_value);
     }
-
     return rstatus;
 }
 
 
+
+uint32_t scoreboard__update_flag__temperature_reading_requested(enum flag_event_e event_or_updating_value)
+{
+    uint32_t rstatus = ROUTINE_OK;
+
+    if ( table_of_flags[TI__TEMPERATURE_READING_REQUESTED].flag != event_or_updating_value )
+    {
+        table_of_flags[TI__TEMPERATURE_READING_REQUESTED].flag = event_or_updating_value;
+        handle_flag_callbacks(TI__TEMPERATURE_READING_REQUESTED, event_or_updating_value);
+    }
+    return rstatus;
+}
+
+
+
+//
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+//  Handle flag based callbacks here . . .
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+//
 
 uint32_t handle_flag_callbacks(enum kionix_driver_demo_supported_flags_e flag_index, enum flag_event_e event)
 {
@@ -470,8 +489,10 @@ uint32_t handle_flag_callbacks(enum kionix_driver_demo_supported_flags_e flag_in
         }
         else
         {
-            printk("- MARK 2 - \n");
+            printk("\n- MARK 2 - \n");
             printk("- ERROR:  callback pointer NULL!\n");
+            printk("+ INFO:  got event of value %u\n", event);
+            printk("+ INFO:  and flag index equal to %u\n\n", flag_index);
         }
     }
 

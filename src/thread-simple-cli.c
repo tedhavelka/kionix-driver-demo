@@ -207,8 +207,10 @@ extern uint32_t cli__kd_version(const char* args);
 extern uint32_t cli__banner_message(const char* args);
 // cli-zephyr-kernel-timing.h . . .
 
-// . . .
-extern uint32_t iis2dh_sensor_handler(const char* args);
+// STMicro IIS2DH accelerometer related:
+extern uint32_t cli__iis2dh_sensor_handler(const char* args);
+
+extern uint32_t cli__request_temperature_reading(const char* args);
 
 
 
@@ -245,17 +247,19 @@ struct cli_command_writers_api
 
 struct cli_command_writers_api kd_command_set[] =
 {
-    { "help", "show supported Kionix demo CLI commands.", &cli__help_message },
-    { "?", "show supported Kionix demo CLI commands.", &cli__help_message },
-    { "banner", "show brief project identifier string for this Zephyr based app.", &cli__banner_message },
+    { "help", "show supported Kionix demo CLI commands", &cli__help_message },
+    { "?", "show supported Kionix demo CLI commands", &cli__help_message },
+    { "banner", "show brief project identifier string for this Zephyr based app", &cli__banner_message },
     { "version", "show this Kionix Driver Demo version info", &cli__kd_version },
 
-    { "odr", "IIS2DH Output Data Rate (ODR) set and get command.", &output_data_rate_handler },
-    { "iis2dh", "IMPLEMENTATION UNDERWAY - general purpose iis2dh configuration command.", &iis2dh_sensor_handler },
-//    { "stacks", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
-    { "st", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
+    { "odr", "IIS2DH Output Data Rate (ODR) set and get command", &output_data_rate_handler },
+    { "iis2dh", "IMPLEMENTATION UNDERWAY - general purpose iis2dh configuration command", &cli__iis2dh_sensor_handler },
+    { "temp", "request iis2dh temperature reading", &cli__request_temperature_reading},
 
-    { "cyc", "show Zephyr kernel run time cycles count", &cli__show_zephyr_kernel_runtime_cycle_count }
+    { "st", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
+    { "stacks", "", &cli__zephyr_2p6p0_stack_statistics },
+    { "cyc", "show Zephyr kernel run time cycles count", &cli__show_zephyr_kernel_runtime_cycle_count },
+    { "cycles", "", &cli__show_zephyr_kernel_runtime_cycle_count }
 };
 
 

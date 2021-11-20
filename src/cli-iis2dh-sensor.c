@@ -19,6 +19,8 @@
 #include "diagnostic.h"
 #include "module-ids.h"
 #include "return-values.h"
+#include "scoreboard.h"
+
 #include "kionix-demo-errors.h"
 
 // sensor specific (this CLI command deals with STMicro IIS2DH):
@@ -51,7 +53,7 @@ enum iis2dh_flexible_commands
 // - SECTION - routines
 //---------------------------------^------------------------------------
 
-uint32_t iis2dh_sensor_handler(const char* args)
+uint32_t cli__iis2dh_sensor_handler(const char* args)
 {
 
 // --- VAR BEGIN ---
@@ -194,8 +196,21 @@ match += arg_is_decimal(n, &placeholder_decimal_value);
 
     return rstatus;
 
-} // end routine iis2dh_sensor_handler()
+} // end routine cli__iis2dh_sensor_handler()
 
+
+
+uint32_t cli__request_temperature_reading(const char* args)
+{
+// --- VAR BEGIN ---
+    uint32_t rstatus = ROUTINE_OK;
+    char lbuf[DEFAULT_MESSAGE_SIZE];
+// --- VAR END ---
+
+    scoreboard__update_flag__temperature_reading_requested(SET_FLAG);
+
+    return rstatus;
+}
 
 
 
