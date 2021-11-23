@@ -223,8 +223,6 @@ static char command_history[SIZE_COMMAND_HISTORY][SIZE_COMMAND_TOKEN];  // <-- 2
 static uint32_t index_to_cmd_history;
 static uint32_t index_within_cmd_token;
 
-//static char newline_string[] = { '\n' };
-
 static const struct device *uart_for_cli;
 
 
@@ -712,13 +710,22 @@ printk("- store_args_from - reached end of processing loop,\n");
 
 
 
+/*
+ * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ *  @Note   This routine expects calling code to send pointer to
+ *     memory that is large enough to hold a string of size
+ *     SUPPORTED_ARG_LENGTH as defined in thread-simple-cli.h
+ * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ */
+
 uint32_t arg_n(const uint32_t requested_arg, char* return_arg)
 {
     uint32_t rstatus = ROUTINE_OK;
 
     if ( requested_arg <= argument_count )
     {
-        strncpy(return_arg, argument_array[requested_arg], sizeof(argument_array[requested_arg]));
+//        strncpy(return_arg, argument_array[requested_arg], sizeof(argument_array[requested_arg]));
+        strncpy(return_arg, argument_array[requested_arg], SUPPORTED_ARG_LENGTH);
     }
     else
     {
@@ -748,17 +755,21 @@ uint32_t arg_n(const uint32_t requested_arg, char* return_arg)
  *  https://www.cs.cmu.edu/~pattis/15-1XX/common/handouts/ascii.html
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  */
+
 uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return)
 {
     uint32_t tstatus = 0;  // test status
     uint32_t arg_len = strlen(argument_array[index_to_arg]);
     uint32_t multiplier = 1;
 
+
 // Bounds checking:
+
     if (( index_to_arg >= 0 ) && ( index_to_arg < MAX_COUNT_SUPPORTED_ARGS ))
         { }
     else
         { return ERROR_CLI_ARGUMENT_INDEX_OUT_OF_RANGE; }
+
 
     for ( int i = 0; i < arg_len; i++ )
     {
@@ -768,7 +779,9 @@ uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return)
         }
     }
 
+
 // Note 0x30 is the ASCII value for the character zero '0':
+
     if ( tstatus == RESULT_ARG_IS_DECIMAL )
     {
         *value_to_return = 0;
@@ -786,7 +799,7 @@ uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return)
 
 uint32_t arg_is_hex(const uint32_t arg, int* value_to_return)
 {
-    return 0;
+    return FALSE;
 }
 
 
@@ -861,18 +874,10 @@ uint32_t output_data_rate_handler(const char* args)
     char lbuf[SIZE_OF_MESSAGE_MEDIUM] = { 0 };
     enum iis2dh_output_data_rates_e new_rate = ODR_0_POWERED_DOWN;
 
-//    printk_cli("2021-10-25 ODR stub function\n\r");
 
     if ( argument_count > 0 )
     {
         rstatus = arg_is_decimal(0, &new_data_rate);
-
-#if 0 // DEV BLOCK BEGIN
-        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "- output_data_rate_handler - test first arg decimal yields %u,\n\r", rstatus);
-        printk_cli(lbuf);
-        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "- output_data_rate_handler - arg1 as integer = %u,\n\r", new_data_rate);
-        printk_cli(lbuf);
-#endif // DEV BLOCK END
 
         if ( rstatus == RESULT_ARG_IS_DECIMAL )
         {
@@ -929,7 +934,6 @@ uint32_t cli__help_message(const char* args)
 
     char lbuf[SIZE_OF_MESSAGE_MEDIUM];
 
-//    printk_cli("Kionix demo CLI commands:\n\r\n\r");
     printk_cli("\n\rKionix demo CLI commands:\n\r\n\r");
 
     for ( int i = 0; i < implemented_command_count; i++ )
@@ -946,21 +950,9 @@ uint32_t cli__help_message(const char* args)
         printk_cli(lbuf);
     }
     printk_cli("\n\r");
-    return 0;
+    return ROUTINE_OK;
 } 
 
-
-
-#if 0
-uint32_t banner_message(const char* args)
-{
-    printk_cli("\n--\n\r");
-    printk_cli("-- Kionix Driver Demo\n\r");
-    printk_cli("-- A small Zephyr RTOS 2.6.0 based app to exercise Kionix KX132-1211 accelerometer\n\r");
-    printk_cli("--\n\r");
-    return 0;
-}
-#endif
 
 
 
@@ -996,11 +988,6 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
     {
         if ( uart_for_cli != NULL )
         {
-#if 0
-            char lbuf[160];
-            memset(lbuf, 0, sizeof(lbuf));
-            unsigned char* msg = lbuf;
-#endif
             memset(lbuf, 0, sizeof(lbuf));
             msg = lbuf;
             uart_poll_in(uart_for_cli, msg);
