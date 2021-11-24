@@ -758,7 +758,7 @@ uint32_t arg_n(const uint32_t requested_arg, char* return_arg)
 
 uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return)
 {
-    uint32_t tstatus = 0;  // test status
+    uint32_t tstatus = RESULT_ARG_NOT_DECIMAL;;  // test status
     uint32_t arg_len = strlen(argument_array[index_to_arg]);
     uint32_t multiplier = 1;
 
@@ -771,11 +771,13 @@ uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return)
         { return ERROR_CLI_ARGUMENT_INDEX_OUT_OF_RANGE; }
 
 
+    tstatus = RESULT_ARG_IS_DECIMAL;
+
     for ( int i = 0; i < arg_len; i++ )
     {
         if ( ( argument_array[index_to_arg][i] < 0x30 ) || ( argument_array[index_to_arg][i] > 0x39 ) )
         {
-            tstatus = RESULT_ARG_NOT_DECIMAL /* false result */;  i = arg_len /* kick out */;
+            tstatus = RESULT_ARG_NOT_DECIMAL;  i = arg_len /* kick out */;
         }
     }
 
