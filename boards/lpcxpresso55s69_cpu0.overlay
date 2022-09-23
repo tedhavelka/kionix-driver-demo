@@ -1,0 +1,9 @@
+
+
+# lpc55x69 dev kit dts file of interest is zephyr/boards/arm/lpcxpresso55s69/lpcxpresso55s69.dtsi
+
+{ /
+    aliases {
+        uart2 = &flexcomm2;
+    };
+};
