@@ -1,61 +1,18 @@
-##----------------------------------------------------------------------
-##
-##  Kionix driver demo
-##  Copyright (c) <team name here>
-##  PDX-License-Identifier: Apache-2.0
-##
-##  References:
-##    *  https://stackoverflow.com/questions/31343813/displaying-cmake-variables
-##
-##----------------------------------------------------------------------
-
-
-cmake_minimum_required(VERSION 3.13.1)
-
-# Determine the build type
-if (NOT BUILD_TYPE)
-  set(BUILD_TYPE debug)
-endif()
-
-# Print out build type
-message(STATUS "Build type: ${BUILD_TYPE}")
+# ======================================================================
+#  Project:  Kionix driver demo
+#
+#  SPDX-License-Identifier: Apache-2.0
+# ======================================================================
 
 
 
-## 2021-11-11 Note following two vars select `crosstool-ng` as
-##  cross-compiler part of toolchain, as opposed to 'gnuarmemb':
-
-# Set environment variables
-set(CROSS_COMPILE arm-zephyr-eabi-)
-
-# Note following toolchain variant setting selects crosstool-ng compiler, not gcc gnuarmemb.
-# To build this project in Nordic Semiversion of Segger gcc cross compiler
-# must be installed and this variable set to 'gnuarmemb':
-set(ZEPHYR_TOOLCHAIN_VARIANT zephyr)
-
-
-
-#set(ZEPHYR_SDK_INSTALL_DIR ${HOME}/zephyrproject/zephyr)
+cmake_minimum_required(VERSION 3.20.0)
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
+project(hello_world)
 
-project(kionix-driver-demo)
+target_sources(app PRIVATE src/main.c)
 
-## This zephyr-include-directories stanza makes work pound inclusion of iis2dh.h using < > braces:
-## (Unsure how zephyr/samples/sensor/lis2dh finds its corresponding driver sources - TMH)
-zephyr_include_directories($ENV{ZEPHYR_BASE}/drivers/sensor/iis2dh)
-
-zephyr_include_directories($ENV{ZEPHYR_BASE}/drivers/sensor/lis2dh)
-
-# 2021-11-11 - trying to bring in thread_analyzer.h:
-##zephyr_include_directories($ENV{ZEPHYR_BASE}/include/debug)   // <-- not sufficient, or rather not a correct path - TMH
-include_directories(../zephyr/include/debug)
-
-### 2021-11-15 - Unexpected need to add this stanza when today `west update` no longer pulls in kionix-drivers dependency:
-##zephyr_include_directories(../kionix-drivers/drivers/kionix/kx132-1211)
-
-# 2021-11-16 - attempt to utilize Zephyr kernel timing reporting:
-include_directories(../zephyr/include)
 
 
 # Originally called Kionix out-of-tree driver code (no new thread yet created to do this):
@@ -78,7 +35,7 @@ target_sources(app PRIVATE src/cli-zephyr-kernel-timing.c)
 target_sources(app PRIVATE src/cli-iis2dh-sensor.c)
 
 # Internals:
-target_sources(app PRIVATE src/conversions.c)
+#target_sources(app PRIVATE src/conversions.c)
 target_sources(app PRIVATE src/scoreboard.c)
 
 
@@ -95,7 +52,7 @@ macro(print_all_variables)
     message(STATUS "print_all_variables------------------------------------------}")
 endmacro()
 
-print_all_variables()
+#print_all_variables()
 
 
 # --- end of CMakeLists.txt file ---
