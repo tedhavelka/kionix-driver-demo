@@ -974,13 +974,12 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
     unsigned char* msg = lbuf;
 // --- VAR END ---
 
-//// Moving to file-scoped static pointer to ease routine implementations like 'show_prompt()':
-//    const struct device *uart_for_cli;
-//// Following two lines fail to compile:
-//    uart_for_cli = device_get_binding(DT_LABEL(UART_2));
-//    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
 
-    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
+// 'uart2' is a DTS node for Thingy91 and Sparkfun nRF9160 dev boards,
+// but is a node alias for lpc55x69 eval board per DTS overlay by TMH:
+//    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
+    uart_for_cli = device_get_binding(DT_LABEL(DT_ALIAS(uart2)));
+
     if ( uart_for_cli == NULL )
     {   
         dmsg("Failed to assign pointer to UART2 device!\n", PROJECT_DIAG_LEVEL);
@@ -992,11 +991,6 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
     {
         if ( uart_for_cli != NULL )
         {
-#if 0
-            char lbuf[160];
-            memset(lbuf, 0, sizeof(lbuf));
-            unsigned char* msg = lbuf;
-#endif
             memset(lbuf, 0, sizeof(lbuf));
             msg = lbuf;
             uart_poll_in(uart_for_cli, msg);

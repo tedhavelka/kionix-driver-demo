@@ -6,14 +6,50 @@
 
 
 
+# ----------------------------------------------------------------------
+# - SECTION - the four stanzas from a Zephyr 'hello_world' simple app
+# ----------------------------------------------------------------------
+
 cmake_minimum_required(VERSION 3.20.0)
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(hello_world)
 
-target_sources(app PRIVATE src/main.c)
+#target_sources(app PRIVATE src/main.c)
 
 
+
+# ----------------------------------------------------------------------
+# - SECTION - development messages
+# ----------------------------------------------------------------------
+
+message(STATUS "- DEV 0923 - variable ZEPHYR_BASE holds '${ZEPHYR_BASE}'")
+
+
+
+# ----------------------------------------------------------------------
+# - SECTION - additional include paths
+# ----------------------------------------------------------------------
+
+zephyr_include_directories($ENV{ZEPHYR_BASE}/include/zephyr/debug)
+
+zephyr_include_directories($ENV{ZEPHYR_BASE}/include/zephyr/kernel)
+
+# Allow cmake and build tools to find 'arch_interface.h':
+zephyr_include_directories($ENV{ZEPHYR_BASE}/include/zephyr/sys)
+
+
+# To include lis2dh.h:
+zephyr_include_directories($ENV{ZEPHYR_BASE}/drivers/sensor/lis2dh)
+# To include iis2dh.h:
+zephyr_include_directories($ENV{ZEPHYR_BASE}/drivers/sensor/iis2dh)
+
+
+
+
+# ----------------------------------------------------------------------
+# - SECTION - project sources
+# ----------------------------------------------------------------------
 
 # Originally called Kionix out-of-tree driver code (no new thread yet created to do this):
 target_sources(app PRIVATE src/main.c)
