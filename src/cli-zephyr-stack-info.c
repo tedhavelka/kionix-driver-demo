@@ -30,6 +30,10 @@
 //  include/zephyr/sys/arch_interface.h:46:typedef void (*k_thread_entry_t)(void *p1, void *p2, void *p3);
 //                                                        ^^^^^^^^^^^^^^^^
 
+extern int arch_irq_connect_dynamic(unsigned int irq, unsigned int priority,
+                             void (*routine)(const void *parameter),
+                             const void *parameter, uint32_t flags);
+
 #include <arch_interface.h>        // to provide k_thread_entry_t and related to <thread.h>
 #include <thread.h>                // to provide k_thread_runtime_stats_t definition for <thread_analyzer.h>
 #include <thread_analyzer.h>

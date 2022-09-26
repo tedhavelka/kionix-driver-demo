@@ -12,6 +12,7 @@
 
 &flexcomm4 {
 /*
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
         compatible = "nxp,lpc-i2c";
         clock-frequency = <I2C_BITRATE_STANDARD>;
         #address-cells = <1>;
@@ -23,6 +24,7 @@
                 label = "MMA8652FC";
                 int1-gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
         };
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 */
 
 /* See TN027-Power-On-Procedure.pdf for purpose of 0x1F and 0x1D
@@ -32,5 +34,11 @@
                 compatible = "kionix,kx132_1211";
                 reg = <0x1F>;
                 label = "KX132_1211";
+        };
+
+        stmicro_sensor: iis2dh@19 {
+                compatible = "st,iis2dh";
+                reg = <0x19>;
+                label = "IIS2DH";
         };
 };

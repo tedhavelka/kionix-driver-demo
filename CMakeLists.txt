@@ -71,7 +71,7 @@ target_sources(app PRIVATE src/cli-zephyr-kernel-timing.c)
 target_sources(app PRIVATE src/cli-iis2dh-sensor.c)
 
 # Internals:
-#target_sources(app PRIVATE src/conversions.c)
+target_sources(app PRIVATE src/conversions.c)
 target_sources(app PRIVATE src/scoreboard.c)
 
 
