@@ -30,9 +30,11 @@ struct acc_reading_triplet
 #define CLEAR_FLAG VALUE_OF_FLAG_CLEARED
 
 
-// 2021-11-15 - output line and data formatting:
+// 2021-11-15 - output line and data formatting for use with minicom terminal program:
 #define ONE_NEWLINE "\n\r"
 #define TWO_NEWLINES "\n\r\n\r"
+#define LFCR ONE_NEWLINE
+
 
 
 #endif // _COMMON_H

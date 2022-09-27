@@ -9,9 +9,13 @@
  */
 
 
+
 #define KIONIX_DRIVER_REV_MAJOR 0
-#define KIONIX_DRIVER_REV_MINOR 2
-// revision updated 2021-10-06
+#define KIONIX_DRIVER_REV_MINOR 3
+// revision updated 2022-09-27 revision 0p3 . . . branch shift-from-nordic-ncs
+// revision updated 2021-10-06 revision 0p2
+
+
 
 //----------------------------------------------------------------------
 // - SECTION - includes
@@ -58,6 +62,7 @@ LOG_MODULE_REGISTER(demo);
 
 // 2021-10-06 - to add wrapper about Zephyr printk(), for early CLI development work:
 #include "version.h"
+#include "common.h"
 #include "diagnostic.h"
 #include "development-flags.h"
 
@@ -217,9 +222,9 @@ void main(void)
     }
 
     const struct device *dev_accelerometer = device_get_binding(DT_LABEL(KIONIX_ACCELEROMETER));
-//    struct sensor_value value;
-//    union generic_data_four_bytes_union_t data_from_sensor;
-//    uint32_t i = 0;
+    struct sensor_value value;
+    union generic_data_four_bytes_union_t data_from_sensor;
+    uint32_t i = 0;
 
 
     if (dev_accelerometer == NULL)
@@ -378,9 +383,10 @@ void main(void)
                 sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID);
                 sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID, &value);
 
-                snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer %d\n", value.val1);
+                snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer %d%s",
+                  value.val1, LFCR);
                 dmsg(lbuf, PROJECT_DIAG_LEVEL);
-                snprintf(lbuf, sizeof(lbuf), "main.c - sensor_value.val2 holds %d\n", value.val2);
+                snprintf(lbuf, sizeof(lbuf), "main.c - sensor_value.val2 holds %d%s", value.val2, LFCR);
                 dmsg(lbuf, PROJECT_DIAG_LEVEL);
                 data_from_sensor.as_32_bit_integer = value.val1;
 
@@ -396,14 +402,16 @@ void main(void)
                     snprintf(lbuf, sizeof(lbuf), " %c ", data_from_sensor.as_bytes[i]);
                     dmsg(lbuf, PROJECT_DIAG_LEVEL);
                 }
-                dmsg("\"\n", PROJECT_DIAG_LEVEL);
+                snprintf(lbuf, sizeof(lbuf), "\"%s", LFCR);
+                dmsg(lbuf, PROJECT_DIAG_LEVEL);
             }
 
             if ( DEV_TEST__FETCH_AND_GET_PART_ID )
             {
                 sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_PART_ID);
                 sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_PART_ID, &value);
-                snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor reports part ID of %d\n", value.val1);
+                snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor reports part ID of %d%s",
+                  value.val1, LFCR);
                 dmsg(lbuf, PROJECT_DIAG_LEVEL);
             }
 
@@ -415,8 +423,12 @@ void main(void)
         } 
         else 
         {
-            dmsg("- WARNING - problem initializing KX132 Zephyr device pointer,", PROJECT_DIAG_LEVEL);
-            dmsg("- WARNING + therefore not exercising features of this sensor.", PROJECT_DIAG_LEVEL);
+            snprintf(lbuf, sizeof(lbuf), "- WARNING - problem initializing KX132 Zephyr device pointer,%s",
+              LFCR);
+            dmsg(lbuf, PROJECT_DIAG_LEVEL);
+            snprintf(lbuf, sizeof(lbuf), "- WARNING + therefore not exercising features of this sensor.%s",
+              LFCR);
+            dmsg(lbuf, PROJECT_DIAG_LEVEL);
         } 
 
 // Output periodic or multi-phasic blank line to highlight scrolling in terminal window (note 1):
