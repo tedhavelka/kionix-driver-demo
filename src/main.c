@@ -163,6 +163,10 @@ void cli_entry_point(void* arg1, void* arg2, void* arg3)
 
 
 
+//----------------------------------------------------------------------
+// - SECTION - main line code
+//----------------------------------------------------------------------
+
 void main(void)
 {
 // --- LOCAL VAR BEGIN ---
@@ -322,13 +326,17 @@ void main(void)
 #endif
 
 #if NN_DEV__ENABLE_THREAD_LIS2DH_SENSOR == 1
-    dmsg("- DEV - starting comparative LIS2DH test thread . . .\n", DIAG_NORMAL);
-    thread_set_up_status = initialize_thread_lis2dh_task();
+    {
+        dmsg("- DEV - starting comparative LIS2DH test thread . . .\n", DIAG_NORMAL);
+        thread_set_up_status = initialize_thread_lis2dh_task();
+    }
 #endif
 
 #if NN_DEV__ENABLE_THREAD_SIMPLE_CLI == 1
-    dmsg("- DEV - starting simple Zephyr based CLI thread . . .\n", DIAG_NORMAL);
-    thread_set_up_status = initialize_thread_simple_cli_task();
+    {
+        dmsg("- DEV - starting simple Zephyr based CLI thread . . .\n", DIAG_NORMAL);
+        thread_set_up_status = initialize_thread_simple_cli_task();
+    }
 #endif
 
 #if NN_DEV__TEST_SCOREBOARD_GLOBAL_SETTING == 1
@@ -413,11 +421,13 @@ void main(void)
 
 // Output periodic or multi-phasic blank line to highlight scrolling in terminal window (note 1):
 
+#if 1
         if ( (main_loop_count % 3) == 0 )
         {
-            dmsg("\n\n", PROJECT_DIAG_LEVEL);
-            banner("main");
+            dmsg("- MARK - main loop\n\r", PROJECT_DIAG_LEVEL);
         }
+#endif
+//        rstatus = printk_cli("- MARK - main loop 2\n\r");
 
 #endif // NN_DEV__ENABLE_INT_MAIN_TESTS 
 
@@ -425,7 +435,8 @@ void main(void)
         k_msleep(SLEEP_TIME_MS);
         ++main_loop_count;
     }
-}
+
+} // end routine void main(void)
 
 
 

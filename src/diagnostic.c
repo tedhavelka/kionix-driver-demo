@@ -7,6 +7,11 @@
 
 #include <sys/printk.h>
 
+#include "diagnostic.h"
+
+#include "thread-simple-cli.h"
+
+
 
 /*
  *----------------------------------------------------------------------
@@ -19,11 +24,38 @@
 
 void dmsg(const char* message, int option)
 {
-    if ( option == 0 )
-    {
-    }
-    else
+
+#if 0
+    if ( option | KD_DIAG_OPTION_TO_DEFAULT_UART )
     {
         printk("%s", message);
     }
+#endif
+
+//    if ( option | KD_DIAG_OPTION_TO_CLI_UART )
+    if ( 1 )
+    {
+       printk_cli(message);
+    }
+
+#if 0
+    switch (option)
+    {
+       case ( option | KD_DIAG_OPTION_TO_DEFAULT_UART ):
+           printk("%s", message);
+           break;
+
+       case ( option | KD_DIAG_OPTION_TO_CLI_UART ):
+           printk_cli(message);
+           break;
+
+       default:
+    }
+#endif
+
 }
+
+
+
+
+// --- EOF ---
