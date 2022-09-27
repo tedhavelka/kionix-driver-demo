@@ -133,7 +133,7 @@
 //----------------------------------------------------------------------
 
 // defines thread related:
-#define SIMPLE_CLI_THREAD_STACK_SIZE 2048 // 1536 // 3072 // 1024
+#define SIMPLE_CLI_THREAD_STACK_SIZE 3072 // 2048 // 1536 // 3072 // 1024
 #define SIMPLE_CLI_THREAD_PRIORITY 8   // NEED to implement project enum of project thread priorities - TMH
 
 // defines for application or task implemented by this thread:
@@ -972,6 +972,8 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
     char lbuf[160];
     memset(lbuf, 0, sizeof(lbuf));
     unsigned char* msg = lbuf;
+
+    unsigned int i = 0;
 // --- VAR END ---
 
 
@@ -983,7 +985,11 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
     if ( uart_for_cli == NULL )
     {   
         dmsg("Failed to assign pointer to UART2 device!\n", PROJECT_DIAG_LEVEL);
-    } 
+    }
+    else
+    {   
+        dmsg("succeeded in getting device binding for UART2!\n", PROJECT_DIAG_LEVEL);
+    }
 
     initialize_command_handler();
 
@@ -1002,6 +1008,15 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
         }
 
         k_msleep(SLEEP_TIME__SIMPLE_CLI__MS);
+
+#if 0 // 2022-09-26 MON SANITY CHECK . . .
+        i += 1;
+        if ( i > 149 )
+        {
+            i = 0;
+            printk_cli("--- MARK 1 ---\n\r");
+        }
+#endif
     }
 
 } // end of thread entry point routine
