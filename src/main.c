@@ -21,6 +21,11 @@
 // - SECTION - includes
 //----------------------------------------------------------------------
 
+// newlib C includes:
+
+#include <stdio.h> // to provide snprintf()
+
+
 // Zephyr RTOS includes:
 
 #include <zephyr.h>
@@ -44,11 +49,6 @@
 LOG_MODULE_REGISTER(demo);
 
 
-// newlib C includes:
-
-#include <stdio.h> // to provide snprintf()
-
-
 // Out-Of-Tree driver includes:
 
 // 2021-08-24, 2021-08-26 losing double quotes in favor of arrow brackets:
@@ -56,20 +56,25 @@ LOG_MODULE_REGISTER(demo);
 //  KX132_1211 driver CMakeLists.txt file and zephyr_include_directories()
 //  stanza, which points to the path from top dir of driver to this
 //  header file. )
+
 #include <kx132-1211.h>
+
 
 // Local project includes:
 
 // 2021-10-06 - to add wrapper about Zephyr printk(), for early CLI development work:
 #include "version.h"
 #include "common.h"
-#include "diagnostic.h"
 #include "development-flags.h"
+#include "diagnostic.h"
+#include "return-values.h"
 
 // 2021-10-16 -
 #include "thread-iis2dh.h"
 #include "thread-lis2dh.h"
 #include "thread-simple-cli.h"
+#include "thread-led.h"
+
 #include "scoreboard.h"
 
 
@@ -94,6 +99,8 @@ LOG_MODULE_REGISTER(demo);
 #define SLEEP_TIME_MS   1000 // 1000
 
 
+
+#if 0
 
 /* The devicetree node identifier for the "led0" alias. */
 #define LED0_NODE DT_ALIAS(led0)
@@ -125,7 +132,7 @@ LOG_MODULE_REGISTER(demo);
 #define LED2_FLAGS    0
 #endif
 
-
+#endif // block to move code to thread-led.c
 
 
 
@@ -194,8 +201,8 @@ void cli_entry_point(void* arg1, void* arg2, void* arg3)
 void main(void)
 {
 // --- LOCAL VAR BEGIN ---
-    const struct device *dev;
-    const struct device *dev_led_blue;
+//    const struct device *dev;
+//    const struct device *dev_led_blue;
 
     bool led_is_on = true;
     int main_loop_count = 0;
@@ -216,22 +223,6 @@ void main(void)
 
 
 #if 0
-// 2021-10-05
-// REF https://lists.zephyrproject.org/g/devel/topic/help_required_on_reading_uart/16760425
-    const struct device *uart_for_cli;
-//    uart_for_cli = device_get_binding(DT_LABEL(UART_2));
-//    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
-
-// Selecting between UART instances prior to additonal wiring:
-    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
-//    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart0)));
-    if ( uart_for_cli == NULL )
-    {
-        dmsg("Failed to assign pointer to UART2 device!\n", PROJECT_DIAG_LEVEL);
-    }
-#endif
-
-
     dev = device_get_binding(LED0);
     if (dev == NULL) {
         return;
@@ -241,13 +232,14 @@ void main(void)
     if (rstatus < 0) {
         return;
     }
+#endif
 
     const struct device *dev_accelerometer = device_get_binding(DT_LABEL(KIONIX_ACCELEROMETER));
     struct sensor_value value;
     union generic_data_four_bytes_union_t data_from_sensor;
     uint32_t i = 0;
 
-// - DEV 0928 -
+#if 0
     dev_led_blue = device_get_binding(LED2);
     if (dev_led_blue == NULL) {
         return;
@@ -257,8 +249,7 @@ void main(void)
     if (rstatus < 0) {
         return;
     }
-// - DEV 0928 -
-
+#endif
 
 
 
@@ -339,24 +330,24 @@ void main(void)
     }
 
 
-#if 0
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-// - DEV START -
 
-// 2021-10-06 - work to add and test Zephyr thread:
-// - DEV THREAD WORK BEGIN -
+//----------------------------------------------------------------------
+// - STEP - start sample application threads
+//----------------------------------------------------------------------
 
-// Set up first development thread, code for this one entirely in main.c:
-        k_tid_t cli_tid = k_thread_create(&cli_thread_data, cli_stack_area,
-                                          K_THREAD_STACK_SIZEOF(cli_stack_area),
-                                          cli_entry_point,
-                                          NULL, NULL, NULL,
-                                          CLI_THREAD_PRIORITY, 0, K_NO_WAIT);
-// - DEV END -
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+#if NN_DEV__ENABLE_THREAD_LED == 1
+    {
+        dmsg("- DEV - starting LED signalling thread . . .\n", DIAG_NORMAL);
+        thread_set_up_status = initialize_thread_led();
+
+#if 1
+        if ( thread_set_up_status != ROUTINE_OK )
+        {
+            dmsg("- DEV - WARNING!  trouble starting LED signalling thread.\n\r", DIAG_NORMAL);
+        }
 #endif
-
-// - DEV THREAD WORK END -
+    }
+#endif
 
 
 #if NN_DEV__ENABLE_THREAD_IIS2DH_SENSOR == 1
@@ -375,10 +366,15 @@ void main(void)
 
 #if NN_DEV__ENABLE_THREAD_SIMPLE_CLI == 1
     {
-        dmsg("- DEV - starting simple Zephyr based CLI thread . . .\n", DIAG_NORMAL);
-        thread_set_up_status = initialize_thread_simple_cli_task();
+        dmsg("- DEV - starting Kionix demo CLI thread . . .\n", DIAG_NORMAL);
+        thread_set_up_status = initialize_thread_simple_cli();
     }
 #endif
+
+
+
+
+
 
 #if NN_DEV__TEST_SCOREBOARD_GLOBAL_SETTING == 1
 // Note this static var declared in thread_simple_cli.h:
@@ -392,11 +388,12 @@ void main(void)
 
     while ( 1 )
     {
+#if 0
         gpio_pin_set(dev, PIN, (int)led_is_on);
         led_is_on = !led_is_on;
 
         gpio_pin_set(dev_led_blue, LED2_PIN, (int)led_is_on);
-
+#endif
 
 #if NN_DEV__TEST_SCOREBOARD_GLOBAL_SETTING == 1
 //        dmsg("- DEV - setting scoreboard test value to 5 in while loop . . .\n", DIAG_NORMAL);

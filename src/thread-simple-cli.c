@@ -159,7 +159,7 @@
 // - SECTION - DEVELOPMENT FLAGS
 //----------------------------------------------------------------------
 
-#define PROJECT_DIAG_LEVEL DIAG_NORMAL // DIAG_OFF
+//#define PROJECT_DIAG_LEVEL DIAG_NORMAL // DIAG_OFF
 //#define PROJECT_DIAG_LEVEL DIAG_OFF // DIAG_NORMAL
 
 
@@ -270,7 +270,7 @@ struct cli_command_writers_api kd_command_set[] =
 K_THREAD_STACK_DEFINE(simple_cli_thread_stack_area, SIMPLE_CLI_THREAD_STACK_SIZE);
 struct k_thread simple_cli_thread_thread_data;
 
-int initialize_thread_simple_cli_task(void)
+int initialize_thread_simple_cli(void)
 {
     uint32_t rstatus = ROUTINE_OK;
 

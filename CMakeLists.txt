@@ -63,6 +63,7 @@ target_sources(app PRIVATE src/diagnostic.c)
 # Sensors related:
 target_sources(app PRIVATE src/thread-iis2dh.c)
 target_sources(app PRIVATE src/thread-lis2dh.c)
+target_sources(app PRIVATE src/thread-led.c)
 
 # Command Line Interface related:
 target_sources(app PRIVATE src/thread-simple-cli.c)
