@@ -1,0 +1,35 @@
+
+
+2022-09-29 Thursday
+
+Ted reviewing and manually selecting latest code from kionix-driver-demo project, hosted at github/tedhavelka, from commit d59cb3f2a441.  Commit d59cb3f2a441 potentially has some sensor related code which is more developed than in source files at commit with hash 13d7c2a841c2.
+
+Files which differ between commits with starting hash values 13d7c2a841c2 and d59cb3f2a441 are:
+
+# cli-iis2dh-sensor.c cli-zephyr-stack-info.c common.h conversions.c conversions.h development-flags.h diagnostic.c diagnostic.h main.c module-ids.h return-values.h scoreboard.c scoreboard.h thread-iis2dh.c thread-iis2dh.h thread-simple-cli.c thread-simple-cli.h
+
+
+# Reviewed files to be marked with 'x' . . .
+
+[x] cli-iis2dh-sensor.c
+[x] cli-zephyr-stack-info.c
+[x] common.h
+[x] conversions.c
+[x] conversions.h
+[x] development-flags.h
+[x] diagnostic.c
+[x] diagnostic.h
+[x] main.c
+[x] module-ids.h
+[x] return-values.h
+[x] scoreboard.c
+[x] scoreboard.h
+[x] thread-iis2dh.c
+[x] thread-iis2dh.h
+[x] thread-simple-cli.c
+[x] thread-simple-cli.h
+
+
+
+
+# --- EOF ---

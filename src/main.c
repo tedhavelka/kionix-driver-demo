@@ -100,42 +100,6 @@ LOG_MODULE_REGISTER(demo);
 
 
 
-#if 0
-
-/* The devicetree node identifier for the "led0" alias. */
-#define LED0_NODE DT_ALIAS(led0)
-
-#if DT_NODE_HAS_STATUS(LED0_NODE, okay)
-#define LED0     DT_GPIO_LABEL(LED0_NODE, gpios)
-#define PIN      DT_GPIO_PIN(LED0_NODE, gpios)
-#define FLAGS    DT_GPIO_FLAGS(LED0_NODE, gpios)
-#else
-/* A build error here means your board isn't set up to blink an LED. */
-#error "Unsupported board: led0 devicetree alias is not defined"
-#define LED0    ""
-#define PIN      0
-#define FLAGS    0
-#endif
-
-
-#define LED2_NODE DT_ALIAS(led2)
-
-#if DT_NODE_HAS_STATUS(LED2_NODE, okay)
-#define LED2        DT_GPIO_LABEL(LED2_NODE, gpios)
-#define LED2_PIN    DT_GPIO_PIN(LED2_NODE, gpios)
-#define LED2_FLAGS  DT_GPIO_FLAGS(LED2_NODE, gpios)
-#else
-/* A build error here means your board isn't set up to blink a blue LED. */
-#error "Unsupported board: led2 devicetree alias is not defined"
-#define LED2         ""
-#define LED2_PIN      0
-#define LED2_FLAGS    0
-#endif
-
-#endif // block to move code to thread-led.c
-
-
-
 //----------------------------------------------------------------------
 // - SECTION - data structures in Kionix driver dev work
 //----------------------------------------------------------------------
@@ -201,57 +165,29 @@ void cli_entry_point(void* arg1, void* arg2, void* arg3)
 void main(void)
 {
 // --- LOCAL VAR BEGIN ---
-//    const struct device *dev;
-//    const struct device *dev_led_blue;
 
     bool led_is_on = true;
     int main_loop_count = 0;
-//    int ret;
-    uint32_t rstatus = 0;
 
     int thread_set_up_status = 0;
 
     int sensor_api_status = 0;
+
     struct sensor_value requested_config;
 
     char lbuf[DEFAULT_MESSAGE_SIZE];
+    uint32_t rstatus = 0;
+
 // --- LOCAL VAR END ---
 
 
     memset(banner_msg, 0, sizeof(banner_msg));
     banner("main");
 
-
-#if 0
-    dev = device_get_binding(LED0);
-    if (dev == NULL) {
-        return;
-    }
-
-    rstatus = gpio_pin_configure(dev, PIN, GPIO_OUTPUT_ACTIVE | FLAGS);
-    if (rstatus < 0) {
-        return;
-    }
-#endif
-
     const struct device *dev_accelerometer = device_get_binding(DT_LABEL(KIONIX_ACCELEROMETER));
     struct sensor_value value;
     union generic_data_four_bytes_union_t data_from_sensor;
     uint32_t i = 0;
-
-#if 0
-    dev_led_blue = device_get_binding(LED2);
-    if (dev_led_blue == NULL) {
-        return;
-    }
-
-    rstatus = gpio_pin_configure(dev_led_blue, LED2_PIN, GPIO_OUTPUT_ACTIVE | FLAGS);
-    if (rstatus < 0) {
-        return;
-    }
-#endif
-
-
 
 
     if (dev_accelerometer == NULL)
@@ -372,33 +308,8 @@ void main(void)
 #endif
 
 
-
-
-
-
-#if NN_DEV__TEST_SCOREBOARD_GLOBAL_SETTING == 1
-// Note this static var declared in thread_simple_cli.h:
-//    dmsg("- DEV - setting scoreboard test value to 4 . . .\n", DIAG_NORMAL);
-//    global_test_value = 4;
-//    dmsg("- DEV - (this assignment doesn't seem to work.)\n", DIAG_NORMAL);
-        dmsg("- DEV - setting scoreboard test value to 5 . . .\n", DIAG_NORMAL);
-        rstatus = set_global_test_value(5);
-#endif
-
-
     while ( 1 )
     {
-#if 0
-        gpio_pin_set(dev, PIN, (int)led_is_on);
-        led_is_on = !led_is_on;
-
-        gpio_pin_set(dev_led_blue, LED2_PIN, (int)led_is_on);
-#endif
-
-#if NN_DEV__TEST_SCOREBOARD_GLOBAL_SETTING == 1
-//        dmsg("- DEV - setting scoreboard test value to 5 in while loop . . .\n", DIAG_NORMAL);
-//        rc = set_global_test_value(5);
-#endif
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Calls to KX132-1211 driver API:
