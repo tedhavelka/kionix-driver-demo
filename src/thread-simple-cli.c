@@ -969,22 +969,10 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
 // --- VAR END ---
 
 
-// 'uart2' is a DTS node for Thingy91 and Sparkfun nRF9160 dev boards,
-// but is a node alias for lpc55x69 eval board per DTS overlay by TMH:
-//
-// NEED - TO AMEND source here with pre-processor check of targeted board,
-// NEED + so as to select correct Zephyr macros on following active
-// NEED + line of code:
-//
+//#define UART2_NODE DT_PATH(soc, peripheral_50000000, uart_a000)
 
-//    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
-//    uart_for_cli = device_get_binding(DT_LABEL(DT_ALIAS(uart2)));  // commented 2022-11-10 THU
-//    uart_for_cli = device_get_binding(DT_ALIAS(uart_2));
+#define UART2_NODE DT_ALIAS(uart_2)
 
-// DT_N_S_soc_S_peripheral_50000000_S_uart_a000
-//    uart_for_cli = device_get_binding(DT_PATH(soc, peripheral_50000000, uart_a000));
-
-#define UART2_NODE DT_PATH(soc, peripheral_50000000, uart_a000)
     uart_for_cli = DEVICE_DT_GET(UART2_NODE);
 
 

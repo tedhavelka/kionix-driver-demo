@@ -63,13 +63,13 @@ void thread_led_entry_point(void* arg1, void* arg2, void* arg3);
 #define LED0_NODE DT_ALIAS(led0)
 
 #if DT_NODE_HAS_STATUS(LED0_NODE, okay)
-#define LED0_LABEL   DT_GPIO_LABEL(LED0_NODE, gpios)
+// #define LED0_LABEL   DT_GPIO_LABEL(LED0_NODE, gpios)  // DT_GPIO_LABEL() macro deprecated as of Zephyr 3.2.0
 #define LED0_PIN     DT_GPIO_PIN(LED0_NODE, gpios)
 #define LED0_FLAGS   DT_GPIO_FLAGS(LED0_NODE, gpios)
 #else
 /* A build error here means your board isn't set up to blink an LED. */
 #error "Unsupported board: led0 devicetree alias is not defined"
-#define LED0_LABEL   ""
+// #define LED0_LABEL   ""
 #define LED0_PIN     0
 #define LED0_FLAGS   0
 #endif
@@ -78,18 +78,18 @@ void thread_led_entry_point(void* arg1, void* arg2, void* arg3);
 #define LED2_NODE DT_ALIAS(led2)
 
 #if DT_NODE_HAS_STATUS(LED2_NODE, okay)
-#define LED2_LABEL   DT_GPIO_LABEL(LED2_NODE, gpios)
+// #define LED2_LABEL   DT_GPIO_LABEL(LED2_NODE, gpios)  // DT_GPIO_LABEL() macro deprecated as of Zephyr 3.2.0
 #define LED2_PIN     DT_GPIO_PIN(LED2_NODE, gpios)
 #define LED2_FLAGS   DT_GPIO_FLAGS(LED2_NODE, gpios)
 #else
 /* A build error here means your board isn't set up to blink a blue LED. */
 #warning "Unsupported board: led2 devicetree alias is not defined"
-#define LED2_LABEL   ""
+// #define LED2_LABEL   ""
 #define LED2_PIN     0
 #define LED2_FLAGS   0
 #endif
 
-const struct device *dev = NULL;
+const struct device *dev_led_red = NULL;
 const struct device *dev_led_blue = NULL;
 
 
@@ -148,14 +148,17 @@ void thread_led_entry_point(void* arg1, void* arg2, void* arg3)
 // - STEP - device readiness detection
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+// # REF https://docs.zephyrproject.org/latest/kernel/drivers/index.html#c.device_get_binding
+// # REF https://docs.zephyrproject.org/latest/kernel/drivers/index.html#c.DEVICE_DT_NAME
+
 // LED red:
 
-    dev = device_get_binding(LED0_LABEL);
-    if (dev == NULL) {
+    dev_led_red = device_get_binding(DEVICE_DT_NAME(LED0_NODE));
+    if (dev_led_red == NULL) {
         return;
     }
 
-    rstatus = gpio_pin_configure(dev, LED0_PIN, GPIO_OUTPUT_ACTIVE | LED0_FLAGS);
+    rstatus = gpio_pin_configure(dev_led_red, LED0_PIN, GPIO_OUTPUT_ACTIVE | LED0_FLAGS);
     if (rstatus < 0) {
         return;
     }
@@ -178,7 +181,7 @@ void thread_led_entry_point(void* arg1, void* arg2, void* arg3)
 
     while ( 1 )
     {
-        gpio_pin_set(dev, LED0_PIN, (int)led_is_on);
+        gpio_pin_set(dev_led_red, LED0_PIN, (int)led_is_on);
         led_is_on = !led_is_on;
 
 #if 0 // if board does not have led2 node or node alias

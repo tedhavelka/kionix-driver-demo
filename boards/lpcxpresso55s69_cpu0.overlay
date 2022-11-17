@@ -6,6 +6,7 @@
 / {
     aliases {
         uart2 = &flexcomm2;
+        uart-2 = &flexcomm2;
     };
 };
 
