@@ -155,7 +155,9 @@ memset(binary_rep, 0, BINARY_REPRESENTATION_EIGHT_BITS_AS_STRING);
             }
             else
             {
-                printk_cli("\n\rbytes read back from register:\n\r");
+                snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "\n\rbytes read back from IIS2DH register 0x%02X:\n\r",
+                  dec_value_at_arg_index(3));
+                printk_cli(lbuf);
                 for ( int i = 0; i < count_bytes_to_read; i++ )
                 {
 // two modulo tests provide white space to highlight accelerometer x,y,z triplet data:

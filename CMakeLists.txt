@@ -45,6 +45,10 @@ zephyr_include_directories($ENV{ZEPHYR_BASE}/drivers/sensor/lis2dh)
 zephyr_include_directories($ENV{ZEPHYR_BASE}/drivers/sensor/iis2dh)
 
 
+# 2022-11-10 THU - Zephyr 3.2.0 include path changes
+zephyr_include_directories($ENV{ZEPHYR_BASE}/include/zephyr)
+
+
 
 
 # ----------------------------------------------------------------------

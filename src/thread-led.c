@@ -83,7 +83,7 @@ void thread_led_entry_point(void* arg1, void* arg2, void* arg3);
 #define LED2_FLAGS   DT_GPIO_FLAGS(LED2_NODE, gpios)
 #else
 /* A build error here means your board isn't set up to blink a blue LED. */
-#error "Unsupported board: led2 devicetree alias is not defined"
+#warning "Unsupported board: led2 devicetree alias is not defined"
 #define LED2_LABEL   ""
 #define LED2_PIN     0
 #define LED2_FLAGS   0
@@ -163,6 +163,7 @@ void thread_led_entry_point(void* arg1, void* arg2, void* arg3)
 
 // LED blue:
 
+#if 0 // if board does not have led2 node or node alias
     dev_led_blue = device_get_binding(LED2_LABEL);
     if (dev_led_blue == NULL) {
         return;
@@ -172,6 +173,7 @@ void thread_led_entry_point(void* arg1, void* arg2, void* arg3)
     if (rstatus < 0) {
         return;
     }
+#endif
 
 
     while ( 1 )
@@ -179,8 +181,9 @@ void thread_led_entry_point(void* arg1, void* arg2, void* arg3)
         gpio_pin_set(dev, LED0_PIN, (int)led_is_on);
         led_is_on = !led_is_on;
 
+#if 0 // if board does not have led2 node or node alias
         gpio_pin_set(dev_led_blue, LED2_PIN, (int)led_is_on);
-
+#endif
 
         k_msleep(TASK_LED_MAIN_LOOP_PERIOD_IN_MS);
     }

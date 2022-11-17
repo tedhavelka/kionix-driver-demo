@@ -28,7 +28,7 @@
 
 // Zephyr RTOS includes:
 
-#include <zephyr.h>
+#include <kernel.h>  // In Zephyr 3.2.0 no longer include zephyr.h but rather kernel.h
 #include <device.h>
 #include <devicetree.h>
 #include <drivers/gpio.h>
@@ -96,7 +96,7 @@ LOG_MODULE_REGISTER(demo);
 // defines from Nordic sdk-nrf sample apps:
 
 /* 1000 msec = 1 sec */
-#define SLEEP_TIME_MS   1000 // 1000
+#define SLEEP_TIME_MS   120000 // 1000
 
 
 
@@ -378,6 +378,8 @@ void main(void)
             dmsg(lbuf, PROJECT_DIAG_LEVEL);
         } 
 
+#endif // NN_DEV__ENABLE_INT_MAIN_TESTS 
+
 // Output periodic or multi-phasic blank line to highlight scrolling in terminal window (note 1):
 
 #if 1
@@ -388,7 +390,6 @@ void main(void)
 #endif
 //        rstatus = printk_cli("- MARK - main loop 2\n\r");
 
-#endif // NN_DEV__ENABLE_INT_MAIN_TESTS 
 
 
         k_msleep(SLEEP_TIME_MS);

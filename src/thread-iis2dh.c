@@ -316,19 +316,21 @@ static uint32_t kd_write_peripheral_register(const struct device *dev,
     int rstatus = ROUTINE_OK;
     struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
 
+#ifdef DEV_1110
     rstatus = i2c_write(
                         device_data_ptr->bus,
                         device_register_and_data,
                         count_bytes_to_write,
                         DT_INST_REG_ADDR(0)
                       );
+#endif
 
 #if KD_DEV__I2C_WRITE_STATUS == 1
 if ( rstatus != 0 )
 {
-    printk("Z - WARNING - Zephyr i2c_write API returns non-zero %u!\n", rstatus);
-    printk("Z   ( DT_INST_REG_ADDR(0) this comm' is %u, peripheral reg addr is %u )\n",
-      DT_INST_REG_ADDR(0), device_register_and_data[0]);
+    printk("- WARNING - Zephyr i2c_write API returns error value of %d,\n", rstatus);
+    printk("+ WARNING - peripheral I2C address for this munication is 0x%02X,\n", DT_INST_REG_ADDR(0));
+    printk("+ WARNING - address of peripheral register to write is 0x%02x )\n\n", device_register_and_data[0]);
 }
 #endif
     return rstatus;
@@ -352,6 +354,7 @@ static uint32_t kd_read_peripheral_register(const struct device *dev,
     int rstatus = ROUTINE_OK;
     struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
 
+#ifdef DEV_1110
     rstatus = i2c_write_read(
                               device_data_ptr->bus,
                               DT_INST_REG_ADDR(0),
@@ -361,6 +364,7 @@ static uint32_t kd_read_peripheral_register(const struct device *dev,
                               data,
                               count_bytes_to_read
                             );
+#endif
 
 // REF https://docs.zephyrproject.org/2.6.0/reference/peripherals/i2c.html?highlight=i2c_write#c.i2c_write_read
 
@@ -475,11 +479,13 @@ static uint32_t read_of_iis2dh_temperature_registers(const struct device *dev, s
     rstatus |= kd_write_peripheral_register(dev, cmd, 2);  // magic number '2' here refers to reg' addr and value to write
 #endif
 
+#ifdef DEV_1110
     rstatus = i2c_write_read(device_data_ptr->bus,   // data_struc_ptr->i2c_dev,
                              DT_INST_REG_ADDR(0),
                              cmd, 1,
                              &scratch_pad_bytes, 2
                             );
+#endif
 
     value->val1 = ((scratch_pad_bytes[0] << 8) | scratch_pad_bytes[0]);
 
@@ -509,11 +515,13 @@ static uint8_t read_of_iis2dh_acc_status_register(const struct device *dev)
     struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
     uint8_t acc_status_register_value = 0;
 
+#ifdef DEV_1110
     status = i2c_write_read(device_data_ptr->bus,
                             DT_INST_REG_ADDR(0),
                             cmd, sizeof(cmd),
                             &acc_status_register_value, 1
                            );
+#endif
 
     return acc_status_register_value;
 }
@@ -528,11 +536,13 @@ static uint8_t read_of_iis2dh_acc_fifo_src_register(const struct device *dev)
     struct iis2dh_data *device_data_ptr = (struct iis2dh_data *)dev->data;
     uint8_t acc_fifo_src_register_value = 0;
 
+#ifdef DEV_1110
     status = i2c_write_read(device_data_ptr->bus,
                             DT_INST_REG_ADDR(0),
                             cmd, sizeof(cmd),
                             &acc_fifo_src_register_value, 1
                            );
+#endif
 
     return acc_fifo_src_register_value;
 }
@@ -952,9 +962,13 @@ void iis2dh_thread_entry_point(void* arg1, void* arg2, void* arg3)
 
 // Check whether device_get_binding() macro / call succeeded:
     if ( sensor == NULL )
-        { printk("No iis2dh device found!\n"); }
+    {
+        printk("- %s - No iis2dh device found!\n", MODULE_ID__THREAD_IIS2DH);
+    }
     else
-        { printk("Success finding iis2dh device,\n"); }
+    {
+        printk("- %s - Success finding iis2dh device,\n", MODULE_ID__THREAD_IIS2DH);
+    }
 
     if (!device_is_ready(sensor)) {
         printk("- %s - Device %s is not ready\n", MODULE_ID__THREAD_IIS2DH, sensor->name);
@@ -1144,7 +1158,7 @@ uint32_t wrapper_iis2dh_register_write(const uint8_t register_addr, const uint8_
 
 
 
-uint32_t wrapper_iis2dh_register_read_multiple(const uint8_t register_addr, uint8_t* register_value, const uint32_t byte_count)
+uint32_t wrapper_iis2dh_register_read_multiple(const uint8_t register_addr, uint8_t* data, const uint32_t byte_count)
 {
     uint32_t rstatus = ROUTINE_OK;
 
@@ -1157,10 +1171,22 @@ uint32_t wrapper_iis2dh_register_read_multiple(const uint8_t register_addr, uint
         rstatus = kd_read_peripheral_register(
                                                sensor,
                                                &register_addr,
-                                               register_value,
+                                               data,
                                                byte_count
                                              );
     }
+
+#if 1
+    char lbuf[DEFAULT_MESSAGE_SIZE] = { 0 };
+    snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "- DEBUG 1021 - summary of %u bytes just read:\n\r", byte_count);
+    printk_cli(lbuf);
+    for (int i = 0; i < byte_count; i++)
+    {
+        snprintf(lbuf, DEFAULT_MESSAGE_SIZE, " 0x%02X", data[i]);
+        printk_cli(lbuf);
+    }
+    printk_cli("\n\r\n\r");
+#endif
 
     return rstatus;
 }

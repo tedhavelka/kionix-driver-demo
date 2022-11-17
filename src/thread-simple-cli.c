@@ -91,7 +91,7 @@
 #include <string.h>                // to provide memset()
 
 // Zephyr RTOS headers . . .
-#include <zephyr.h>
+#include <kernel.h>
 
 // to provide Zephyr's device_get_binding():
 #include <device.h>
@@ -978,7 +978,15 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
 //
 
 //    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
-    uart_for_cli = device_get_binding(DT_LABEL(DT_ALIAS(uart2)));
+//    uart_for_cli = device_get_binding(DT_LABEL(DT_ALIAS(uart2)));  // commented 2022-11-10 THU
+//    uart_for_cli = device_get_binding(DT_ALIAS(uart_2));
+
+// DT_N_S_soc_S_peripheral_50000000_S_uart_a000
+//    uart_for_cli = device_get_binding(DT_PATH(soc, peripheral_50000000, uart_a000));
+
+#define UART2_NODE DT_PATH(soc, peripheral_50000000, uart_a000)
+    uart_for_cli = DEVICE_DT_GET(UART2_NODE);
+
 
     if ( uart_for_cli == NULL )
     {   

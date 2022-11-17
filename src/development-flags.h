@@ -18,7 +18,7 @@
 #define DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ        (1)
 
 
-#define NN_DEV__ENABLE_INT_MAIN_TESTS                     (1)
+#define NN_DEV__ENABLE_INT_MAIN_TESTS                     (0)
 #define NN_DEV__ENABLE_THREAD_IIS2DH_SENSOR               (1)
 #define NN_DEV__ENABLE_THREAD_LIS2DH_SENSOR               (0)
 #define NN_DEV__ENABLE_THREAD_SIMPLE_CLI                  (1)
