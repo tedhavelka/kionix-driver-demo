@@ -5,7 +5,7 @@
  *  Function to initialize Zephyr thread for STMicro IIS2DH driver code tests.
  */
 
-int initialize_thread_simple_cli_task(void);
+int initialize_thread_simple_cli(void);
 
 
 // routine to send character stream to arbitrary, non-Zephyr-chosen UART:

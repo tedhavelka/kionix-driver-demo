@@ -16,17 +16,28 @@
 //----------------------------------------------------------------------
 
 // Standard C includes from newlibc:
-#include <stdint.h>         // to provide define of uint32_t
-#include <string.h>         // to provide strlen()
-#include <stdio.h>          // to provide snprintf() and related
+#include <stdint.h>                // to provide define of uint32_t
+#include <string.h>                // to provide strlen()
+#include <stdio.h>                 // to provide snprintf() and related
 
 // Zephyr RTOS project includes:
 #include <sys/printk.h>
 
-// See project top level CMakeLists.txt file for `include_directory()` to provide relative
-// path of Zephyr thread analyzer header file:
-//#include <include/debug/thread_analyzer.h>  // <-- described as needed in Zephyr Doc' v2.7.99
+
+// 2022-09-23 - Note order of following three includes is important:
+
+// Note - why we want arch_interface.h:
+//  include/zephyr/sys/arch_interface.h:46:typedef void (*k_thread_entry_t)(void *p1, void *p2, void *p3);
+//                                                        ^^^^^^^^^^^^^^^^
+
+extern int arch_irq_connect_dynamic(unsigned int irq, unsigned int priority,
+                             void (*routine)(const void *parameter),
+                             const void *parameter, uint32_t flags);
+
+#include <arch_interface.h>        // to provide k_thread_entry_t and related to <thread.h>
+#include <thread.h>                // to provide k_thread_runtime_stats_t definition for <thread_analyzer.h>
 #include <thread_analyzer.h>
+
 
 // Kionix Driver Demo headers:
 #include "common.h"

@@ -92,32 +92,50 @@ void integer_to_binary_string(const uint32_t integer, char* string, const uint32
     uint32_t masking_bit = 1;
     uint32_t shift_value = 0;
     uint32_t maximum_shift = 0;
+
 #define DEV__BINARY_FORMATTING_DEBUG 0
-#if DEV__BINARY_FORMATTING_DEBUG == 1
+#define DEV__BINARY_FORMATTING_STRING_INDEXING 0
+
+#if DEV__BINARY_FORMATTING_DEBUG == 1 || DEV__BINARY_FORMATTING_STRING_INDEXING == 1
     char lbuf[DEFAULT_MESSAGE_SIZE] = { 0 };
 #endif
 
-    (str_length > 32) ? (maximum_shift = 32) : (maximum_shift = str_length);
+//    (str_length > 32) ? (maximum_shift = 32) : (maximum_shift = str_length);
+    (str_length > 32) ? (maximum_shift = 32) : (maximum_shift = str_length - 1);
 
 #if DEV__BINARY_FORMATTING_DEBUG == 1
     snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "\n\rready to convert integer up to %u bits wide,\n\r",
       maximum_shift);
     printk_cli(lbuf);
 #endif
+
+// place string terminating zero at end of caller's string memory:
+    string[(str_length - 1)] = 0;
+
+#if DEV__BINARY_FORMATTING_STRING_INDEXING == 1
+        printk_cli("\n\r");
+#endif
     for ( shift_value = 0; shift_value < maximum_shift; shift_value++ )
     {
         masking_bit = ( 1 << shift_value );
+
+#if DEV__BINARY_FORMATTING_STRING_INDEXING == 1
+        snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "writing binary string index %u,\n\r",
+          (str_length - shift_value - 2) );
+        printk_cli(lbuf);
+#endif
+
         if ( integer & masking_bit )
         {
-            string[(str_length - shift_value - 1)] = 0x31;
+            string[(str_length - shift_value - 2)] = 0x31;
         }
         else
         {
-            string[(str_length - shift_value - 1)] = 0x30;
+            string[(str_length - shift_value - 2)] = 0x30;
         }
     }
 
-    string[str_length] = 0;
+//    string[str_length] = 0;
 
 #if DEV__BINARY_FORMATTING_DEBUG == 1
     snprintf(lbuf, DEFAULT_MESSAGE_SIZE, "integer %u equals '%s'.\n\r",

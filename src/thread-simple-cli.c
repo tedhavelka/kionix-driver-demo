@@ -91,7 +91,7 @@
 #include <string.h>                // to provide memset()
 
 // Zephyr RTOS headers . . .
-#include <zephyr.h>
+#include <kernel.h>
 
 // to provide Zephyr's device_get_binding():
 #include <device.h>
@@ -159,10 +159,6 @@
 // - SECTION - DEVELOPMENT FLAGS
 //----------------------------------------------------------------------
 
-#define PROJECT_DIAG_LEVEL DIAG_NORMAL // DIAG_OFF
-//#define PROJECT_DIAG_LEVEL DIAG_OFF // DIAG_NORMAL
-
-
 // Latest parsed arguments:
 static char argument_array[MAX_COUNT_SUPPORTED_ARGS][SUPPORTED_ARG_LENGTH];
 
@@ -207,8 +203,10 @@ extern uint32_t cli__kd_version(const char* args);
 extern uint32_t cli__banner_message(const char* args);
 // cli-zephyr-kernel-timing.h . . .
 
-// . . .
-extern uint32_t iis2dh_sensor_handler(const char* args);
+// STMicro IIS2DH accelerometer related:
+extern uint32_t cli__iis2dh_sensor_handler(const char* args);
+
+extern uint32_t cli__request_temperature_reading(const char* args);
 
 
 
@@ -220,8 +218,6 @@ static char latest_command[SIZE_COMMAND_TOKEN];
 static char command_history[SIZE_COMMAND_HISTORY][SIZE_COMMAND_TOKEN];  // <-- 2021-10-26 not yet used
 static uint32_t index_to_cmd_history;
 static uint32_t index_within_cmd_token;
-
-//static char newline_string[] = { '\n' };
 
 static const struct device *uart_for_cli;
 
@@ -245,17 +241,19 @@ struct cli_command_writers_api
 
 struct cli_command_writers_api kd_command_set[] =
 {
-    { "help", "show supported Kionix demo CLI commands.", &cli__help_message },
-    { "?", "show supported Kionix demo CLI commands.", &cli__help_message },
-    { "banner", "show brief project identifier string for this Zephyr based app.", &cli__banner_message },
+    { "help", "show supported Kionix demo CLI commands", &cli__help_message },
+    { "?", "show supported Kionix demo CLI commands", &cli__help_message },
+    { "banner", "show brief project identifier string for this Zephyr based app", &cli__banner_message },
     { "version", "show this Kionix Driver Demo version info", &cli__kd_version },
 
-    { "odr", "IIS2DH Output Data Rate (ODR) set and get command.", &output_data_rate_handler },
-    { "iis2dh", "IMPLEMENTATION UNDERWAY - general purpose iis2dh configuration command.", &iis2dh_sensor_handler },
-//    { "stacks", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
-    { "st", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
+    { "odr", "IIS2DH Output Data Rate (ODR) set and get command", &output_data_rate_handler },
+    { "iis2dh", "IMPLEMENTATION UNDERWAY - general purpose iis2dh configuration command", &cli__iis2dh_sensor_handler },
+    { "temp", "request iis2dh temperature reading", &cli__request_temperature_reading},
 
-    { "cyc", "show Zephyr kernel run time cycles count", &cli__show_zephyr_kernel_runtime_cycle_count }
+    { "st", "show Zephyr RTOS thread stack statistics", &cli__zephyr_2p6p0_stack_statistics },
+    { "stacks", "alias to `st`", &cli__zephyr_2p6p0_stack_statistics },
+    { "cyc", "show Zephyr kernel run time cycles count", &cli__show_zephyr_kernel_runtime_cycle_count },
+    { "cycles", "alias to `cyc`", &cli__show_zephyr_kernel_runtime_cycle_count }
 };
 
 
@@ -270,7 +268,7 @@ struct cli_command_writers_api kd_command_set[] =
 K_THREAD_STACK_DEFINE(simple_cli_thread_stack_area, SIMPLE_CLI_THREAD_STACK_SIZE);
 struct k_thread simple_cli_thread_thread_data;
 
-int initialize_thread_simple_cli_task(void)
+int initialize_thread_simple_cli(void)
 {
     uint32_t rstatus = ROUTINE_OK;
 
@@ -708,13 +706,22 @@ printk("- store_args_from - reached end of processing loop,\n");
 
 
 
+/*
+ * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ *  @Note   This routine expects calling code to send pointer to
+ *     memory that is large enough to hold a string of size
+ *     SUPPORTED_ARG_LENGTH as defined in thread-simple-cli.h
+ * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ */
+
 uint32_t arg_n(const uint32_t requested_arg, char* return_arg)
 {
     uint32_t rstatus = ROUTINE_OK;
 
     if ( requested_arg <= argument_count )
     {
-        strncpy(return_arg, argument_array[requested_arg], sizeof(argument_array[requested_arg]));
+//        strncpy(return_arg, argument_array[requested_arg], sizeof(argument_array[requested_arg]));
+        strncpy(return_arg, argument_array[requested_arg], SUPPORTED_ARG_LENGTH);
     }
     else
     {
@@ -744,27 +751,35 @@ uint32_t arg_n(const uint32_t requested_arg, char* return_arg)
  *  https://www.cs.cmu.edu/~pattis/15-1XX/common/handouts/ascii.html
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  */
+
 uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return)
 {
-    uint32_t tstatus = 0;  // test status
+    uint32_t tstatus = RESULT_ARG_NOT_DECIMAL;;  // test status
     uint32_t arg_len = strlen(argument_array[index_to_arg]);
     uint32_t multiplier = 1;
 
+
 // Bounds checking:
+
     if (( index_to_arg >= 0 ) && ( index_to_arg < MAX_COUNT_SUPPORTED_ARGS ))
         { }
     else
         { return ERROR_CLI_ARGUMENT_INDEX_OUT_OF_RANGE; }
 
+
+    tstatus = RESULT_ARG_IS_DECIMAL;
+
     for ( int i = 0; i < arg_len; i++ )
     {
         if ( ( argument_array[index_to_arg][i] < 0x30 ) || ( argument_array[index_to_arg][i] > 0x39 ) )
         {
-            tstatus = RESULT_ARG_NOT_DECIMAL /* false result */;  i = arg_len /* kick out */;
+            tstatus = RESULT_ARG_NOT_DECIMAL;  i = arg_len /* kick out */;
         }
     }
 
+
 // Note 0x30 is the ASCII value for the character zero '0':
+
     if ( tstatus == RESULT_ARG_IS_DECIMAL )
     {
         *value_to_return = 0;
@@ -782,7 +797,7 @@ uint32_t arg_is_decimal(const uint32_t index_to_arg, int* value_to_return)
 
 uint32_t arg_is_hex(const uint32_t arg, int* value_to_return)
 {
-    return 0;
+    return FALSE;
 }
 
 
@@ -857,18 +872,10 @@ uint32_t output_data_rate_handler(const char* args)
     char lbuf[SIZE_OF_MESSAGE_MEDIUM] = { 0 };
     enum iis2dh_output_data_rates_e new_rate = ODR_0_POWERED_DOWN;
 
-//    printk_cli("2021-10-25 ODR stub function\n\r");
 
     if ( argument_count > 0 )
     {
         rstatus = arg_is_decimal(0, &new_data_rate);
-
-#if 0 // DEV BLOCK BEGIN
-        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "- output_data_rate_handler - test first arg decimal yields %u,\n\r", rstatus);
-        printk_cli(lbuf);
-        snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "- output_data_rate_handler - arg1 as integer = %u,\n\r", new_data_rate);
-        printk_cli(lbuf);
-#endif // DEV BLOCK END
 
         if ( rstatus == RESULT_ARG_IS_DECIMAL )
         {
@@ -893,7 +900,7 @@ uint32_t output_data_rate_handler(const char* args)
                 }
 
                 printk("- output_data_rate_handler - calling scoreboard to post new requested data rate...\n");
-                rstatus = scoreboard_set_requested_iis2dh_odr(new_rate);
+                rstatus = scoreboard__set_requested_iis2dh_odr(new_rate);
             }
             else
             {
@@ -906,7 +913,7 @@ uint32_t output_data_rate_handler(const char* args)
     else
     {
         enum iis2dh_output_data_rates_e present_odr_flags;
-        rstatus = scoreboard_get_requested_iis2dh_odr(&present_odr_flags);
+        rstatus = scoreboard__get_requested_iis2dh_odr(&present_odr_flags);
         snprintf(lbuf, SIZE_OF_MESSAGE_MEDIUM, "\n\rpresent ODR flags = %u,\n\r",
           (uint32_t)present_odr_flags);
         printk_cli(lbuf);
@@ -925,7 +932,6 @@ uint32_t cli__help_message(const char* args)
 
     char lbuf[SIZE_OF_MESSAGE_MEDIUM];
 
-//    printk_cli("Kionix demo CLI commands:\n\r\n\r");
     printk_cli("\n\rKionix demo CLI commands:\n\r\n\r");
 
     for ( int i = 0; i < implemented_command_count; i++ )
@@ -942,21 +948,9 @@ uint32_t cli__help_message(const char* args)
         printk_cli(lbuf);
     }
     printk_cli("\n\r");
-    return 0;
-} 
-
-
-
-#if 0
-uint32_t banner_message(const char* args)
-{
-    printk_cli("\n--\n\r");
-    printk_cli("-- Kionix Driver Demo\n\r");
-    printk_cli("-- A small Zephyr RTOS 2.6.0 based app to exercise Kionix KX132-1211 accelerometer\n\r");
-    printk_cli("--\n\r");
-    return 0;
+    return ROUTINE_OK;
 }
-#endif
+
 
 
 
@@ -974,13 +968,14 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
     unsigned char* msg = lbuf;
 // --- VAR END ---
 
-//// Moving to file-scoped static pointer to ease routine implementations like 'show_prompt()':
-//    const struct device *uart_for_cli;
-//// Following two lines fail to compile:
-//    uart_for_cli = device_get_binding(DT_LABEL(UART_2));
-//    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
 
-    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
+//#define UART2_NODE DT_PATH(soc, peripheral_50000000, uart_a000)
+
+#define UART2_NODE DT_ALIAS(uart_2)
+
+    uart_for_cli = DEVICE_DT_GET(UART2_NODE);
+
+
     if ( uart_for_cli == NULL )
     {   
         dmsg("Failed to assign pointer to UART2 device!\n", PROJECT_DIAG_LEVEL);
@@ -992,11 +987,6 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
     {
         if ( uart_for_cli != NULL )
         {
-#if 0
-            char lbuf[160];
-            memset(lbuf, 0, sizeof(lbuf));
-            unsigned char* msg = lbuf;
-#endif
             memset(lbuf, 0, sizeof(lbuf));
             msg = lbuf;
             uart_poll_in(uart_for_cli, msg);
@@ -1018,30 +1008,7 @@ void simple_cli_thread_entry_point(void* arg1, void* arg2, void* arg3)
 // - SECTION - set aside
 //----------------------------------------------------------------------
 
-
 // From command_handler():
-
-#if 0
-    printk("command_handler received '%s'\n", latest_input);
-
-    if ( latest_input[0] == 'a' )
-    {
-        rstatus = get_global_test_value(&test_value);
-        printk("- cmd a - global setting for data sharing test holds %u,\n", test_value);
-    }
-
-    if ( latest_input[0] == 'b' )
-    {
-        rstatus = set_global_test_value(3);
-    }
-
-    if ( latest_input[0] == 'c' )
-    {
-        rstatus = set_global_test_value(256);
-    }
-
-#else
-#endif
 
 #if 0
     printk("parsed command '%s',\n", command);

@@ -1,0 +1,9 @@
+#
+# Copyright (c) Neela Nurseries
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+mainmenu "Kionix Driver Demo -- samples -- kionix demo minimal"
+
+source "Kconfig.zephyr"

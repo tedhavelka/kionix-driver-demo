@@ -1,0 +1,55 @@
+
+/*
+# lpc55x69 dev kit dts file of interest is zephyr/boards/arm/lpcxpresso55s69/lpcxpresso55s69.dtsi
+*/
+
+/ {
+    aliases {
+        uart2 = &flexcomm2;
+        uart-2 = &flexcomm2;
+    };
+};
+
+
+
+/*
+# Reference - file where flexcomm nodes enabled for lpc55s69 MCU:
+# zephyr/boards/arm/lpcxpresso55s69/lpcxpresso55s69_cpu0.dts
+*/
+
+&flexcomm2 {
+    compatible = "nxp,lpc-usart";
+    current-speed = <115200>;
+    status = "okay";
+};
+
+
+&flexcomm4 {
+
+/* See TN027-Power-On-Procedure.pdf for purpose of 0x1F and 0x1D
+   Kionix sensor addresses here:   */  
+
+        kionix_sensor: kx132_1211@1f {
+                compatible = "kionix,kx132_1211";
+                reg = <0x1F>;
+                label = "KX132_1211";
+        };
+/*
+        stmicro_sensor: iis2dh@19 {
+                compatible = "st,iis2dh";
+                reg = <0x19>;
+                label = "IIS2DH";
+        };
+*/
+        stmicro_sensor: iis2dh@18 {
+                compatible = "st,iis2dh";
+                reg = <0x18>;
+                label = "IIS2DH";
+        };
+};
+
+
+
+&blue_led {
+    status = "okay";
+};

@@ -9,17 +9,26 @@
  */
 
 
+
 #define KIONIX_DRIVER_REV_MAJOR 0
-#define KIONIX_DRIVER_REV_MINOR 2
-// revision updated 2021-10-06
+#define KIONIX_DRIVER_REV_MINOR 3
+// revision updated 2022-09-27 revision 0p3 . . . branch shift-from-nordic-ncs
+// revision updated 2021-10-06 revision 0p2
+
+
 
 //----------------------------------------------------------------------
 // - SECTION - includes
 //----------------------------------------------------------------------
 
+// newlib C includes:
+
+#include <stdio.h> // to provide snprintf()
+
+
 // Zephyr RTOS includes:
 
-#include <zephyr.h>
+#include <kernel.h>  // In Zephyr 3.2.0 no longer include zephyr.h but rather kernel.h
 #include <device.h>
 #include <devicetree.h>
 #include <drivers/gpio.h>
@@ -40,11 +49,6 @@
 LOG_MODULE_REGISTER(demo);
 
 
-// newlib C includes:
-
-#include <stdio.h> // to provide snprintf()
-
-
 // Out-Of-Tree driver includes:
 
 // 2021-08-24, 2021-08-26 losing double quotes in favor of arrow brackets:
@@ -52,19 +56,25 @@ LOG_MODULE_REGISTER(demo);
 //  KX132_1211 driver CMakeLists.txt file and zephyr_include_directories()
 //  stanza, which points to the path from top dir of driver to this
 //  header file. )
+
 #include <kx132-1211.h>
+
 
 // Local project includes:
 
 // 2021-10-06 - to add wrapper about Zephyr printk(), for early CLI development work:
 #include "version.h"
-#include "diagnostic.h"
+#include "common.h"
 #include "development-flags.h"
+#include "diagnostic.h"
+#include "return-values.h"
 
 // 2021-10-16 -
 #include "thread-iis2dh.h"
 #include "thread-lis2dh.h"
 #include "thread-simple-cli.h"
+#include "thread-led.h"
+
 #include "scoreboard.h"
 
 
@@ -86,22 +96,7 @@ LOG_MODULE_REGISTER(demo);
 // defines from Nordic sdk-nrf sample apps:
 
 /* 1000 msec = 1 sec */
-#define SLEEP_TIME_MS   1000 // 1000
-
-/* The devicetree node identifier for the "led0" alias. */
-#define LED0_NODE DT_ALIAS(led0)
-
-#if DT_NODE_HAS_STATUS(LED0_NODE, okay)
-#define LED0     DT_GPIO_LABEL(LED0_NODE, gpios)
-#define PIN      DT_GPIO_PIN(LED0_NODE, gpios)
-#define FLAGS    DT_GPIO_FLAGS(LED0_NODE, gpios)
-#else
-/* A build error here means your board isn't set up to blink an LED. */
-#error "Unsupported board: led0 devicetree alias is not defined"
-#define LED0    ""
-#define PIN      0
-#define FLAGS    0
-#endif
+#define SLEEP_TIME_MS   120000 // 1000
 
 
 
@@ -163,59 +158,36 @@ void cli_entry_point(void* arg1, void* arg2, void* arg3)
 
 
 
+//----------------------------------------------------------------------
+// - SECTION - main routine code
+//----------------------------------------------------------------------
+
 void main(void)
 {
 // --- LOCAL VAR BEGIN ---
-    const struct device *dev;
+
     bool led_is_on = true;
     int main_loop_count = 0;
-//    int ret;
-    uint32_t rstatus = 0;
 
     int thread_set_up_status = 0;
 
     int sensor_api_status = 0;
+
     struct sensor_value requested_config;
 
     char lbuf[DEFAULT_MESSAGE_SIZE];
+    uint32_t rstatus = 0;
+
 // --- LOCAL VAR END ---
 
 
     memset(banner_msg, 0, sizeof(banner_msg));
     banner("main");
 
-
-#if 0
-// 2021-10-05
-// REF https://lists.zephyrproject.org/g/devel/topic/help_required_on_reading_uart/16760425
-    const struct device *uart_for_cli;
-//    uart_for_cli = device_get_binding(DT_LABEL(UART_2));
-//    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
-
-// Selecting between UART instances prior to additonal wiring:
-    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart2)));
-//    uart_for_cli = device_get_binding(DT_LABEL(DT_NODELABEL(uart0)));
-    if ( uart_for_cli == NULL )
-    {
-        dmsg("Failed to assign pointer to UART2 device!\n", PROJECT_DIAG_LEVEL);
-    }
-#endif
-
-
-    dev = device_get_binding(LED0);
-    if (dev == NULL) {
-        return;
-    }
-
-    rstatus = gpio_pin_configure(dev, PIN, GPIO_OUTPUT_ACTIVE | FLAGS);
-    if (rstatus < 0) {
-        return;
-    }
-
     const struct device *dev_accelerometer = device_get_binding(DT_LABEL(KIONIX_ACCELEROMETER));
-//    struct sensor_value value;
-//    union generic_data_four_bytes_union_t data_from_sensor;
-//    uint32_t i = 0;
+    struct sensor_value value;
+    union generic_data_four_bytes_union_t data_from_sensor;
+    uint32_t i = 0;
 
 
     if (dev_accelerometer == NULL)
@@ -294,24 +266,24 @@ void main(void)
     }
 
 
-#if 0
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-// - DEV START -
 
-// 2021-10-06 - work to add and test Zephyr thread:
-// - DEV THREAD WORK BEGIN -
+//----------------------------------------------------------------------
+// - STEP - start sample application threads
+//----------------------------------------------------------------------
 
-// Set up first development thread, code for this one entirely in main.c:
-        k_tid_t cli_tid = k_thread_create(&cli_thread_data, cli_stack_area,
-                                          K_THREAD_STACK_SIZEOF(cli_stack_area),
-                                          cli_entry_point,
-                                          NULL, NULL, NULL,
-                                          CLI_THREAD_PRIORITY, 0, K_NO_WAIT);
-// - DEV END -
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+#if NN_DEV__ENABLE_THREAD_LED == 1
+    {
+        dmsg("- DEV - starting LED signalling thread . . .\n", DIAG_NORMAL);
+        thread_set_up_status = initialize_thread_led();
+
+#if 1
+        if ( thread_set_up_status != ROUTINE_OK )
+        {
+            dmsg("- DEV - WARNING!  trouble starting LED signalling thread.\n\r", DIAG_NORMAL);
+        }
 #endif
-
-// - DEV THREAD WORK END -
+    }
+#endif
 
 
 #if NN_DEV__ENABLE_THREAD_IIS2DH_SENSOR == 1
@@ -322,34 +294,22 @@ void main(void)
 #endif
 
 #if NN_DEV__ENABLE_THREAD_LIS2DH_SENSOR == 1
-    dmsg("- DEV - starting comparative LIS2DH test thread . . .\n", DIAG_NORMAL);
-    thread_set_up_status = initialize_thread_lis2dh_task();
+    {
+        dmsg("- DEV - starting comparative LIS2DH test thread . . .\n", DIAG_NORMAL);
+        thread_set_up_status = initialize_thread_lis2dh_task();
+    }
 #endif
 
 #if NN_DEV__ENABLE_THREAD_SIMPLE_CLI == 1
-    dmsg("- DEV - starting simple Zephyr based CLI thread . . .\n", DIAG_NORMAL);
-    thread_set_up_status = initialize_thread_simple_cli_task();
-#endif
-
-#if NN_DEV__TEST_SCOREBOARD_GLOBAL_SETTING == 1
-// Note this static var declared in thread_simple_cli.h:
-//    dmsg("- DEV - setting scoreboard test value to 4 . . .\n", DIAG_NORMAL);
-//    global_test_value = 4;
-//    dmsg("- DEV - (this assignment doesn't seem to work.)\n", DIAG_NORMAL);
-        dmsg("- DEV - setting scoreboard test value to 5 . . .\n", DIAG_NORMAL);
-        rstatus = set_global_test_value(5);
+    {
+        dmsg("- DEV - starting Kionix demo CLI thread . . .\n", DIAG_NORMAL);
+        thread_set_up_status = initialize_thread_simple_cli();
+    }
 #endif
 
 
     while ( 1 )
     {
-        gpio_pin_set(dev, PIN, (int)led_is_on);
-        led_is_on = !led_is_on;
-
-#if NN_DEV__TEST_SCOREBOARD_GLOBAL_SETTING == 1
-//        dmsg("- DEV - setting scoreboard test value to 5 in while loop . . .\n", DIAG_NORMAL);
-//        rc = set_global_test_value(5);
-#endif
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Calls to KX132-1211 driver API:
@@ -370,9 +330,10 @@ void main(void)
                 sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID);
                 sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID, &value);
 
-                snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer %d\n", value.val1);
+                snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer %d%s",
+                  value.val1, LFCR);
                 dmsg(lbuf, PROJECT_DIAG_LEVEL);
-                snprintf(lbuf, sizeof(lbuf), "main.c - sensor_value.val2 holds %d\n", value.val2);
+                snprintf(lbuf, sizeof(lbuf), "main.c - sensor_value.val2 holds %d%s", value.val2, LFCR);
                 dmsg(lbuf, PROJECT_DIAG_LEVEL);
                 data_from_sensor.as_32_bit_integer = value.val1;
 
@@ -388,14 +349,16 @@ void main(void)
                     snprintf(lbuf, sizeof(lbuf), " %c ", data_from_sensor.as_bytes[i]);
                     dmsg(lbuf, PROJECT_DIAG_LEVEL);
                 }
-                dmsg("\"\n", PROJECT_DIAG_LEVEL);
+                snprintf(lbuf, sizeof(lbuf), "\"%s", LFCR);
+                dmsg(lbuf, PROJECT_DIAG_LEVEL);
             }
 
             if ( DEV_TEST__FETCH_AND_GET_PART_ID )
             {
                 sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_PART_ID);
                 sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_PART_ID, &value);
-                snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor reports part ID of %d\n", value.val1);
+                snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor reports part ID of %d%s",
+                  value.val1, LFCR);
                 dmsg(lbuf, PROJECT_DIAG_LEVEL);
             }
 
@@ -407,25 +370,33 @@ void main(void)
         } 
         else 
         {
-            dmsg("- WARNING - problem initializing KX132 Zephyr device pointer,", PROJECT_DIAG_LEVEL);
-            dmsg("- WARNING + therefore not exercising features of this sensor.", PROJECT_DIAG_LEVEL);
+            snprintf(lbuf, sizeof(lbuf), "- WARNING - problem initializing KX132 Zephyr device pointer,%s",
+              LFCR);
+            dmsg(lbuf, PROJECT_DIAG_LEVEL);
+            snprintf(lbuf, sizeof(lbuf), "- WARNING + therefore not exercising features of this sensor.%s",
+              LFCR);
+            dmsg(lbuf, PROJECT_DIAG_LEVEL);
         } 
+
+#endif // NN_DEV__ENABLE_INT_MAIN_TESTS 
 
 // Output periodic or multi-phasic blank line to highlight scrolling in terminal window (note 1):
 
+#if 1
         if ( (main_loop_count % 3) == 0 )
         {
-            dmsg("\n\n", PROJECT_DIAG_LEVEL);
-            banner("main");
+            dmsg("- MARK - main loop\n\r", PROJECT_DIAG_LEVEL);
         }
+#endif
+//        rstatus = printk_cli("- MARK - main loop 2\n\r");
 
-#endif // NN_DEV__ENABLE_INT_MAIN_TESTS 
 
 
         k_msleep(SLEEP_TIME_MS);
         ++main_loop_count;
     }
-}
+
+} // end routine void main(void)
 
 
 

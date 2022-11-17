@@ -29,11 +29,3 @@
         clock-frequency = < 0x61A80 >;
 };
 
-
-// 2022-11-10 THU
-
-/ {
-    aliases {
-        uart-2 = &uart2;
-    };
-};

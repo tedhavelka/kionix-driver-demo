@@ -5,6 +5,7 @@ enum kd_return_values
 {
     ROUTINE_OK = 0,
 
+// Command Line Interface related:
     ERROR_NO_ARGS_PARSED,
     ERROR_TOO_FEW_ARGS_PARSED,
     WARNING_MORE_ARGS_FOUND_THAN_SUPPORTED,
@@ -13,7 +14,12 @@ enum kd_return_values
     ERROR_CLI_ARGUMENT_INDEX_OUT_OF_RANGE,
     ERROR_UNEXPECTED_ARGUMENT_TYPE,
 
+// Zephyr device handle related:
     KD__DEVICE_POINTER_NULL,
+
+// Scoreboard related:
+    KD__SB_SCOREBOARD_INITIALIZED,
+    KD__SB_SCOREBOARD_INVALID_BOOLEAN_FLAG_VALUE,
 
     LAST_ITEM_IN_RETURN_VALUES_ENUM
 };

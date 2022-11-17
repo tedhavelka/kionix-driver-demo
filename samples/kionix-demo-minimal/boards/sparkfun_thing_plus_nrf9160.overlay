@@ -1,0 +1,36 @@
+/*
+ *  https://community.jaredwolff.com/d/73-accelerometer-example-failing-to-compile-on-feather-v2/2
+ *  https://www.youtube.com/watch?v=sWaxQyIgEBY  --- Device Tree Deep Dive
+ *  `for f in *.overlay; do sed -i "s|kx132-1211|kx132_1211|g" "$f"; done` -- 2021-08-26 multi-file naming and C syntax correction.
+ */
+
+#include "sparkfun_thing_plus_nrf9160_common_kionix_demo.overlay"
+
+&i2c1 {
+        compatible = "nordic,nrf-twim";
+        status = "okay";
+        sda-pin = <26>;
+        scl-pin = <27>;
+
+/* See TN027-Power-On-Procedure.pdf for purpose of 0x1F and 0x1D
+   Kionix sensor addresses here:   */
+
+        kionix_sensor: kx132_1211@1f {
+                compatible = "kionix,kx132_1211";
+                reg = <0x1F>;
+                label = "KX132_1211";
+        };
+
+        kionix_sensor_flipped_i2c_addr: kx132_1211@1d {
+                compatible = "kionix,kx132_1211";
+                reg = <0x1D>;
+                label = "KX132_1211";
+        };
+
+        stmicro_sensor: iis2dh@19 {
+                compatible = "st,iis2dh";
+                reg = <0x19>;
+                label = "IIS2DH";
+        };
+};
+
