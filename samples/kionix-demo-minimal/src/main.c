@@ -8,8 +8,11 @@
 
 #define SLEEP_TIME_MS 1000
 #define DEFAULT_MESSAGE_SIZE 240
-#define DEV_TEST__FETCH_AND_GET_MANUFACTURER_ID (1)
-#define DEV_TEST__FETCH_AND_GET_PART_ID (1)
+
+// Demo / early development tests:
+#define DEV_TEST__FETCH_AND_GET_MANUFACTURER_ID    (1)
+#define DEV_TEST__FETCH_AND_GET_PART_ID            (1)
+#define DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ (1)
 
 
 
@@ -170,6 +173,23 @@ void main(void)
                 printk("%s", lbuf);
             }
 
+
+            if ( DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ )
+            {
+                sensor_api_status = sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_ACCEL_XYZ);
+                sensor_channel_get(dev_accelerometer, SENSOR_CHAN_ACCEL_XYZ, &value);
+                snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor x,y,z readings encoded:  0x%08x, 0x%08x\n\n",
+                  value.val1, value.val2);
+                printk("%s", lbuf);
+            }
+
+        } 
+        else 
+        {
+            snprintf(lbuf, sizeof(lbuf), "- WARNING - problem initializing KX132 Zephyr device pointer,\n");
+            printk("%s", lbuf);
+            snprintf(lbuf, sizeof(lbuf), "- WARNING + therefore not exercising features of this sensor.\n\n");
+            printk("%s", lbuf);
         } // if dev_accelerometer != NULL
 
         k_msleep(SLEEP_TIME_MS);
