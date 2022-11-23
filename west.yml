@@ -7,16 +7,15 @@ manifest:
     - name: zephyr
       repo-path: zephyr
       remote: zephyrproject-rtos
-#      revision: v3.1.0
       revision: v3.2.0
       import: true
 
-    # Drivers repository
+    # Kionix driver work repository, name of remote repository followed by name of local dir into which to clone:
     - name: zephyr-driver-work-v2
       path: kionix-drivers
+#      revision: main
       revision: main
       url: https://github.com/tedhavelka/zephyr-driver-work-v2
-#      import: true   ...2021-08-26 for some reason this should be commented out - TMH
 
   self:
     # This repository should be cloned to 

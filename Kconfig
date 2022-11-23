@@ -9,3 +9,9 @@ source "Kconfig.zephyr"
 ## 2021-11-15 MON
 # 2021-11-15 - Unexpected need to add this stanza when today `west update` no longer pulls in kionix-drivers dependency:
 #rsource "../kionix-drivers/Kconfig"
+
+CONFIG_KX132_TRIGGER=y
+CONFIG_KX132_TRIGGER_GLOBAL_THREAD=y
+
+
+

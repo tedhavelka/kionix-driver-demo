@@ -6,7 +6,7 @@
 
 
 
-#define SLEEP_TIME_MS 1000
+#define SLEEP_TIME_MS 1000 // 4000
 #define DEFAULT_MESSAGE_SIZE 240
 
 // Demo / early development tests:
@@ -103,20 +103,38 @@ void main(void)
 
     if (dev_accelerometer != NULL)
     {
-        if (1) // if ( DEV_TEST__ENABLE_KX132_1211_ASYNCHRONOUS_READINGS == 1 )
+        if (0) // if ( DEV_TEST__ENABLE_KX132_1211_ASYNCHRONOUS_READINGS == 1 )
         {
+            printk("- MARK 1 -\n");
+
             requested_config.val1 = KX132_ENABLE_ASYNC_READINGS;
 
             sensor_api_status = sensor_attr_set(
               dev_accelerometer,
               SENSOR_CHAN_ALL,
-              SENSOR_ATTR_PRIV_START,          
+              SENSOR_ATTR_PRIV_START,
               &requested_config
             );
         }
 
-        if (1) // ( DEV_TEST__SET_KX132_1211_OUTPUT_DATA_RATE == 1 )
+        if (1)
         {
+            printk("- MARK 1 -\n");
+
+            requested_config.val1 = KX132_ENABLE_SYNC_READINGS_WITH_HW_INTERRUPT;
+
+            sensor_api_status = sensor_attr_set(
+              dev_accelerometer,
+              SENSOR_CHAN_ALL,
+              SENSOR_ATTR_PRIV_START,
+              &requested_config
+            );
+        }
+
+        if (0) // ( DEV_TEST__SET_KX132_1211_OUTPUT_DATA_RATE == 1 )
+        {
+            printk("- MARK 2 -\n");
+
             requested_config.val1 = KX132_ENABLE_ASYNC_READINGS;
             requested_config.val2 = KX132_ODR_3200_HZ;
 
@@ -135,9 +153,12 @@ void main(void)
 
         if ( dev_accelerometer != NULL )
         {
+            printk("- MARK 3 -\n");
 
             if ( DEV_TEST__FETCH_AND_GET_MANUFACTURER_ID )
             {
+                printk("- MARK 4 - loop count %u\n", main_loop_count);
+
                 sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID);
                 sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID, &value);
 
@@ -181,6 +202,10 @@ void main(void)
                 snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor x,y,z readings encoded:  0x%08x, 0x%08x\n\n",
                   value.val1, value.val2);
                 printk("%s", lbuf);
+            }
+            else
+            {
+                printk("- skipping x,y,z readings fetch, to observe trigger line on o-scope\n");
             }
 
         } 
