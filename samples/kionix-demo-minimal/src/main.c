@@ -6,6 +6,10 @@
 
 
 
+//----------------------------------------------------------------------
+// - SECTION - defines
+//----------------------------------------------------------------------
+
 #define SLEEP_TIME_MS 1000 // 4000
 #define DEFAULT_MESSAGE_SIZE 240
 
@@ -15,6 +19,10 @@
 #define DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ (1)
 
 
+
+//----------------------------------------------------------------------
+// - SECTION - includes
+//----------------------------------------------------------------------
 
 #include <stdio.h>                 // to provide snprintf()
 
@@ -35,8 +43,10 @@ LOG_MODULE_REGISTER(kionix_driver_demo, LOG_LEVEL_DBG);
 
 
 //----------------------------------------------------------------------
-// - SECTION - data structures in Kionix driver dev work
+// - SECTION - file scoped
 //----------------------------------------------------------------------
+
+// data structures in Kionix driver dev work:
 
 union generic_data_four_bytes_union_t {
     char as_string[sizeof(int)];
@@ -44,7 +54,33 @@ union generic_data_four_bytes_union_t {
     uint32_t as_32_bit_integer;
 };
 
+// # REF https://docs.zephyrproject.org/latest/hardware/peripherals/sensor.html#triggers
+// # REF https://github.com/tedhavelka/zephyr-driver-work-v2/blob/main/drivers/kionix/kx132-1211/Kconfig#L76
 
+#ifdef CONFIG_KX132_TRIGGER
+static struct sensor_trigger trig;
+#endif
+
+
+
+//----------------------------------------------------------------------
+// - SECTION - routines
+//----------------------------------------------------------------------
+
+#ifdef CONFIG_KX132_TRIGGER
+static void trigger_handler(const struct device *dev, 
+                            const struct sensor_trigger *trig)
+
+{
+//    struct sensor_value xyz_readings;
+//    static size_t cnt;
+//    int rc;
+
+// # REF https://github.com/zephyrproject-rtos/zephyr/blob/main/include/zephyr/drivers/sensor.h#L61
+    printk("\n- KX132 demo app - interrupt of type SENSOR_TRIG_DATA_READY detected,\n");
+    printk("- KX132 demo app - for sensor channel SENSOR_CHAN_ACCEL_XYZ\n\n");
+}
+#endif
 
 
 
@@ -145,6 +181,28 @@ void main(void)
               &requested_config
             );
         }
+
+#ifdef CONFIG_KX132_TRIGGER
+
+//	if (rc == 0) // may be some windowing or threshold setup to do before assigning values to trig structure - TMH
+	if ( 1 ) {
+            trig.type = SENSOR_TRIG_DATA_READY;
+            trig.chan = SENSOR_CHAN_ACCEL_XYZ;
+            rstatus = sensor_trigger_set(dev, &trig, trigger_handler);
+        }
+
+        if ( rstatus != 0) {
+            printf("Trigger set failed: %d\n", rstatus);
+            return;
+        }
+
+        printk("Trigger set got %d\n", rstatus);
+
+#endif // CONFIG_KX132_TRIGGER
+    }
+    else
+    {
+        return;
     }
 
 

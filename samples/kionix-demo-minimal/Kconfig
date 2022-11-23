@@ -7,3 +7,9 @@
 mainmenu "Kionix Driver Demo -- samples -- kionix demo minimal"
 
 source "Kconfig.zephyr"
+
+# 2022-11-23:
+CONFIG_KX132_TRIGGER=y
+
+
+
