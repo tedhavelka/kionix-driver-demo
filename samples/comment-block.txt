@@ -2,7 +2,7 @@
 # 
 #   Project:  Kionix driver demo
 # 
-#   File:  CMakeLists.txt
+#   File:  -----
 # 
 #   SPDX-License-Identifier: Apache-2.0
 # 

@@ -1,8 +1,14 @@
-#
-# Copyright (c) Neela Nurseries
-#
-# SPDX-License-Identifier: Apache-2.0
-#
+# ----------------------------------------------------------------------
+# 
+#   Project:  Kionix driver demo
+# 
+#   File:  Kconfig
+# 
+#   SPDX-License-Identifier: Apache-2.0
+# 
+#   Copyright (c) Neela Nurseries 2021 - 2022
+# 
+# ----------------------------------------------------------------------
 
 mainmenu "Kionix Driver Demo -- samples -- kionix demo minimal"
 
