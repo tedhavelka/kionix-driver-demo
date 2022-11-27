@@ -28,7 +28,6 @@ The big change which KX132 driver adopted in 2022 November is the use of Zephyr 
 
 .. highlight:: c
 
-::
    IF_ENABLED(CONFIG_KX132_TRIGGER,                                              \
               (.int_gpio = GPIO_DT_SPEC_INST_GET_OR(inst, drdy_gpios, { 0 }),))  \   
 
