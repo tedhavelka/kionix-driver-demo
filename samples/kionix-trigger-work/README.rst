@@ -96,6 +96,8 @@ When a Kionix KX132-1211 or compatible sensor is wired and properly initialized 
 
 .. highlight:: c
 
+::
+
  main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer 1852795211
  main.c - sensor_value.val2 holds 0
  main.c - value.val1 as bytes:  0x4B 0x69 0x6F 0x6E   " K  i  o  n "
