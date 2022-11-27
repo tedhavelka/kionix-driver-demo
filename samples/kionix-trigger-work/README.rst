@@ -18,6 +18,8 @@ As of 2022-11-27 there's a bug in the driver code -- not this demo code -- in wh
 
 The specific bug manifests in a hard crash of firmware app, when the driver code attempts to make the following call to a Zephyr device API:
 
+::
+
    if (!device_is_ready(cfg->int_gpio.port))
 
 The port structure is itself of type `const struct device`, and has a name element.  Normally for a GPIO port that name element would be assigned a value from the project board's device tree source, a name which in the case of lpcxpresso55s69 board turns out to be `gpio1`.  Instead we observe a name value of `=&`.  This just looks wrong.
@@ -26,7 +28,7 @@ The KX132 out-of-tree driver code at this same time 2022 Q4 follows heavily the 
 
 The big change which KX132 driver adopted in 2022 November is the use of Zephyr device tree macros `DT_INST_FOREACH_STATUS_OKAY()`, `DEVICE_DT_INST_DEFINE()` and some smaller, instance based device tree macros to support the sensor structures and instance definition.  Within macro DEVICE_DT_INST_DEFINE() there are two stanzas to optionally set up a GPIO port and pin for an interrupt:
 
-.. highlight:: c
+::
 
    IF_ENABLED(CONFIG_KX132_TRIGGER,                                              \
               (.int_gpio = GPIO_DT_SPEC_INST_GET_OR(inst, drdy_gpios, { 0 }),))  \   
