@@ -41,7 +41,10 @@
         kionix_sensor: kx132@1f {                /* kx132_1211@1f { */
                 compatible = "kionix,kx132_1211";
                 reg = <0x1F>;
-                drdy-gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>, <&gpio1 8 GPIO_ACTIVE_HIGH>;
+                drdy-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+/*
+#                irq-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+*/
         };
 
 /*
