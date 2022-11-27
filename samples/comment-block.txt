@@ -1,0 +1,11 @@
+# ----------------------------------------------------------------------
+# 
+#   Project:  Kionix driver demo
+# 
+#   File:  CMakeLists.txt
+# 
+#   SPDX-License-Identifier: Apache-2.0
+# 
+#   Copyright (c) Neela Nurseries 2021 - 2022
+# 
+# ----------------------------------------------------------------------

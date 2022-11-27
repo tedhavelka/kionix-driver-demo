@@ -1,0 +1,31 @@
+/*
+ *
+ * @file   sparkfun_thing_plus_nrf9160_common_kionix_demo.overlay
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+//----------------------------------------------------------------------
+// Purpose:  enable second UART on nRF9160, for communications separate
+//   from CP2102N USB-to-serial interface on UART0:
+//----------------------------------------------------------------------
+
+&uart0 {
+        current-speed = <115200>;
+};
+
+&uart2 {
+        status = "okay";
+        current-speed = <115200>;
+        tx-pin = <24>;
+        rx-pin = <23>;
+};
+
+
+// 2021-10-26 - assuring I2C1 peripheral is clocked at 400kHZ, default
+//   value in sparkfun_thing_plus_nrf9106.dts file is 100kHZ:
+// # 0x61A80 = 400000, clock-frequency = < 0x186a0 >;
+
+&i2c1 {
+        clock-frequency = < 0x61A80 >;
+};
+
