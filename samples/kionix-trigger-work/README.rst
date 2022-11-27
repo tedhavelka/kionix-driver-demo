@@ -34,14 +34,14 @@ To our understanding this is where the device pointer is assigned the value that
 Interestingly, a copy of this assignment from driver to demo, to a line where a local gpio_dt_spec type device is declared, makes an assignment which gives the expected port name.  One small change in the parameters to GPIO_DT_SPEC_INST_GET_OR() is needed.  This change is to pass the fixed value 0 in place of 'inst', as follows from an excerpt from this sample app's main.c:
 
 
-210 const struct gpio_dt_spec int_gpio_for_diag = GPIO_DT_SPEC_INST_GET_OR(0, drdy_gpios, { 0 }); // hmm, this results in correct name `&gpio1`
-211 ////const struct gpio_dt_spec int_gpio_for_diag = GPIO_DT_SPEC_INST_GET_OR(inst, irq_gpios, { 0 });
-212 
-213     printk("- MARK 4 - about to test local gpio_dt_spec int_gpio.port->name in diag statement . . .\n");
-215     if ( int_gpio_for_diag.port != NULL )
-216     {
-217         printk("- MARK 5 - in demo main.c, interrupt GPIO port name holds '%s',\n", int_gpio_for_diag.port->name);
-218     }
+ 210 const struct gpio_dt_spec int_gpio_for_diag = GPIO_DT_SPEC_INST_GET_OR(0, drdy_gpios, { 0 }); // hmm, this results in correct name `&gpio1`
+ 211 ////const struct gpio_dt_spec int_gpio_for_diag = GPIO_DT_SPEC_INST_GET_OR(inst, irq_gpios, { 0 });
+ 212 
+ 213     printk("- MARK 4 - about to test local gpio_dt_spec int_gpio.port->name in diag statement . . .\n");
+ 215     if ( int_gpio_for_diag.port != NULL )
+ 216     {
+ 217         printk("- MARK 5 - in demo main.c, interrupt GPIO port name holds '%s',\n", int_gpio_for_diag.port->name);
+ 218     }
 
 
 Debugging work underway on this problem 2022-11-27.
@@ -86,23 +86,23 @@ Expected outputs
 
 When a Kionix KX132-1211 or compatible sensor is wired and properly initialized by Zephyr and driver code, the following six lines with varying readings data will scroll every (SLEEP_TIME_MS / 1000) seconds.  If the sensor is not connected or otherwise fails to initialize, an error message will repeat at the same pace:
 
-main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer 1852795211
-main.c - sensor_value.val2 holds 0
-main.c - value.val1 as bytes:  0x4B 0x69 0x6F 0x6E   " K  i  o  n "
-main.c - Kionix sensor reports part ID of 317
-main.c - Kionix sensor x,y,z readings encoded:  0xfb6c02c5, 0x0000404a
+ main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer 1852795211
+ main.c - sensor_value.val2 holds 0
+ main.c - value.val1 as bytes:  0x4B 0x69 0x6F 0x6E   " K  i  o  n "
+ main.c - Kionix sensor reports part ID of 317
+ main.c - Kionix sensor x,y,z readings encoded:  0xfb6c02c5, 0x0000404a
 
-main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer 1852795211
-main.c - sensor_value.val2 holds 0
-main.c - value.val1 as bytes:  0x4B 0x69 0x6F 0x6E   " K  i  o  n "
-main.c - Kionix sensor reports part ID of 317
-main.c - Kionix sensor x,y,z readings encoded:  0xfb6002d1, 0x0000404a
+ main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer 1852795211
+ main.c - sensor_value.val2 holds 0
+ main.c - value.val1 as bytes:  0x4B 0x69 0x6F 0x6E   " K  i  o  n "
+ main.c - Kionix sensor reports part ID of 317
+ main.c - Kionix sensor x,y,z readings encoded:  0xfb6002d1, 0x0000404a
 
-main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer 1852795211
-main.c - sensor_value.val2 holds 0
-main.c - value.val1 as bytes:  0x4B 0x69 0x6F 0x6E   " K  i  o  n "
-main.c - Kionix sensor reports part ID of 317
-main.c - Kionix sensor x,y,z readings encoded:  0xfb4102cf, 0x0000404e
+ main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer 1852795211
+ main.c - sensor_value.val2 holds 0
+ main.c - value.val1 as bytes:  0x4B 0x69 0x6F 0x6E   " K  i  o  n "
+ main.c - Kionix sensor reports part ID of 317
+ main.c - Kionix sensor x,y,z readings encoded:  0xfb4102cf, 0x0000404e
 
 
 
