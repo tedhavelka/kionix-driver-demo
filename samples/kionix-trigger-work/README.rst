@@ -20,6 +20,8 @@ The specific bug manifests in a hard crash of firmware app, when the driver code
 
 .. highlight:: c
 
+::
+
    if (!device_is_ready(cfg->int_gpio.port))
 
 The port structure is itself of type `const struct device`, and has a name element.  Normally for a GPIO port that name element would be assigned a value from the project board's device tree source, a name which in the case of lpcxpresso55s69 board turns out to be `gpio1`.  Instead we observe a name value of `=&`.  This just looks wrong.
@@ -92,7 +94,7 @@ Expected outputs
 
 When a Kionix KX132-1211 or compatible sensor is wired and properly initialized by Zephyr and driver code, the following six lines with varying readings data will scroll every (SLEEP_TIME_MS / 1000) seconds.  If the sensor is not connected or otherwise fails to initialize, an error message will repeat at the same pace:
 
-::
+.. highlight:: c
 
  main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer 1852795211
  main.c - sensor_value.val2 holds 0
