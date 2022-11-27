@@ -18,7 +18,7 @@ As of 2022-11-27 there's a bug in the driver code -- not this demo code -- in wh
 
 The specific bug manifests in a hard crash of firmware app, when the driver code attempts to make the following call to a Zephyr device API:
 
-::
+.. highlight:: c
 
    if (!device_is_ready(cfg->int_gpio.port))
 
