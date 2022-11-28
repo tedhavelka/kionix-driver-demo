@@ -37,8 +37,12 @@
 LOG_MODULE_REGISTER(kionix_driver_demo, LOG_LEVEL_DBG);
 
 
-
+// Out-of-tree Kionix driver header:
 #include <kx132-1211.h>
+
+// - DEV 1127 - attempt to create gpio_dt_spec device instance(s) as stand alone devices,
+//  outside the larger accelerometer device nested data structures:
+#include "int-gpio-inst.h"
 
 
 
@@ -208,10 +212,8 @@ void main(void)
 //const struct gpio_dt_spec int_gpio_for_diag = GPIO_DT_SPEC_INST_GET_OR(inst, drdy_gpios, { 0 });
 #define DT_DRV_COMPAT kionix_kx132_1211
 const struct gpio_dt_spec int_gpio_for_diag = GPIO_DT_SPEC_INST_GET_OR(0, drdy_gpios, { 0 }); // hmm, this results in correct name `&gpio1`
-////const struct gpio_dt_spec int_gpio_for_diag = GPIO_DT_SPEC_INST_GET_OR(inst, irq_gpios, { 0 });
 
     printk("- MARK 4 - about to test local gpio_dt_spec int_gpio.port->name in diag statement . . .\n");
-//    printk("- note symbol `inst` holds %u\n", inst);
     if ( int_gpio_for_diag.port != NULL )
     { 
         printk("- MARK 5 - in demo main.c, interrupt GPIO port name holds '%s',\n", int_gpio_for_diag.port->name);
@@ -225,6 +227,13 @@ const struct gpio_dt_spec int_gpio_for_diag = GPIO_DT_SPEC_INST_GET_OR(0, drdy_g
     else
     {
         return;
+    }
+
+
+    printk("- MARK 6 - about to test FOREACH generated gpio_dt_spec int_gpio_##inst.port->name . . .\n");
+    if ( int_gpio_diag1.port != NULL )
+    { 
+        printk("- MARK 7 - in demo main.c, interrupt GPIO port name holds '%s',\n", int_gpio_diag1.port->name);
     }
 
 
@@ -302,3 +311,6 @@ const struct gpio_dt_spec int_gpio_for_diag = GPIO_DT_SPEC_INST_GET_OR(0, drdy_g
 
     } // end while ( 1 )
 }
+
+
+
