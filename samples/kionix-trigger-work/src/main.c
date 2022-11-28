@@ -230,23 +230,35 @@ const struct gpio_dt_spec int_gpio_for_diag = GPIO_DT_SPEC_INST_GET_OR(0, drdy_g
     }
 
 
-    printk("- MARK 6 - about to test FOREACH generated gpio_dt_spec int_gpio_##inst.port->name . . .\n");
+    printk("- MARK 6 - testing FOREACH generated gpio_dt_spec int_gpio_##inst.port->name . . .\n");
     if ( int_gpio_diag1.port != NULL )
     { 
         printk("- MARK 7 - in demo main.c, interrupt GPIO port name holds '%s',\n", int_gpio_diag1.port->name);
     }
 
 
+IF_ENABLED(CONFIG_KX132_TRIGGER_NONE, ( \
+    printk("- MARK 8 - testing IF_DEFINED generated gpio_dt_spec int_gpio_conditionally_compiled.port->name . . .\n"); \
+    if ( int_gpio_conditionally_compiled.port != NULL ) \
+    {  \
+        printk("- MARK 9 - IF_ENABLED gen'd GPIO port name holds '%s',\n", int_gpio_conditionally_compiled.port->name); \
+    } \
+    else \
+    { \
+        printk("- MARK 9 - IF_ENABLED gen'd GPIO port found NULL!\n"); \
+    } \
+))
+
     while ( 1 )
     {
 
         if ( dev_accelerometer != NULL )
         {
-            printk("- MARK 6 -\n");
+            printk("- MARK 10 -\n");
 
             if ( DEV_TEST__FETCH_AND_GET_MANUFACTURER_ID )
             {
-                printk("- MARK 7 - loop count %u\n", main_loop_count);
+                printk("- MARK 11 - loop count %u\n", main_loop_count);
 
                 sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID);
                 sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID, &value);
