@@ -115,8 +115,8 @@ void main(void)
 // If you want a shorthand for specific KX132 expansion in DT_NODELABEL macro
 // you may define a symbol for your app this way:
 
-#define KX132_NODE DT_NODELABEL(kionix_sensor)
-    const struct device *dev_accelerometer = DEVICE_DT_GET(DT_NODELABEL(kionix_sensor));
+#define KX132_NODE DT_NODELABEL(kionix_sensor_1)
+    const struct device *dev_kx132_1 = DEVICE_DT_GET(DT_NODELABEL(kionix_sensor_1));
 
     uint32_t rstatus = 0;
 
@@ -125,15 +125,15 @@ void main(void)
 
 // - STEP - check whether we get a non-null device handle, then check whether device ready
 
-    if (dev_accelerometer == NULL)
+    if (dev_kx132_1 == NULL)
     {
         printk("-\n- WARNING - Failed to init Kionix sensor device pointer!\n-\n");
     }
     else
     {
-        if (!device_is_ready(dev_accelerometer))
+        if (!device_is_ready(dev_kx132_1))
         {
-            snprintf(lbuf, sizeof(lbuf), "Device %s is not ready\n", dev_accelerometer->name);
+            snprintf(lbuf, sizeof(lbuf), "Device %s is not ready\n", dev_kx132_1->name);
             printk("%s", lbuf);
             return;
         }
@@ -146,7 +146,7 @@ void main(void)
 
 // - STEP - configure a couple of KX132 accelerometer settings
 
-    if (dev_accelerometer != NULL)
+    if (dev_kx132_1 != NULL)
     {
         if (0) // if ( DEV_TEST__ENABLE_KX132_1211_ASYNCHRONOUS_READINGS == 1 )
         {
@@ -155,7 +155,7 @@ void main(void)
             requested_config.val1 = KX132_ENABLE_ASYNC_READINGS;
 
             sensor_api_status = sensor_attr_set(
-              dev_accelerometer,
+              dev_kx132_1,
               SENSOR_CHAN_ALL,
               SENSOR_ATTR_PRIV_START,
               &requested_config
@@ -169,7 +169,7 @@ void main(void)
             requested_config.val1 = KX132_ENABLE_SYNC_READINGS_WITH_HW_INTERRUPT;
 
             sensor_api_status = sensor_attr_set(
-              dev_accelerometer,
+              dev_kx132_1,
               SENSOR_CHAN_ALL,
               SENSOR_ATTR_PRIV_START,
               &requested_config
@@ -184,7 +184,7 @@ void main(void)
             requested_config.val2 = KX132_ODR_3200_HZ;
 
             sensor_api_status = sensor_attr_set(
-              dev_accelerometer,
+              dev_kx132_1,
               SENSOR_CHAN_ALL,
               SENSOR_ATTR_PRIV_START,          
               &requested_config
@@ -198,29 +198,29 @@ void main(void)
 	if ( 1 ) {
             trig.type = SENSOR_TRIG_DATA_READY;
             trig.chan = SENSOR_CHAN_ACCEL_XYZ;
-            rstatus = sensor_trigger_set(dev_accelerometer, &trig, trigger_handler);
+            rstatus = sensor_trigger_set(dev_kx132_1, &trig, trigger_handler);
         }
 
         if ( rstatus != 0) {
-            printf("Trigger set failed: %d\n", rstatus);
+            printf("main.c, Trigger set failed: %d\n", rstatus);
             return;
         }
 
-        printk("Trigger set got %d\n", rstatus);
+        printk("main.c, Trigger set got %d\n", rstatus);
 
 #else
 //const struct gpio_dt_spec int_gpio_for_diag = GPIO_DT_SPEC_INST_GET_OR(inst, drdy_gpios, { 0 });
 #define DT_DRV_COMPAT kionix_kx132_1211
 const struct gpio_dt_spec int_gpio_for_diag = GPIO_DT_SPEC_INST_GET_OR(0, drdy_gpios, { 0 }); // hmm, this results in correct name `&gpio1`
 
-    printk("- MARK 4 - about to test local gpio_dt_spec int_gpio.port->name in diag statement . . .\n");
+    printk("- MARK 4 - main.c test of local gpio_dt_spec int_gpio.port->name . . .\n");
     if ( int_gpio_for_diag.port != NULL )
     { 
-        printk("- MARK 5 - in demo main.c, interrupt GPIO port name holds '%s',\n", int_gpio_for_diag.port->name);
+        printk("- MARK 5 - main.c, interrupt GPIO port name holds '%s',\n", int_gpio_for_diag.port->name);
     }
     else
     {
-        printk("- MARK 5 - in demo main.c, interrupt GPIO port found NULL!\n");
+        printk("- MARK 5 - main.c, interrupt GPIO port found NULL!\n");
     }
 #endif // CONFIG_KX132_TRIGGER
     }
@@ -230,38 +230,62 @@ const struct gpio_dt_spec int_gpio_for_diag = GPIO_DT_SPEC_INST_GET_OR(0, drdy_g
     }
 
 
-    printk("- MARK 6 - testing FOREACH generated gpio_dt_spec int_gpio_##inst.port->name . . .\n");
+    printk("- MARK 6 - main.c, testing FOREACH generated gpio_dt_spec int_gpio_##inst.port->name . . .\n");
     if ( int_gpio_diag1.port != NULL )
     { 
-        printk("- MARK 7 - in demo main.c, interrupt GPIO port name holds '%s',\n", int_gpio_diag1.port->name);
+        printk("- MARK 7 - main.c, interrupt GPIO port name holds '%s',\n", int_gpio_diag1.port->name);
     }
 
 
 IF_ENABLED(CONFIG_KX132_TRIGGER_NONE, ( \
-    printk("- MARK 8 - testing IF_DEFINED generated gpio_dt_spec int_gpio_conditionally_compiled.port->name . . .\n"); \
+    printk("- MARK 8 -  main.c, testing IF_DEFINED generated gpio_dt_spec int_gpio_conditionally_compiled.port->name . . .\n"); \
     if ( int_gpio_conditionally_compiled.port != NULL ) \
     {  \
-        printk("- MARK 9 - IF_ENABLED gen'd GPIO port name holds '%s',\n", int_gpio_conditionally_compiled.port->name); \
+        printk("- MARK 9 - main.c, IF_ENABLED gen'd GPIO port name holds '%s',\n", int_gpio_conditionally_compiled.port->name); \
     } \
     else \
     { \
-        printk("- MARK 9 - IF_ENABLED gen'd GPIO port found NULL!\n"); \
+        printk("- MARK 9 - main.c, IF_ENABLED gen'd GPIO port found NULL!\n"); \
     } \
 ))
+
+
+// - DEV 1128 - test of recently added port status data member:
+    {
+        const struct kx132_device_data *data = dev_kx132_1->data;
+        printk("- DEV 1128 - driver gives drdy port status of %u\n- DEV 1128 - requesting driver to reinit 'data ready' port . . .\n",
+          data->drdy_port_status);
+
+        if ( data->drdy_port_status != DRDY_PORT_INITIALIZED )
+        {
+             requested_config.val1 = KX132_REINITIALIZE_DRDY_GPIO_PORT;
+             requested_config.val2 = 0;
+
+             sensor_api_status = sensor_attr_set(
+                                                 dev_kx132_1,
+                                                 SENSOR_CHAN_ALL,
+                                                 SENSOR_ATTR_PRIV_START,
+                                                 &requested_config
+                                                );
+        }
+
+        printk("- DEV 1128 - driver gives drdy port status of %u\n", data->drdy_port_status);
+    }
+
 
     while ( 1 )
     {
 
-        if ( dev_accelerometer != NULL )
+        if ( dev_kx132_1 != NULL )
         {
-            printk("- MARK 10 -\n");
+            printk("- MARK 10 - main.c\n");
 
             if ( DEV_TEST__FETCH_AND_GET_MANUFACTURER_ID )
             {
-                printk("- MARK 11 - loop count %u\n", main_loop_count);
+                printk("- MARK 11 - main.c, loop count %u\n", main_loop_count);
 
-                sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID);
-                sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_MANUFACTURER_ID, &value);
+                sensor_sample_fetch_chan(dev_kx132_1, SENSOR_CHAN_KIONIX_MANUFACTURER_ID);
+                sensor_channel_get(dev_kx132_1, SENSOR_CHAN_KIONIX_MANUFACTURER_ID, &value);
 
                 snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer %d\n",
                   value.val1);
@@ -288,8 +312,8 @@ IF_ENABLED(CONFIG_KX132_TRIGGER_NONE, ( \
 
             if ( DEV_TEST__FETCH_AND_GET_PART_ID )
             {
-                sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_KIONIX_PART_ID);
-                sensor_channel_get(dev_accelerometer, SENSOR_CHAN_KIONIX_PART_ID, &value);
+                sensor_sample_fetch_chan(dev_kx132_1, SENSOR_CHAN_KIONIX_PART_ID);
+                sensor_channel_get(dev_kx132_1, SENSOR_CHAN_KIONIX_PART_ID, &value);
                 snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor reports part ID of %d\n",
                   value.val1);
                 printk("%s", lbuf);
@@ -298,8 +322,8 @@ IF_ENABLED(CONFIG_KX132_TRIGGER_NONE, ( \
 
             if ( DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ )
             {
-                sensor_api_status = sensor_sample_fetch_chan(dev_accelerometer, SENSOR_CHAN_ACCEL_XYZ);
-                sensor_channel_get(dev_accelerometer, SENSOR_CHAN_ACCEL_XYZ, &value);
+                sensor_api_status = sensor_sample_fetch_chan(dev_kx132_1, SENSOR_CHAN_ACCEL_XYZ);
+                sensor_channel_get(dev_kx132_1, SENSOR_CHAN_ACCEL_XYZ, &value);
                 snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor x,y,z readings encoded:  0x%08x, 0x%08x\n\n",
                   value.val1, value.val2);
                 printk("%s", lbuf);
@@ -316,7 +340,7 @@ IF_ENABLED(CONFIG_KX132_TRIGGER_NONE, ( \
             printk("%s", lbuf);
             snprintf(lbuf, sizeof(lbuf), "- WARNING + therefore not exercising features of this sensor.\n\n");
             printk("%s", lbuf);
-        } // if dev_accelerometer != NULL
+        } // if dev_kx132_1 != NULL
 
         k_msleep(SLEEP_TIME_MS);
         ++main_loop_count;

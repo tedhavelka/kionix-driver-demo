@@ -7,7 +7,7 @@
         uart2 = &flexcomm2;
         i2c0 = &flexcomm4;
         sensorinterrupt1 = &iis2dhint1;
-        kx132-instance-1 = &kionix_sensor;
+        kx132-instance-1 = &kionix_sensor_1;
     };
 };
 
@@ -38,7 +38,7 @@
 */
 
 &flexcomm4 {
-        kionix_sensor: kx132@1f {                /* kx132_1211@1f { */
+        kionix_sensor_1: kx132@1f {
                 compatible = "kionix,kx132_1211";
                 reg = <0x1F>;
                 drdy-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
@@ -48,15 +48,15 @@
         };
 
 /*
-# Note:  Ted unsure whether 'interrupt-parent' node property needed to support interrupts */
-/*
-#        stmicro_sensor: iis2dh@18 {
-#                compatible = "st,iis2dh";
-#                reg = <0x18>;
-#                interrupt-parent = <&gpio1>;
-#                drdy-gpios = <&gpio1 9 GPIO_ACTIVE_LOW>, <&gpio1 10 GPIO_ACTIVE_LOW>;
-#        };
+# Note:  Ted unsure whether 'interrupt-parent' node property needed to support interrupts
 */
+
+        stmicro_sensor: iis2dh@18 {
+                compatible = "st,iis2dh";
+                reg = <0x18>;
+                interrupt-parent = <&gpio1>;
+                drdy-gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
+        };
 };
 
 
@@ -104,18 +104,20 @@
 # ----------------------------------------------------------------------
 */
 
-&arduino_spi {
-        status = "okay";
 /*
-#        cs-gpios = <&arduino_header 16 GPIO_ACTIVE_LOW>;    . . . note spi-controller.yaml says <cs-gpios> optional - TMH
+#&arduino_spi {
+#        status = "okay";
+# / ***
+# #        cs-gpios = <&arduino_header 16 GPIO_ACTIVE_LOW>;    . . . note spi-controller.yaml says <cs-gpios> optional - TMH
+# *** /
+#        iis2dh@0 {
+#                compatible = "st,iis2dh";
+#                reg = <0>;
+#                spi-max-frequency = <250000>; / *** conservatively set to 1MHz *** /
+#                status = "okay";
+#        };
+#};
 */
-        iis2dh@0 {
-                compatible = "st,iis2dh";
-                reg = <0>;
-                spi-max-frequency = <250000>; /* conservatively set to 1MHz */
-                status = "okay";
-        };
-};
 
 
 
