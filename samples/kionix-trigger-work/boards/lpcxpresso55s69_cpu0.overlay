@@ -13,6 +13,19 @@
 
 
 
+&green_led {
+    status = "okay";
+};
+
+&blue_led {
+    status = "okay";
+};
+
+&red_led {
+    status = "okay";
+};
+
+
 /*
 # Reference - file where flexcomm nodes enabled for lpc55s69 MCU:
 # zephyr/boards/arm/lpcxpresso55s69/lpcxpresso55s69_cpu0.dts
@@ -41,8 +54,9 @@
         kionix_sensor_1: kx132@1f {
                 compatible = "kionix,kx132_1211";
                 reg = <0x1F>;
-                drdy-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+                drdy-gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
 /*
+#                drdy-gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
 #                irq-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
 */
         };
@@ -120,17 +134,13 @@
 */
 
 
+/* From project build artifact 'zephyr.dts', combines lpcxpresso55s69.dtsi and lpcxpresso55s69-pinctrl.dtsi:
+# hs_lspi: arduino_spi: mikrobus_spi: spi@9f000 {
+*/
 
-&green_led {
-    status = "okay";
-};
-
-&blue_led {
-    status = "okay";
-};
-
-&red_led {
-    status = "okay";
+// Overlay entry to free GPIO pins P0_26, P1_1, P1_2, P1_3 for general purpose use:
+&hs_lspi {
+    status = "disabled";
 };
 
 

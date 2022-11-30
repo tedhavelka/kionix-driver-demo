@@ -73,7 +73,7 @@ static struct sensor_trigger trig;
 //----------------------------------------------------------------------
 
 #ifdef CONFIG_KX132_TRIGGER
-#warning "compiling KX132 trigger handler,"
+#warning "- In demo main.c - compiling KX132 trigger handler,"
 static void trigger_handler(const struct device *dev, 
                             const struct sensor_trigger *trig)
 
@@ -86,9 +86,8 @@ static void trigger_handler(const struct device *dev,
 #if 0
     printk("\n- KX132 demo app - interrupt of type SENSOR_TRIG_DATA_READY detected,\n");
     printk("- KX132 demo app - for sensor channel SENSOR_CHAN_ACCEL_XYZ\n\n");
-#else
-    printk("- zztop -\n");
 #endif
+    printk("- zztop -\n");
 }
 #endif
 
@@ -199,6 +198,10 @@ void main(void)
             trig.type = SENSOR_TRIG_DATA_READY;
             trig.chan = SENSOR_CHAN_ACCEL_XYZ;
             rstatus = sensor_trigger_set(dev_kx132_1, &trig, trigger_handler);
+            printk("main.c, call to sensor_trigger_set() returns status value of %d\n", rstatus);
+
+            rstatus = kx132_trigger_set(dev_kx132_1, &trig, trigger_handler);
+            printk("main.c, call to kx132_trigger_set() returns status value of %d\n", rstatus);
         }
 
         if ( rstatus != 0) {
@@ -253,11 +256,11 @@ IF_ENABLED(CONFIG_KX132_TRIGGER_NONE, ( \
 // - DEV 1128 - test of recently added port status data member:
     {
         const struct kx132_device_data *data = dev_kx132_1->data;
-        printk("- DEV 1128 - driver gives drdy port status of %u\n- DEV 1128 - requesting driver to reinit 'data ready' port . . .\n",
-          data->drdy_port_status);
+        printk("- DEV 1128 - main.c, driver gives drdy port status of %u\n", data->drdy_port_status);
 
         if ( data->drdy_port_status != DRDY_PORT_INITIALIZED )
         {
+             printk("- DEV 1128 - main.c, requesting driver to reinit 'data ready' port . . .\n");
              requested_config.val1 = KX132_REINITIALIZE_DRDY_GPIO_PORT;
              requested_config.val2 = 0;
 
@@ -267,9 +270,13 @@ IF_ENABLED(CONFIG_KX132_TRIGGER_NONE, ( \
                                                  SENSOR_ATTR_PRIV_START,
                                                  &requested_config
                                                 );
-        }
 
-        printk("- DEV 1128 - driver gives drdy port status of %u\n", data->drdy_port_status);
+            printk("- DEV 1128 - main.c, after reinit driver gives drdy port status of %u\n", data->drdy_port_status);
+        }
+        else
+        {
+            printk("- DEV 1128 - main.c, skipping reinit, drdy port already initialized\n");
+        }
     }
 
 

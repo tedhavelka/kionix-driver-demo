@@ -14,7 +14,7 @@ manifest:
     - name: zephyr-driver-work-v2
       path: kionix-drivers
 #      revision: main
-      revision: 9c5719b
+      revision: 75e4171
       url: https://github.com/tedhavelka/zephyr-driver-work-v2
 
   self:
