@@ -48,23 +48,27 @@
 #  lines for related LIS2DH sensor.
 # See LPCXpresso55S69_Board_Schematic_RevA2_dec4.pdf for GPIOs available
 #  on lpcxpresso55s69 dev kit.
+
+# 2022-12-01 - We know &gpio1 pin 9 works as IIS2DH interrupt, which
+#  is configured active low.  So per above linked schematic we can safely
+#  assume PIO1_10 (gpio1 pin 10) will work as well, but we must review
+#  KX132 datasheet for interrupt active level - TMH
+#
+#   Looks like KX132-1211-Technical-Reference-Manual-Rev-5.0.pdf page 27
+#  talks about INC1 bit 4, IEA1 bit determines whether interrupt is
+#  active ow or active high.
 */
 
 &flexcomm4 {
         kionix_sensor_1: kx132@1f {
                 compatible = "kionix,kx132_1211";
                 reg = <0x1F>;
-                drdy-gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
-/*
-#                drdy-gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
-#                irq-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
-*/
+                drdy-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
         };
 
 /*
 # Note:  Ted unsure whether 'interrupt-parent' node property needed to support interrupts
 */
-
         stmicro_sensor: iis2dh@18 {
                 compatible = "st,iis2dh";
                 reg = <0x18>;
