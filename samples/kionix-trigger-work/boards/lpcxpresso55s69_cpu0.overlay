@@ -60,11 +60,13 @@
 */
 
 &flexcomm4 {
+/*
         kionix_sensor_1: kx132@1f {
                 compatible = "kionix,kx132_1211";
                 reg = <0x1F>;
-                drdy-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+                drdy-gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
         };
+*/
 
 /*
 # Note:  Ted unsure whether 'interrupt-parent' node property needed to support interrupts
@@ -73,7 +75,7 @@
                 compatible = "st,iis2dh";
                 reg = <0x18>;
                 interrupt-parent = <&gpio1>;
-                drdy-gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
+                drdy-gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
         };
 };
 
@@ -122,30 +124,35 @@
 # ----------------------------------------------------------------------
 */
 
+&arduino_spi {
 /*
-#&arduino_spi {
-#        status = "okay";
-# / ***
-# #        cs-gpios = <&arduino_header 16 GPIO_ACTIVE_LOW>;    . . . note spi-controller.yaml says <cs-gpios> optional - TMH
-# *** /
 #        iis2dh@0 {
 #                compatible = "st,iis2dh";
 #                reg = <0>;
 #                spi-max-frequency = <250000>; / *** conservatively set to 1MHz *** /
 #                status = "okay";
 #        };
-#};
 */
+        kionix_sensor_1: kx132@0 {
+                compatible = "kionix,kx132_1211";
+                reg = <0>;
+                spi-max-frequency = <500000>;
+                drdy-gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
+        };
+};
 
 
 /* From project build artifact 'zephyr.dts', combines lpcxpresso55s69.dtsi and lpcxpresso55s69-pinctrl.dtsi:
-# hs_lspi: arduino_spi: mikrobus_spi: spi@9f000 {
+# hs_lspi: arduino_spi: mikrobus_spi: spi@9f000 { ... };
 */
 
-// Overlay entry to free GPIO pins P0_26, P1_1, P1_2, P1_3 for general purpose use:
-&hs_lspi {
-    status = "disabled";
-};
+/*
+# Overlay entry to free GPIO pins P0_26, P1_1, P1_2, P1_3 for general purpose use:
+
+# &hs_lspi {
+#     status = "disabled";
+# };
+*/
 
 
 

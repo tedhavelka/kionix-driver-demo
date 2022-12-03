@@ -10,7 +10,7 @@
 // - SECTION - defines
 //----------------------------------------------------------------------
 
-#define SLEEP_TIME_MS 1000 // 200 // 4000 // 1000
+#define SLEEP_TIME_MS 500 // 200 // 4000 // 1000
 #define DEFAULT_MESSAGE_SIZE 240
 
 // Demo / early development tests:
@@ -304,9 +304,12 @@ IF_ENABLED(CONFIG_KX132_TRIGGER_NONE, ( \
                 printk("main.c - value.val1 as bytes:  ");
                 for ( i = 0; i < sizeof(int); i++ )
                 {
-                    snprintf(lbuf, sizeof(lbuf), "0x%2X ", data_from_sensor.as_bytes[i]);
+                    snprintf(lbuf, sizeof(lbuf), "0x%02X ", data_from_sensor.as_bytes[i]);
                     printk("%s", lbuf);
                 }
+#if 1
+                printk("\n");
+#else
                 printk("  \"");
                 for ( i = 0; i < sizeof(int); i++ )
                 {
@@ -315,6 +318,7 @@ IF_ENABLED(CONFIG_KX132_TRIGGER_NONE, ( \
                 }
                 snprintf(lbuf, sizeof(lbuf), "\"\n");
                 printk("%s", lbuf);
+#endif
             }
 
             if ( DEV_TEST__FETCH_AND_GET_PART_ID )
