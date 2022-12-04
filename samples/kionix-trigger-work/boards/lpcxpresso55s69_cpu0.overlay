@@ -61,11 +61,11 @@
 
 &flexcomm4 {
 /*
-        kionix_sensor_1: kx132@1f {
-                compatible = "kionix,kx132_1211";
-                reg = <0x1F>;
-                drdy-gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
-        };
+#        kionix_sensor_1: kx132@1f {
+#                compatible = "kionix,kx132_1211";
+#                reg = <0x1F>;
+#                drdy-gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
+#        };
 */
 
 /*

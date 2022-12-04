@@ -15,8 +15,17 @@
 
 // Demo / early development tests:
 #define DEV_TEST__FETCH_AND_GET_MANUFACTURER_ID    (1)
-#define DEV_TEST__FETCH_AND_GET_PART_ID            (1)
-#define DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ (1)
+#define DEV_TEST__FETCH_AND_GET_PART_ID            (0)
+#define DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ (0)
+
+// SPI related dev work:
+#define BUILD_FOR_SPI_CONNECTED_IIS2DH (1)
+
+#define DEV_SHOW_FIRST_BYTES_SPI_RX_BUFFER
+
+#define DEV_TEST__ENABLE_KX132_1211_ASYNCHRONOUS_READINGS (0)
+#define DEV_TEST__KX132_ENABLE_SYNC_READINGS_WITH_HW_INTERRUPT (0)
+#define DEV_TEST__SET_KX132_1211_OUTPUT_DATA_RATE (0)
 
 
 
@@ -31,6 +40,8 @@
 #include <zephyr/device.h>         // to provide DEVICE_DT_GET macro and many related
 
 #include <zephyr/drivers/sensor.h> // to provide 'struct sensor_value'
+
+#include <zephyr/drivers/spi.h>
 
 // https://docs.zephyrproject.org/latest/services/logging/index.html#c.LOG_MODULE_REGISTER
 #include <zephyr/logging/log.h>
@@ -49,6 +60,31 @@ LOG_MODULE_REGISTER(kionix_driver_demo, LOG_LEVEL_DBG);
 //----------------------------------------------------------------------
 // - SECTION - file scoped
 //----------------------------------------------------------------------
+
+#if BUILD_FOR_SPI_CONNECTED_IIS2DH == 1
+#define SIZE_SPI_TX_BUFFER 32
+#define SIZE_SPI_RX_BUFFER 32
+
+uint8_t spi_tx_buffer[SIZE_SPI_TX_BUFFER] = { 0 };
+uint8_t spi_rx_buffer[SIZE_SPI_RX_BUFFER] = { 0 };
+
+// # REF zephyr/samples/drivers/spi_bitbang/src/main.c line 63
+const int stride = sizeof(spi_tx_buffer[0]);
+
+// # REF https://github.com/zephyrproject-rtos/zephyr/blob/main/include/zephyr/drivers/spi.h#L435
+//   .len = (SIZE_SPI_TX_BUFFER * sizeof(spi_tx_buffer[0]))
+struct spi_buf tx_buf = { .buf = spi_tx_buffer, .len = (SIZE_SPI_TX_BUFFER * stride) };
+struct spi_buf rx_buf = { .buf = spi_rx_buffer, .len = (SIZE_SPI_RX_BUFFER * stride) };
+
+// # REF https://github.com/zephyrproject-rtos/zephyr/blob/main/include/zephyr/drivers/spi.h#L446
+// # REF zephyr/samples/drivers/spi_bitbang/src/main.c lines 32 - 36
+struct spi_buf_set tx_set = { .buffers = &tx_buf, .count = 1 };
+struct spi_buf_set rx_set = { .buffers = &rx_buf, .count = 1 };
+
+#endif
+
+
+
 
 // data structures in Kionix driver dev work:
 
@@ -93,6 +129,54 @@ static void trigger_handler(const struct device *dev,
 
 
 
+static uint32_t read_registers(const struct device *dev,
+//                               const uint8_t device_address,
+                               const uint8_t* device_register,
+                               uint8_t* data,
+                               uint8_t len)
+{
+    uint8_t sensor_register_addr = device_register[0];
+    const struct kx132_device_config *cfg = dev->config;
+    uint32_t rstatus = 0;
+
+    if ( len > SIZE_SPI_RX_BUFFER )
+    {
+        printk("- WARNING (demo app) - SPI read of %u bytes exceeds global SPI receive buffer size of %u!\n",
+          len, SIZE_SPI_RX_BUFFER);
+        printk("returning early . . .\n");
+        return rstatus;
+    }
+
+    memset(spi_rx_buffer, 0, SIZE_SPI_RX_BUFFER);
+    rx_set.buffers = &rx_buf;
+    rx_set.count = 1;
+
+    spi_tx_buffer[0] = (sensor_register_addr |= 0x80);  // logical OR with 0b10000000, read bit true, MS bit false.
+    tx_buf.len = 2;
+    rx_buf.len = len;
+
+    rstatus = spi_transceive(
+                             cfg->spi.bus,
+                             &cfg->spi.config,
+                             &tx_set,
+                             &rx_set
+                            );
+
+//    *data = spi_rx_buffer[1];
+    printk("- INFO (read_registers) - ready to copy %u bytes to callers data buffer\n", len);
+//    memcpy(data, spi_rx_buffer[1], (unsigned int)len);
+    memcpy(data, &spi_rx_buffer[1], (size_t)len);
+
+#ifdef DEV_SHOW_FIRST_BYTES_SPI_RX_BUFFER
+    printk("- DEV 1113 - first few bytes read back via spi_transceive():  0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
+      spi_rx_buffer[0], spi_rx_buffer[1], spi_rx_buffer[2], spi_rx_buffer[3], spi_rx_buffer[4]);
+#endif
+
+    return rstatus;
+}
+
+
+
 void main(void)
 {
 
@@ -101,9 +185,9 @@ void main(void)
 
 // --- VAR BEGIN ---
 
-    struct sensor_value value;  // sensor_value is struct with two uint32_t's, val1 and val2
-    struct sensor_value requested_config;
-    int sensor_api_status = 0;
+    struct sensor_value value;              // sensor_value is struct with two uint32_t's, val1 and val2
+    struct sensor_value requested_config;   // we use sensor_value struct to pass requested sensor configuration defined values
+    int sensor_api_status = 0;              // dedicated var to capture returns statae from Zephyr sensor API
 
     union generic_data_four_bytes_union_t data_from_sensor;
 
@@ -147,7 +231,7 @@ void main(void)
 
     if (dev_kx132_1 != NULL)
     {
-        if (0) // if ( DEV_TEST__ENABLE_KX132_1211_ASYNCHRONOUS_READINGS == 1 )
+        if ( DEV_TEST__ENABLE_KX132_1211_ASYNCHRONOUS_READINGS == 1 )
         {
             printk("- MARK 1 -\n");
 
@@ -161,7 +245,7 @@ void main(void)
             );
         }
 
-        if (1)
+        if ( DEV_TEST__KX132_ENABLE_SYNC_READINGS_WITH_HW_INTERRUPT == 1 )
         {
             printk("- MARK 2 -\n");
 
@@ -175,7 +259,7 @@ void main(void)
             );
         }
 
-        if (0) // ( DEV_TEST__SET_KX132_1211_OUTPUT_DATA_RATE == 1 )
+        if ( DEV_TEST__SET_KX132_1211_OUTPUT_DATA_RATE == 1 )
         {
             printk("- MARK 3 -\n");
 
@@ -342,6 +426,20 @@ IF_ENABLED(CONFIG_KX132_TRIGGER_NONE, ( \
             else
             {
                 printk("- skipping x,y,z readings fetch, to observe trigger line on o-scope\n");
+            }
+
+
+            {
+//                printk("- -\n");
+                uint8_t per_addr[4] = {0, 0, 0, 0};
+                uint8_t *peripheral_reg_addr_ptr = per_addr;
+                char data[40] = {0};
+                char *data_ptr = data;
+#define FOUR_BYTES (4)
+
+                printk("- INFO (demo app) - testing SPI read registers routine:\n");
+                rstatus = read_registers(dev_kx132_1, peripheral_reg_addr_ptr, data_ptr, (FOUR_BYTES + 1));
+                printk("- INFO (demo app) - over SPI bus read back manufacturer id string '%s'\n\n", data);
             }
 
         } 
