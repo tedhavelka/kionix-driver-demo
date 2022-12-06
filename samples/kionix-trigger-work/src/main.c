@@ -24,7 +24,7 @@
 //#define DEV_SHOW_FIRST_BYTES_SPI_RX_BUFFER
 
 #define DEV_TEST__ENABLE_KX132_1211_ASYNCHRONOUS_READINGS      (0)
-#define DEV_TEST__KX132_ENABLE_SYNC_READINGS_WITH_HW_INTERRUPT (0)
+#define DEV_TEST__KX132_ENABLE_SYNC_READINGS_WITH_HW_INTERRUPT (1)
 #define DEV_TEST__SET_KX132_1211_OUTPUT_DATA_RATE              (0)
 
 #define SPI_MSBIT_AUTOINC_REG_ADDR_SET     1
@@ -168,7 +168,9 @@ static uint32_t read_registers(const struct device *dev,       // Zephyr pointer
     tx_buf.len = 2;
     rx_buf.len = (len + 1);
 
+#if 0
 printk("- read_registers() - ready to read %u bytes from register 0x%02x,\n", rx_buf.len, (spi_tx_buffer[0] & 0x3f));
+#endif
 
     rstatus = spi_transceive(
                              cfg->spi.bus,
@@ -177,8 +179,10 @@ printk("- read_registers() - ready to read %u bytes from register 0x%02x,\n", rx
                              &rx_set
                             );
 
+#if 0
 printk("- read_registers() - after spi_transceive() call rx_buf holds { 0x%02X, 0x%02X }\n", spi_rx_buffer[0], spi_rx_buffer[1]);
-//    printk("- INFO (read_registers) - ready to copy %u bytes to callers data buffer\n", len);
+#endif
+
     memcpy(data, &spi_rx_buffer[1], (size_t)len);
 
 #ifdef DEV_SHOW_FIRST_BYTES_SPI_RX_BUFFER
@@ -197,10 +201,12 @@ static uint32_t write_registers(const struct device *dev,       // Zephyr pointe
                                uint8_t len,                     // count of bytes to write
                                uint8_t option)                  // in SPI used to select auto-inc periph addr or not
 {
-    uint8_t sensor_register_addr = device_register[0];
+    uint8_t reg = device_register[0];
     const struct kx132_device_config *cfg = dev->config;
     uint32_t rstatus = 0;
 
+
+#if 0
      spi_tx_buffer[0] = device_register[0];
      spi_tx_buffer[1] = data[0];
  
@@ -220,6 +226,40 @@ printk("- write_registers() - tx_buf holds { 0x%02X, 0x%02X }\n", spi_tx_buffer[
                              &rx_set
                             );
 
+#else
+#define KX132_SPI_WRITEM  (1 << 6) /* 0x40 */
+
+//	uint8_t buffer_tx[1] = { reg | KX132_SPI_WRITEM };  // <-- this OR'ing of 0b01000000 may break comm's with KX132 sensor
+	uint8_t buffer_tx[1] = { reg };
+	const struct spi_buf tx_buf[2] = {
+		{
+			.buf = buffer_tx,
+			.len = 1,
+		},
+		{
+			.buf = data,
+			.len = len,
+		}
+	};
+	const struct spi_buf_set tx = {
+		.buffers = tx_buf,
+		.count = 2
+	};
+
+printk("- write_register() - set up SPI tx buffers IIS2DH way,\n");
+//printk("- write_register() - tx_buf[0].buf[0] holds register addr 0x%02x,\n", tx_buf[0].((uint8_t *)(buf[0])) );
+//                                                                                       ^^^^^^^^^
+printk("- write_register() - only one of buffer_tx holds { 0x%02x },\n", buffer_tx[0]);
+printk("- write_register() - first two of data hold { 0x%02x, 0x%02x },\n", data[0], data[1]);
+printk("\n");
+
+
+//	if (spi_write_dt(&config->spi, &tx)) {
+//		return -EIO;
+//	}
+	rstatus = spi_write_dt(&cfg->spi, &tx);
+#endif
+
     return rstatus;
 }
 
@@ -237,6 +277,7 @@ static uint32_t update_output_data_rate(const struct device *dev)
     data_to_read[0] = KX132_ODCNTL;
     read_registers(dev, data_to_read, &data_to_read[1], 1, SPI_MSBIT_CLEARED);
     printk("- 1205 update_output_data_rate() - ODR register 0x%02x holds %u\n", data_to_read[0], data_to_read[1]);
+    printk("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
 
     printk("- 1205 update_output_data_rate() - updating ODR register with value of 8 . . .\n");
     data_to_write[0] = KX132_ODCNTL;
@@ -245,14 +286,20 @@ static uint32_t update_output_data_rate(const struct device *dev)
 
     read_registers(dev, data_to_read, &data_to_read[1], 1, SPI_MSBIT_CLEARED);
     printk("- 1205 update_output_data_rate() - ODR register 0x%02x now holds %u\n", data_to_write[0], data_to_read[1]);
+    printk("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
 
-    printk("- 1205 update_output_data_rate() - updating ODR register with value of 6 . . .\n");
+    printk("- 1205 update_output_data_rate() - updating ODR register with value of 6, ** MSBIT set ** . . .\n");
     data_to_write[0] = KX132_ODCNTL;
     data_to_write[1] = 0x06;
-    write_registers(dev, data_to_write, &data_to_write[1], 1, SPI_MSBIT_CLEARED);
+    write_registers(dev, data_to_write, &data_to_write[1], 1, SPI_MSBIT_SET); // SPI_MSBIT_CLEARED);
+
+//
+// 2022-12-05 Note, writes succeed whether MSBIT set or cleared - TMH
+//
 
     read_registers(dev, data_to_read, &data_to_read[1], 1, SPI_MSBIT_CLEARED);
     printk("- 1205 update_output_data_rate() - ODR register 0x%02x now holds %u\n", data_to_write[0], data_to_read[1]);
+    printk("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
 
     return rstatus;
 }
@@ -446,12 +493,25 @@ IF_ENABLED(CONFIG_KX132_TRIGGER_NONE, ( \
 
 
 // - DEV 1205 --
-    printk("\n- DEV 1205 - main.c, testing stub for local SPI writes . . .\n");
+    printk("\n\n- DEV 1205 - main.c, testing stub for local SPI writes . . .\n");
     rstatus = update_output_data_rate(dev_kx132_1);
+    printk("\nFurther tests:\n");
+
+    uint8_t data_to_read[2] = { 0, 0 };
+
+    data_to_read[0] = KX132_INC1;
+    read_registers(dev_kx132_1, data_to_read, &data_to_read[1], 1, SPI_MSBIT_CLEARED);
+    printk("- main() - INC1 register 0x%02x holds %u\n", data_to_read[0], data_to_read[1]);
+
+    data_to_read[0] = KX132_CNTL1;
+    read_registers(dev_kx132_1, data_to_read, &data_to_read[1], 1, SPI_MSBIT_CLEARED);
+    printk("- main() - CNTL1 register 0x%02x holds %u\n\n\n", data_to_read[0], data_to_read[1]);
+
+#if 0
     printk("dev app exiting early . . .\n\n\n");
     return;
-// ZZZZZ
-
+// ZZZZZ the end
+#endif
 
 
     while ( 1 )
@@ -523,7 +583,7 @@ IF_ENABLED(CONFIG_KX132_TRIGGER_NONE, ( \
 //                printk("- -\n");
                 uint8_t per_addr[4] = {0, 0, 0, 0};
                 uint8_t *peripheral_reg_addr_ptr = per_addr;
-                char data[40] = {0};
+                char data[40] = {0, 0, 0, 0, 0};
                 char *data_ptr = data;
 #define FOUR_BYTES (4)  // length of KX132 manufacturer id string 'Kion'
 #define SIX_BYTES (6)   // count of bytes to hold 16 bit x, y, z accel readings
@@ -562,8 +622,8 @@ IF_ENABLED(CONFIG_KX132_TRIGGER_NONE, ( \
                 rstatus = read_registers(dev_kx132_1, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
                 readings[5] = data[0];
 
-                snprintf(lbuf, sizeof(lbuf), "main.c - x,y,z readings via six SPI transactions:  0x%04x, 0x%04x, 0x%04x\n\n\n",
-                  (data[0]*16+data[1]), (data[2]*16+data[3]), (data[4]*16+data[5]));
+                snprintf(lbuf, sizeof(lbuf), "main.c - x,y,z readings via six SPI transactions: . . . . 0x%04x, 0x%04x, 0x%04x\n\n\n",
+                  (readings[0]*16+readings[1]), (readings[2]*16+readings[3]), (readings[4]*16+readings[5]));
                 printk("%s", lbuf);
             }
 
