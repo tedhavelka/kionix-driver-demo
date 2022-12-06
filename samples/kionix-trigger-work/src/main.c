@@ -10,7 +10,7 @@
 // - SECTION - defines
 //----------------------------------------------------------------------
 
-#define SLEEP_TIME_MS 2000
+#define SLEEP_TIME_MS 1000
 #define DEFAULT_MESSAGE_SIZE 240
 
 // Demo / early development tests:
@@ -265,6 +265,10 @@ printk("\n");
 
 
 
+//----------------------------------------------------------------------
+// - SECTION - tests
+//----------------------------------------------------------------------
+
 static uint32_t update_output_data_rate(const struct device *dev)
 {
     uint32_t rstatus = 0;
@@ -305,6 +309,56 @@ static uint32_t update_output_data_rate(const struct device *dev)
 }
 
 
+
+
+uint32_t x_y_z_readings_via_individual_register_reads(const struct device *dev)
+{
+    uint8_t per_addr[4] = {0, 0, 0, 0};
+    uint8_t *peripheral_reg_addr_ptr = per_addr;
+    char data[40] = {0, 0, 0, 0, 0};
+    char *data_ptr = data;
+
+    uint8_t readings[6] = {0,0,0,0,0,0};
+
+    char lbuf[DEFAULT_MESSAGE_SIZE];
+    uint32_t rstatus = 0;
+
+
+    rstatus = read_registers(dev, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
+    readings[0] = data[0];
+
+    per_addr[0] = 9;
+    rstatus = read_registers(dev, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
+    readings[1] = data[0];
+
+    per_addr[0] = 10;
+    rstatus = read_registers(dev, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
+    readings[2] = data[0];
+
+    per_addr[0] = 11;
+    rstatus = read_registers(dev, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
+    readings[3] = data[0];
+
+    per_addr[0] = 12;
+    rstatus = read_registers(dev, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
+    readings[4] = data[0];
+
+    per_addr[0] = 13;
+    rstatus = read_registers(dev, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
+    readings[5] = data[0];
+
+    snprintf(lbuf, sizeof(lbuf), "- TEST - 16-bit x,y,z readings one register at a time: . . . . 0x%04x, 0x%04x, 0x%04x\n\n\n",
+      (readings[0]*16+readings[1]), (readings[2]*16+readings[3]), (readings[4]*16+readings[5]));
+    printk("%s", lbuf);
+
+    return rstatus;
+}
+
+
+
+//----------------------------------------------------------------------
+// - SECTION - void main int main
+//----------------------------------------------------------------------
 
 void main(void)
 {
@@ -589,42 +643,17 @@ IF_ENABLED(CONFIG_KX132_TRIGGER_NONE, ( \
 #define SIX_BYTES (6)   // count of bytes to hold 16 bit x, y, z accel readings
 
                 printk("- INFO (demo app) - testing SPI read registers routine:\n");
-                rstatus = read_registers(dev_kx132_1, peripheral_reg_addr_ptr, data_ptr, (FOUR_BYTES + 1), SPI_MSBIT_CLEARED);
+                rstatus = read_registers(dev_kx132_1, peripheral_reg_addr_ptr, data_ptr, (FOUR_BYTES + 0), SPI_MSBIT_CLEARED);
                 printk("- INFO (demo app) - over SPI bus read back manufacturer id string '%s'\n\n", data);
 
                 per_addr[0] = 8;
-                rstatus = read_registers(dev_kx132_1, peripheral_reg_addr_ptr, data_ptr, (SIX_BYTES + 1), SPI_MSBIT_CLEARED);
+                rstatus = read_registers(dev_kx132_1, peripheral_reg_addr_ptr, data_ptr, (SIX_BYTES + 0), SPI_MSBIT_CLEARED);
                 snprintf(lbuf, sizeof(lbuf), "main.c - x,y,z readings from local SPI read dev routine:  0x%04x, 0x%04x, 0x%04x\n",
                   (data[0]*16+data[1]), (data[2]*16+data[3]), (data[4]*16+data[5]));
                 printk("%s", lbuf);
 
-                uint8_t readings[6] = {0,0,0,0,0,0};
-                rstatus = read_registers(dev_kx132_1, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
-                readings[0] = data[0];
 
-                per_addr[0] = 9;
-                rstatus = read_registers(dev_kx132_1, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
-                readings[1] = data[0];
-
-                per_addr[0] = 10;
-                rstatus = read_registers(dev_kx132_1, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
-                readings[2] = data[0];
-
-                per_addr[0] = 11;
-                rstatus = read_registers(dev_kx132_1, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
-                readings[3] = data[0];
-
-                per_addr[0] = 12;
-                rstatus = read_registers(dev_kx132_1, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
-                readings[4] = data[0];
-
-                per_addr[0] = 13;
-                rstatus = read_registers(dev_kx132_1, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
-                readings[5] = data[0];
-
-                snprintf(lbuf, sizeof(lbuf), "main.c - x,y,z readings via six SPI transactions: . . . . 0x%04x, 0x%04x, 0x%04x\n\n\n",
-                  (readings[0]*16+readings[1]), (readings[2]*16+readings[3]), (readings[4]*16+readings[5]));
-                printk("%s", lbuf);
+                x_y_z_readings_via_individual_register_reads(dev_kx132_1);
             }
 
         } 
