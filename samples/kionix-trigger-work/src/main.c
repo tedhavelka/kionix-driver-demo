@@ -21,11 +21,13 @@
 // SPI related dev work:
 #define BUILD_FOR_SPI_CONNECTED_IIS2DH (1)
 
-//#define DEV_SHOW_FIRST_BYTES_SPI_RX_BUFFER
+#define DEV_SHOW_FIRST_BYTES_SPI_RX_BUFFER
 
-#define DEV_TEST__ENABLE_KX132_1211_ASYNCHRONOUS_READINGS      (0)
-#define DEV_TEST__KX132_ENABLE_SYNC_READINGS_WITH_HW_INTERRUPT (1)
+#define DEV_TEST__ENABLE_KX132_1211_ASYNCHRONOUS_READINGS      (1)
+#define DEV_TEST__KX132_ENABLE_SYNC_READINGS_WITH_HW_INTERRUPT (0)
 #define DEV_TEST__SET_KX132_1211_OUTPUT_DATA_RATE              (0)
+
+//#define DEV_TEST__XYZ_READINGS_VIA_DIRECT_SPI_API_CALLS
 
 #define SPI_MSBIT_AUTOINC_REG_ADDR_SET     1
 #define SPI_MSBIT_AUTOINC_REG_ADDR_CLEARED 0
@@ -59,6 +61,7 @@ LOG_MODULE_REGISTER(kionix_driver_demo, LOG_LEVEL_DBG);
 // - DEV 1127 - attempt to create gpio_dt_spec device instance(s) as stand alone devices,
 //  outside the larger accelerometer device nested data structures:
 #include "int-gpio-inst.h"
+#include "main.h"
 
 
 
@@ -128,7 +131,7 @@ static void trigger_handler(const struct device *dev,
     printk("\n- KX132 demo app - interrupt of type SENSOR_TRIG_DATA_READY detected,\n");
     printk("- KX132 demo app - for sensor channel SENSOR_CHAN_ACCEL_XYZ\n\n");
 #endif
-    printk("- zztop -\n");
+    printk("- DEV 1206 - sensor interrupt / trigger handler called!\n");
 }
 #endif
 
@@ -168,10 +171,6 @@ static uint32_t read_registers(const struct device *dev,       // Zephyr pointer
     tx_buf.len = 2;
     rx_buf.len = (len + 1);
 
-#if 0
-printk("- read_registers() - ready to read %u bytes from register 0x%02x,\n", rx_buf.len, (spi_tx_buffer[0] & 0x3f));
-#endif
-
     rstatus = spi_transceive(
                              cfg->spi.bus,
                              &cfg->spi.config,
@@ -179,16 +178,26 @@ printk("- read_registers() - ready to read %u bytes from register 0x%02x,\n", rx
                              &rx_set
                             );
 
-#if 0
-printk("- read_registers() - after spi_transceive() call rx_buf holds { 0x%02X, 0x%02X }\n", spi_rx_buffer[0], spi_rx_buffer[1]);
-#endif
 
-    memcpy(data, &spi_rx_buffer[1], (size_t)len);
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+#if 1
+    printk("- read_registers() - called to read %u bytes from register 0x%02x, xmit buffer[0] holds 0x%02x\n",
+      rx_buf.len, (spi_tx_buffer[0] & 0x3f), spi_tx_buffer[0]);
+#endif
 
 #ifdef DEV_SHOW_FIRST_BYTES_SPI_RX_BUFFER
     printk("- DEV 1113 - first few bytes read back via spi_transceive():  0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
       spi_rx_buffer[0], spi_rx_buffer[1], spi_rx_buffer[2], spi_rx_buffer[3], spi_rx_buffer[4]);
 #endif
+
+//    memcpy(data, &spi_rx_buffer[1], (size_t)len);   // <-- dumb mistake, size_t gives number of bytes in standard C data type, here uint8_t - TMH
+//    memcpy(data, &spi_rx_buffer[1], sizeof(len));
+    memcpy(data, &spi_rx_buffer[1], len);
+    printk("- DEV 1207 - copied %u bytes to caller's data buffer,\n", len);
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
 
     return rstatus;
 }
@@ -310,7 +319,6 @@ static uint32_t update_output_data_rate(const struct device *dev)
 
 
 
-
 uint32_t x_y_z_readings_via_individual_register_reads(const struct device *dev)
 {
     uint8_t per_addr[4] = {0, 0, 0, 0};
@@ -318,11 +326,13 @@ uint32_t x_y_z_readings_via_individual_register_reads(const struct device *dev)
     char data[40] = {0, 0, 0, 0, 0};
     char *data_ptr = data;
 
-    uint8_t readings[6] = {0,0,0,0,0,0};
+    uint8_t readings[6] = {0,0,0, 0,0,0};
 
     char lbuf[DEFAULT_MESSAGE_SIZE];
     uint32_t rstatus = 0;
 
+//printk("- MARK 12 -\n");
+//    return 1024;
 
     rstatus = read_registers(dev, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
     readings[0] = data[0];
@@ -347,11 +357,167 @@ uint32_t x_y_z_readings_via_individual_register_reads(const struct device *dev)
     rstatus = read_registers(dev, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
     readings[5] = data[0];
 
-    snprintf(lbuf, sizeof(lbuf), "- TEST - 16-bit x,y,z readings one register at a time: . . . . 0x%04x, 0x%04x, 0x%04x\n\n\n",
-      (readings[0]*16+readings[1]), (readings[2]*16+readings[3]), (readings[4]*16+readings[5]));
+    snprintf(lbuf, sizeof(lbuf), "- TEST - 16-bit x,y,z readings one register at a time:    0x%04x, 0x%04x, 0x%04x\n\n\n",
+      (readings[0] + (readings[1] << 8)), (readings[2] + (readings[3] << 8)), (readings[4]+ (readings[5] << 8)));
     printk("%s", lbuf);
 
     return rstatus;
+}
+
+
+
+uint32_t test__configure_sensor_for_async_readings(const struct device *dev)
+{
+    struct sensor_value requested_config;   // we use sensor_value struct to pass requested sensor configuration defined values
+    int sensor_api_status = 0;              // dedicated var to capture returns statae from Zephyr sensor API
+
+    if ( dev == NULL ) { return KX132_DEMO__ZEPHYR_DEVICE_POINTER_NULL; }
+    printk("- MARK 1 - configuring sensor for asynchronous readings . . .\n");
+
+    requested_config.val1 = KX132_ENABLE_ASYNC_READINGS;
+
+    sensor_api_status = sensor_attr_set(
+                                        dev,
+                                        SENSOR_CHAN_ALL,
+                                        SENSOR_ATTR_PRIV_START,
+                                        &requested_config
+    );
+
+    return sensor_api_status;
+}
+
+
+
+uint32_t test__configure_sensor_for_synchronous_readings_with_hw_int(const struct device *dev)
+{
+    struct sensor_value requested_config;   // we use sensor_value struct to pass requested sensor configuration defined values
+    int sensor_api_status = 0;              // dedicated var to capture returns statae from Zephyr sensor API
+
+    if ( dev == NULL ) { return KX132_DEMO__ZEPHYR_DEVICE_POINTER_NULL; }
+    printk("- MARK 2 - configuring sensor for synchronous readings . . .\n");
+
+    requested_config.val1 = KX132_ENABLE_SYNC_READINGS_WITH_HW_INTERRUPT;
+
+    sensor_api_status = sensor_attr_set(
+          dev,
+          SENSOR_CHAN_ALL,
+          SENSOR_ATTR_PRIV_START,
+          &requested_config
+    );
+
+    return sensor_api_status;
+}
+
+
+
+uint32_t test__set_kx132_output_data_rate (const struct device *dev, enum kx132_1211_output_data_rates_e desired_odr)
+{
+    struct sensor_value requested_config;   // we use sensor_value struct to pass requested sensor configuration defined values
+    int sensor_api_status = 0;
+
+    if ( dev == NULL ) { return KX132_DEMO__ZEPHYR_DEVICE_POINTER_NULL; }
+
+    printk("- MARK 3 - setting KX132 output data rate . . .\n");
+
+    requested_config.val1 = KX132_ENABLE_ASYNC_READINGS;
+    requested_config.val2 = desired_odr;
+
+    sensor_api_status = sensor_attr_set(
+          dev,
+          SENSOR_CHAN_ALL,
+          SENSOR_ATTR_PRIV_START,          
+          &requested_config
+    );
+
+    return sensor_api_status;
+}
+
+
+
+uint32_t tests_of_macro_GPIO_DT_SPEC_INST_GET_OR(void)
+{
+// Sample line from KX132 driver, based on IIS2DH driver source in `iis2dh.c` as of Zephyr 3.2.0:
+//const struct gpio_dt_spec int_gpio_for_diag = GPIO_DT_SPEC_INST_GET_OR(inst, drdy_gpios, { 0 });
+
+#define DT_DRV_COMPAT kionix_kx132_1211
+
+    const struct gpio_dt_spec int_gpio_for_diag = GPIO_DT_SPEC_INST_GET_OR(0, drdy_gpios, { 0 });
+
+// hmm, above const struct declation with '0' replacing 'inst' results in correct name `&gpio1` - TMH
+
+
+    printk("- TEST - test of local gpio_dt_spec int_gpio.port->name . . .\n");
+    if ( int_gpio_for_diag.port != NULL )
+    {
+        printk("- TEST - interrupt GPIO port name holds '%s',\n", int_gpio_for_diag.port->name);
+    }
+    else
+    {
+        printk("- TEST - interrupt GPIO port found NULL!\n");
+    }
+
+    return 0;
+}
+
+
+
+
+
+
+uint32_t test__kx132_assign_routine_to_sensor_interrupt(const struct device *dev)
+{
+    int rstatus = 0;
+
+    printk("- main.c - calling sensor_trigger_set() . . .\n");
+    trig.type = SENSOR_TRIG_DATA_READY;
+    trig.chan = SENSOR_CHAN_ACCEL_XYZ;
+    rstatus = sensor_trigger_set(dev, &trig, trigger_handler);
+    printk("- main.c - call to sensor_trigger_set() returns status value of %d\n", rstatus);
+
+    rstatus |= kx132_trigger_set(dev, &trig, trigger_handler);
+    printk("- main.c - call to kx132_trigger_set() returns status value of %d\n", rstatus);
+
+    if ( rstatus != 0) {
+        printf("main.c, Trigger set failed: %d\n", rstatus);
+        return KX132_DEMO__SENSOR_TRIGGER_ROUTINE_SET_FAILED;
+    }
+
+    printk("main.c, Trigger set got %d\n", rstatus);
+
+    return rstatus;
+}
+
+
+
+uint32_t test__check_possibly_reinit_sensor_interrupt_port(const struct device *dev)
+{
+    struct sensor_value requested_config;   // we use sensor_value struct to pass requested sensor configuration defined values
+    int sensor_api_status = 0;
+
+    const struct kx132_device_data *data = dev->data;
+    printk("- TEST (DEV 1128) - driver gives drdy port status of %u\n", data->drdy_port_status);
+
+    if ( data->drdy_port_status != DRDY_PORT_INITIALIZED )
+    {
+         printk("- TEST - requesting driver to reinit 'data ready' port . . .\n");
+         requested_config.val1 = KX132_REINITIALIZE_DRDY_GPIO_PORT;
+         requested_config.val2 = 0;
+
+         sensor_api_status = sensor_attr_set(
+                                             dev,
+                                             SENSOR_CHAN_ALL,
+                                             SENSOR_ATTR_PRIV_START,
+                                             &requested_config
+                                            );
+
+        printk("- TEST - after reinit driver gives drdy port status of %u\n", data->drdy_port_status);
+    }
+    else
+    {
+        printk("- TEST - skipping reinit, drdy port already initialized\n");
+    }
+
+    return sensor_api_status;
 }
 
 
@@ -369,8 +535,8 @@ void main(void)
 // --- VAR BEGIN ---
 
     struct sensor_value value;              // sensor_value is struct with two uint32_t's, val1 and val2
-    struct sensor_value requested_config;   // we use sensor_value struct to pass requested sensor configuration defined values
-    int sensor_api_status = 0;              // dedicated var to capture returns statae from Zephyr sensor API
+//    struct sensor_value requested_config;   // we use sensor_value struct to pass requested sensor configuration defined values
+//    int sensor_api_status = 0;              // dedicated var to capture returns statae from Zephyr sensor API
 
     union generic_data_four_bytes_union_t data_from_sensor;
 
@@ -389,188 +555,75 @@ void main(void)
 // --- VAR END ---
 
 
-// - STEP - check whether we get a non-null device handle, then check whether device ready
+// - STEP - check whether we get a non-null device handle:
 
-    if (dev_kx132_1 == NULL)
+    if ( dev_kx132_1 == NULL )
     {
         printk("-\n- WARNING - Failed to init Kionix sensor device pointer!\n-\n");
-    }
-    else
-    {
-        if (!device_is_ready(dev_kx132_1))
-        {
-            snprintf(lbuf, sizeof(lbuf), "Device %s is not ready\n", dev_kx132_1->name);
-            printk("%s", lbuf);
-            return;
-        }
-        else
-        {
-            printk("- SUCCESS - found Kionix accelerometer and device is ready\n");
-        }
-    }
-
-
-// - STEP - configure a couple of KX132 accelerometer settings
-
-    if (dev_kx132_1 != NULL)
-    {
-        if ( DEV_TEST__ENABLE_KX132_1211_ASYNCHRONOUS_READINGS == 1 )
-        {
-            printk("- MARK 1 -\n");
-
-            requested_config.val1 = KX132_ENABLE_ASYNC_READINGS;
-
-            sensor_api_status = sensor_attr_set(
-              dev_kx132_1,
-              SENSOR_CHAN_ALL,
-              SENSOR_ATTR_PRIV_START,
-              &requested_config
-            );
-        }
-
-        if ( DEV_TEST__KX132_ENABLE_SYNC_READINGS_WITH_HW_INTERRUPT == 1 )
-        {
-            printk("- MARK 2 -\n");
-
-            requested_config.val1 = KX132_ENABLE_SYNC_READINGS_WITH_HW_INTERRUPT;
-
-            sensor_api_status = sensor_attr_set(
-              dev_kx132_1,
-              SENSOR_CHAN_ALL,
-              SENSOR_ATTR_PRIV_START,
-              &requested_config
-            );
-        }
-
-        if ( DEV_TEST__SET_KX132_1211_OUTPUT_DATA_RATE == 1 )
-        {
-            printk("- MARK 3 -\n");
-
-            requested_config.val1 = KX132_ENABLE_ASYNC_READINGS;
-            requested_config.val2 = KX132_ODR_3200_HZ;
-
-            sensor_api_status = sensor_attr_set(
-              dev_kx132_1,
-              SENSOR_CHAN_ALL,
-              SENSOR_ATTR_PRIV_START,          
-              &requested_config
-            );
-        }
-
-#ifdef CONFIG_KX132_TRIGGER
-	if ( 1 ) {
-            printk("- main.c - calling sensor_trigger_set() . . .\n");
-            trig.type = SENSOR_TRIG_DATA_READY;
-            trig.chan = SENSOR_CHAN_ACCEL_XYZ;
-            rstatus = sensor_trigger_set(dev_kx132_1, &trig, trigger_handler);
-            printk("- main.c - call to sensor_trigger_set() returns status value of %d\n", rstatus);
-
-            rstatus |= kx132_trigger_set(dev_kx132_1, &trig, trigger_handler);
-            printk("- main.c - call to kx132_trigger_set() returns status value of %d\n", rstatus);
-        }
-
-        if ( rstatus != 0) {
-            printf("main.c, Trigger set failed: %d\n", rstatus);
-            return;
-        }
-
-        printk("main.c, Trigger set got %d\n", rstatus);
-
-#else
-//const struct gpio_dt_spec int_gpio_for_diag = GPIO_DT_SPEC_INST_GET_OR(inst, drdy_gpios, { 0 });
-#define DT_DRV_COMPAT kionix_kx132_1211
-const struct gpio_dt_spec int_gpio_for_diag = GPIO_DT_SPEC_INST_GET_OR(0, drdy_gpios, { 0 }); // hmm, this results in correct name `&gpio1`
-
-        printk("- MARK 4 - main.c test of local gpio_dt_spec int_gpio.port->name . . .\n");
-        if ( int_gpio_for_diag.port != NULL )
-        {
-            printk("- MARK 5 - main.c, interrupt GPIO port name holds '%s',\n", int_gpio_for_diag.port->name);
-        }
-        else
-        {
-            printk("- MARK 5 - main.c, interrupt GPIO port found NULL!\n");
-        }
-#endif // CONFIG_KX132_TRIGGER
-    }
-    else
-    {
         return;
     }
 
 
-    printk("- MARK 6 - main.c, testing FOREACH generated gpio_dt_spec int_gpio_##inst.port->name . . .\n");
-    if ( int_gpio_diag1.port != NULL )
-    { 
-        printk("- MARK 7 - main.c, interrupt GPIO port name holds '%s',\n", int_gpio_diag1.port->name);
-    }
+// - STEP - check whether device ready:
 
-
-IF_ENABLED(CONFIG_KX132_TRIGGER_NONE, ( \
-    printk("- MARK 8 -  main.c, testing IF_DEFINED generated gpio_dt_spec int_gpio_conditionally_compiled.port->name . . .\n"); \
-    if ( int_gpio_conditionally_compiled.port != NULL ) \
-    {  \
-        printk("- MARK 9 - main.c, IF_ENABLED gen'd GPIO port name holds '%s',\n", int_gpio_conditionally_compiled.port->name); \
-    } \
-    else \
-    { \
-        printk("- MARK 9 - main.c, IF_ENABLED gen'd GPIO port found NULL!\n"); \
-    } \
-))
-
-
-// - DEV 1128 - test of recently added port status data member:
-    if ( 0 )
+    if (!device_is_ready(dev_kx132_1))
     {
-        const struct kx132_device_data *data = dev_kx132_1->data;
-        printk("- DEV 1128 - main.c, driver gives drdy port status of %u\n", data->drdy_port_status);
-
-        if ( data->drdy_port_status != DRDY_PORT_INITIALIZED )
-        {
-             printk("- DEV 1128 - main.c, requesting driver to reinit 'data ready' port . . .\n");
-             requested_config.val1 = KX132_REINITIALIZE_DRDY_GPIO_PORT;
-             requested_config.val2 = 0;
-
-             sensor_api_status = sensor_attr_set(
-                                                 dev_kx132_1,
-                                                 SENSOR_CHAN_ALL,
-                                                 SENSOR_ATTR_PRIV_START,
-                                                 &requested_config
-                                                );
-
-            printk("- DEV 1128 - main.c, after reinit driver gives drdy port status of %u\n", data->drdy_port_status);
-        }
-        else
-        {
-            printk("- DEV 1128 - main.c, skipping reinit, drdy port already initialized\n");
-        }
+        snprintf(lbuf, sizeof(lbuf), "Device %s is not ready\n", dev_kx132_1->name);
+        printk("%s", lbuf);
+        return;
     }
+    else
+    {
+        printk("- SUCCESS - found Kionix accelerometer and device is ready\n");
+    }
+
+
+// - STEP - optionally configure KX132 accelerometer for desired readings and settings:
+
+#if DEV_TEST__ENABLE_KX132_1211_ASYNCHRONOUS_READINGS == 1
+    rstatus = test__configure_sensor_for_async_readings(dev_kx132_1);
+#endif
+
+#if DEV_TEST__KX132_ENABLE_SYNC_READINGS_WITH_HW_INTERRUPT == 1
+    rstatus = test__configure_sensor_for_synchronous_readings_with_hw_int(dev_kx132_1);
+#endif
+
+#if DEV_TEST__SET_KX132_1211_OUTPUT_DATA_RATE == 1
+    rstatus = test__set_kx132_output_data_rate(dev_kx132_1, KX132_ODR_100_HZ);
+#endif
+
+// ^^^ See KX132 driver file kx132-registers.h for Output Data Rate (ODR) enumerated symbols
+
+
+#ifdef CONFIG_KX132_TRIGGER
+    rstatus = test__kx132_assign_routine_to_sensor_interrupt(dev_kx132_1);
+#endif
+
+
+#if DEV_TEST__CHECK_SENSOR_INTERRUPT_GPIO_PORT == 1
+    rstatus = test__check_possibly_reinit_sensor_interrupt_port(dev_kx132_1);
+#endif
 
 
 // - DEV 1205 --
     printk("\n\n- DEV 1205 - main.c, testing stub for local SPI writes . . .\n");
     rstatus = update_output_data_rate(dev_kx132_1);
-    printk("\nFurther tests:\n");
 
-    uint8_t data_to_read[2] = { 0, 0 };
 
-    data_to_read[0] = KX132_INC1;
-    read_registers(dev_kx132_1, data_to_read, &data_to_read[1], 1, SPI_MSBIT_CLEARED);
-    printk("- main() - INC1 register 0x%02x holds %u\n", data_to_read[0], data_to_read[1]);
-
-    data_to_read[0] = KX132_CNTL1;
-    read_registers(dev_kx132_1, data_to_read, &data_to_read[1], 1, SPI_MSBIT_CLEARED);
-    printk("- main() - CNTL1 register 0x%02x holds %u\n\n\n", data_to_read[0], data_to_read[1]);
-
-#if 0
-    printk("dev app exiting early . . .\n\n\n");
-    return;
-// ZZZZZ the end
-#endif
+//
+// ----------
+#define FOUR_BYTES (4)  // length of KX132 manufacturer id string 'Kion'
+#define SIX_BYTES (6)   // count of bytes to hold 16 bit x, y, z accel readings
+    uint8_t per_addr[4] = {0, 0, 0, 0};
+    uint8_t *peripheral_reg_addr_ptr = per_addr;
+    char data[40] = {0, 0, 0, 0, 0};
+    char *data_ptr = data;
+// ----------
+//
 
 
     while ( 1 )
     {
-
         if ( dev_kx132_1 != NULL )
         {
             printk("- MARK 10 - main.c\n");
@@ -581,23 +634,22 @@ IF_ENABLED(CONFIG_KX132_TRIGGER_NONE, ( \
 
                 sensor_sample_fetch_chan(dev_kx132_1, SENSOR_CHAN_KIONIX_MANUFACTURER_ID);
                 sensor_channel_get(dev_kx132_1, SENSOR_CHAN_KIONIX_MANUFACTURER_ID, &value);
-
+#if 0
                 snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer %d\n",
                   value.val1);
                 printk("%s", lbuf);
                 snprintf(lbuf, sizeof(lbuf), "main.c - sensor_value.val2 holds %d\n", value.val2);
                 printk("%s", lbuf);
+#endif
                 data_from_sensor.as_32_bit_integer = value.val1;
 
-                printk("main.c - value.val1 as bytes:  ");
+                printk("main.c - manufacturer id string in value.val1 as bytes:  ");
                 for ( i = 0; i < sizeof(int); i++ )
                 {
                     snprintf(lbuf, sizeof(lbuf), "0x%02X ", data_from_sensor.as_bytes[i]);
                     printk("%s", lbuf);
                 }
-#if 0
-                printk("\n");
-#else
+
                 printk("  \"");
                 for ( i = 0; i < sizeof(int); i++ )
                 {
@@ -606,8 +658,15 @@ IF_ENABLED(CONFIG_KX132_TRIGGER_NONE, ( \
                 }
                 snprintf(lbuf, sizeof(lbuf), "\"\n\n");
                 printk("%s", lbuf);
-#endif
             }
+
+
+            {
+                printk("- INFO (demo app) - testing app side SPI read registers routine:\n");
+                rstatus = read_registers(dev_kx132_1, peripheral_reg_addr_ptr, data_ptr, (FOUR_BYTES + 0), SPI_MSBIT_CLEARED);
+                printk("- INFO (demo app) - over SPI bus read back manufacturer id string '%s'\n\n", data);
+            }
+
 
             if ( DEV_TEST__FETCH_AND_GET_PART_ID )
             {
@@ -621,7 +680,7 @@ IF_ENABLED(CONFIG_KX132_TRIGGER_NONE, ( \
 
             if ( DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ )
             {
-                sensor_api_status = sensor_sample_fetch_chan(dev_kx132_1, SENSOR_CHAN_ACCEL_XYZ);
+                sensor_sample_fetch_chan(dev_kx132_1, SENSOR_CHAN_ACCEL_XYZ);
                 sensor_channel_get(dev_kx132_1, SENSOR_CHAN_ACCEL_XYZ, &value);
                 snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor x,y,z readings encoded:  0x%08x, 0x%08x\n\n",
                   value.val1, value.val2);
@@ -633,30 +692,16 @@ IF_ENABLED(CONFIG_KX132_TRIGGER_NONE, ( \
             }
 
 
-            {
-//                printk("- -\n");
-                uint8_t per_addr[4] = {0, 0, 0, 0};
-                uint8_t *peripheral_reg_addr_ptr = per_addr;
-                char data[40] = {0, 0, 0, 0, 0};
-                char *data_ptr = data;
-#define FOUR_BYTES (4)  // length of KX132 manufacturer id string 'Kion'
-#define SIX_BYTES (6)   // count of bytes to hold 16 bit x, y, z accel readings
+#ifdef DEV_TEST__XYZ_READINGS_VIA_DIRECT_SPI_API_CALLS
+            per_addr[0] = KX132_XOUT_L;
+            rstatus = read_registers(dev_kx132_1, peripheral_reg_addr_ptr, data_ptr, (SIX_BYTES + 0), SPI_MSBIT_CLEARED);
+            snprintf(lbuf, sizeof(lbuf), "main.c - x,y,z readings from local SPI read dev routine:  0x%04x, 0x%04x, 0x%04x\n",
+              (data[0]+(data[1]<<8)), (data[2]+(data[3]<<8)), (data[4]+(data[5]<<8)));
+            printk("%s", lbuf);
 
-                printk("- INFO (demo app) - testing SPI read registers routine:\n");
-                rstatus = read_registers(dev_kx132_1, peripheral_reg_addr_ptr, data_ptr, (FOUR_BYTES + 0), SPI_MSBIT_CLEARED);
-                printk("- INFO (demo app) - over SPI bus read back manufacturer id string '%s'\n\n", data);
-
-                per_addr[0] = 8;
-                rstatus = read_registers(dev_kx132_1, peripheral_reg_addr_ptr, data_ptr, (SIX_BYTES + 0), SPI_MSBIT_CLEARED);
-                snprintf(lbuf, sizeof(lbuf), "main.c - x,y,z readings from local SPI read dev routine:  0x%04x, 0x%04x, 0x%04x\n",
-                  (data[0]*16+data[1]), (data[2]*16+data[3]), (data[4]*16+data[5]));
-                printk("%s", lbuf);
-
-
-                x_y_z_readings_via_individual_register_reads(dev_kx132_1);
-            }
-
-        } 
+            x_y_z_readings_via_individual_register_reads(dev_kx132_1);
+#endif
+        }
         else 
         {
             snprintf(lbuf, sizeof(lbuf), "- WARNING - problem initializing KX132 Zephyr device pointer,\n");
