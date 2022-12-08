@@ -7,10 +7,23 @@
         uart2 = &flexcomm2;
         i2c0 = &flexcomm4;
         sensorinterrupt1 = &iis2dhint1;
-        kx132-instance-1 = &kionix_sensor;
+        kx132-instance-1 = &kionix_sensor_1;
     };
 };
 
+
+
+&green_led {
+    status = "okay";
+};
+
+&blue_led {
+    status = "okay";
+};
+
+&red_led {
+    status = "okay";
+};
 
 
 /*
@@ -35,28 +48,35 @@
 #  lines for related LIS2DH sensor.
 # See LPCXpresso55S69_Board_Schematic_RevA2_dec4.pdf for GPIOs available
 #  on lpcxpresso55s69 dev kit.
+
+# 2022-12-01 - We know &gpio1 pin 9 works as IIS2DH interrupt, which
+#  is configured active low.  So per above linked schematic we can safely
+#  assume PIO1_10 (gpio1 pin 10) will work as well, but we must review
+#  KX132 datasheet for interrupt active level - TMH
+#
+#   Looks like KX132-1211-Technical-Reference-Manual-Rev-5.0.pdf page 27
+#  talks about INC1 bit 4, IEA1 bit determines whether interrupt is
+#  active ow or active high.
 */
 
 &flexcomm4 {
-        kionix_sensor: kx132@1f {                /* kx132_1211@1f { */
-                compatible = "kionix,kx132_1211";
-                reg = <0x1F>;
-                drdy-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
 /*
-#                irq-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
-*/
-        };
-
-/*
-# Note:  Ted unsure whether 'interrupt-parent' node property needed to support interrupts */
-/*
-#        stmicro_sensor: iis2dh@18 {
-#                compatible = "st,iis2dh";
-#                reg = <0x18>;
-#                interrupt-parent = <&gpio1>;
-#                drdy-gpios = <&gpio1 9 GPIO_ACTIVE_LOW>, <&gpio1 10 GPIO_ACTIVE_LOW>;
+#        kionix_sensor_1: kx132@1f {
+#                compatible = "kionix,kx132_1211";
+#                reg = <0x1F>;
+#                drdy-gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
 #        };
 */
+
+/*
+# Note:  Ted unsure whether 'interrupt-parent' node property needed to support interrupts
+*/
+        stmicro_sensor: iis2dh@18 {
+                compatible = "st,iis2dh";
+                reg = <0x18>;
+                interrupt-parent = <&gpio1>;
+                drdy-gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
+        };
 };
 
 
@@ -105,31 +125,34 @@
 */
 
 &arduino_spi {
-        status = "okay";
 /*
-#        cs-gpios = <&arduino_header 16 GPIO_ACTIVE_LOW>;    . . . note spi-controller.yaml says <cs-gpios> optional - TMH
+#        iis2dh@0 {
+#                compatible = "st,iis2dh";
+#                reg = <0>;
+#                spi-max-frequency = <250000>; / *** conservatively set to 1MHz *** /
+#                status = "okay";
+#        };
 */
-        iis2dh@0 {
-                compatible = "st,iis2dh";
+        kionix_sensor_1: kx132@0 {
+                compatible = "kionix,kx132_1211";
                 reg = <0>;
-                spi-max-frequency = <250000>; /* conservatively set to 1MHz */
-                status = "okay";
+                spi-max-frequency = <1000000>;
+                drdy-gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
         };
 };
 
 
+/* From project build artifact 'zephyr.dts', combines lpcxpresso55s69.dtsi and lpcxpresso55s69-pinctrl.dtsi:
+# hs_lspi: arduino_spi: mikrobus_spi: spi@9f000 { ... };
+*/
 
-&green_led {
-    status = "okay";
-};
+/*
+# Overlay entry to free GPIO pins P0_26, P1_1, P1_2, P1_3 for general purpose use:
 
-&blue_led {
-    status = "okay";
-};
-
-&red_led {
-    status = "okay";
-};
+# &hs_lspi {
+#     status = "disabled";
+# };
+*/
 
 
 
