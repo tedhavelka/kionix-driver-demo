@@ -16,10 +16,12 @@
 // Demo / early development tests:
 #define DEV_TEST__FETCH_AND_GET_MANUFACTURER_ID    (1)
 #define DEV_TEST__FETCH_AND_GET_PART_ID            (0)
-#define DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ (1)
+#define DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ
 
 // SPI related dev work:
-#define BUILD_FOR_SPI_CONNECTED_IIS2DH (1)
+#define SIZE_OF_SPI_TEST_DATA_BUFFER 40
+
+#define BUILD_FOR_SPI_CONNECTED_SENSOR (1)
 
 #define DEV_SHOW_FIRST_BYTES_SPI_RX_BUFFER
 
@@ -27,7 +29,9 @@
 #define DEV_TEST__KX132_ENABLE_SYNC_READINGS_WITH_HW_INTERRUPT (0)
 #define DEV_TEST__SET_KX132_1211_OUTPUT_DATA_RATE              (0)
 
-//#define DEV_TEST__XYZ_READINGS_VIA_DIRECT_SPI_API_CALLS
+#define DEV_TEST__XYZ_READINGS_VIA_DIRECT_SPI_API_CALL
+//#define DEV_TEST__XYZ_READINGS_VIA_SEPARATE_REGISTER_READS
+
 
 #define SPI_MSBIT_AUTOINC_REG_ADDR_SET     1
 #define SPI_MSBIT_AUTOINC_REG_ADDR_CLEARED 0
@@ -69,7 +73,7 @@ LOG_MODULE_REGISTER(kionix_driver_demo, LOG_LEVEL_DBG);
 // - SECTION - file scoped
 //----------------------------------------------------------------------
 
-#if BUILD_FOR_SPI_CONNECTED_IIS2DH == 1
+#if BUILD_FOR_SPI_CONNECTED_SENSOR == 1
 #define SIZE_SPI_TX_BUFFER 32
 #define SIZE_SPI_RX_BUFFER 32
 
@@ -137,6 +141,12 @@ static void trigger_handler(const struct device *dev,
 
 
 
+
+
+//----------------------------------------------------------------------
+// - SECTION - Low level SPI diagnostics work . . .
+//----------------------------------------------------------------------
+
 static uint32_t read_registers(const struct device *dev,       // Zephyr pointer to peripheral or sensor device
                                const uint8_t* device_register, // peripheral register address in small array
                                uint8_t* data,                  // buffer to hold data we read from peripheral
@@ -178,9 +188,11 @@ static uint32_t read_registers(const struct device *dev,       // Zephyr pointer
                              &rx_set
                             );
 
+    memcpy(data, &spi_rx_buffer[1], len);
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
+#if 0
 #if 1
     printk("- read_registers() - called to read %u bytes from register 0x%02x, xmit buffer[0] holds 0x%02x\n",
       rx_buf.len, (spi_tx_buffer[0] & 0x3f), spi_tx_buffer[0]);
@@ -191,13 +203,12 @@ static uint32_t read_registers(const struct device *dev,       // Zephyr pointer
       spi_rx_buffer[0], spi_rx_buffer[1], spi_rx_buffer[2], spi_rx_buffer[3], spi_rx_buffer[4]);
 #endif
 
-//    memcpy(data, &spi_rx_buffer[1], (size_t)len);   // <-- dumb mistake, size_t gives number of bytes in standard C data type, here uint8_t - TMH
-//    memcpy(data, &spi_rx_buffer[1], sizeof(len));
-    memcpy(data, &spi_rx_buffer[1], len);
     printk("- DEV 1207 - copied %u bytes to caller's data buffer,\n", len);
+    printk("- DEV 1207 - fifth element data[4] holds '%c'\n", (char)data[4]);
+#endif // 0
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-
 
     return rstatus;
 }
@@ -215,7 +226,8 @@ static uint32_t write_registers(const struct device *dev,       // Zephyr pointe
     uint32_t rstatus = 0;
 
 
-#if 0
+#if 0 // Call Zephyr spi_transceive() API, which works with IIS2DH and KX132 sensors:
+
      spi_tx_buffer[0] = device_register[0];
      spi_tx_buffer[1] = data[0];
  
@@ -235,7 +247,10 @@ printk("- write_registers() - tx_buf holds { 0x%02X, 0x%02X }\n", spi_tx_buffer[
                              &rx_set
                             );
 
-#else
+#else // Call Zephyr spi_write_dt() API, which is STMicro's choice in their IIS2DH Zephyr 3.2.0 driver:
+// 2022-12-07 Note - both API calls tested to work - TMH
+// 2022-12-07 Note - KX132_SPI_WRITEM = IIS2DH_SPI_WRITEM = 0x40 appears moot for single byte writes, and should be so.
+
 #define KX132_SPI_WRITEM  (1 << 6) /* 0x40 */
 
 //	uint8_t buffer_tx[1] = { reg | KX132_SPI_WRITEM };  // <-- this OR'ing of 0b01000000 may break comm's with KX132 sensor
@@ -319,6 +334,13 @@ static uint32_t update_output_data_rate(const struct device *dev)
 
 
 
+//----------------------------------------------------------------------
+// Note:  this routine part of a test to see whether separate single
+//  register SPI reads return the same data as a multi-byte SPI reads,
+//  both with and without SPI bit 0x40 auto-inc peripheral address flag
+//  set.
+//----------------------------------------------------------------------
+
 uint32_t x_y_z_readings_via_individual_register_reads(const struct device *dev)
 {
     uint8_t per_addr[4] = {0, 0, 0, 0};
@@ -331,29 +353,28 @@ uint32_t x_y_z_readings_via_individual_register_reads(const struct device *dev)
     char lbuf[DEFAULT_MESSAGE_SIZE];
     uint32_t rstatus = 0;
 
-//printk("- MARK 12 -\n");
-//    return 1024;
 
+    per_addr[0] = KX132_XOUT_L;
     rstatus = read_registers(dev, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
     readings[0] = data[0];
 
-    per_addr[0] = 9;
+    per_addr[0] = KX132_XOUT_H;
     rstatus = read_registers(dev, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
     readings[1] = data[0];
 
-    per_addr[0] = 10;
+    per_addr[0] = KX132_YOUT_L;
     rstatus = read_registers(dev, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
     readings[2] = data[0];
 
-    per_addr[0] = 11;
+    per_addr[0] = KX132_YOUT_H;
     rstatus = read_registers(dev, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
     readings[3] = data[0];
 
-    per_addr[0] = 12;
+    per_addr[0] = KX132_ZOUT_L;
     rstatus = read_registers(dev, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
     readings[4] = data[0];
 
-    per_addr[0] = 13;
+    per_addr[0] = KX132_XOUT_H;
     rstatus = read_registers(dev, peripheral_reg_addr_ptr, data_ptr, 1, SPI_MSBIT_CLEARED);
     readings[5] = data[0];
 
@@ -523,6 +544,137 @@ uint32_t test__check_possibly_reinit_sensor_interrupt_port(const struct device *
 
 
 //----------------------------------------------------------------------
+// - SECTION - conversion
+//----------------------------------------------------------------------
+
+// From KX132-1211-Technical-Reference-Manual-Rev-5.0.pdf page 10:
+
+#ifndef KX132_ACCELEROMETER_RANGE_DEFINES
+#define KX132_ACCELEROMETER_RANGE_DEFINES
+
+#define KX132_RANGE_RES_HIGH_DECIMAL_COUNTS_MIN -32768
+#define KX132_RANGE_RES_HIGH_DECIMAL_COUNTS_MAX  32767
+
+#define KX132_RANGE_RES_HIGH_2G_MIN            -2.00000
+#define KX132_RANGE_RES_HIGH_2G_MAX             1.99994
+
+#define KX132_RANGE_RES_HIGH_4G_MIN            -4.00000
+#define KX132_RANGE_RES_HIGH_4G_MAX             3.99988
+
+#define KX132_RANGE_RES_HIGH_8G_MIN            -8.00000
+#define KX132_RANGE_RES_HIGH_8G_MAX             7.99976
+
+#define KX132_RANGE_RES_HIGH_16G_MIN          -16.00000
+#define KX132_RANGE_RES_HIGH_16G_MAX           15.99951
+
+// 12-7 NEED to add low resolution range values (these for 8-bit readings).
+
+
+enum kx132_acceleration_ranges_e
+{
+    KX132_ACCEL_RANGES_BEGIN,
+    KX132_RANGE_PLUS_MINUS_2G,
+    KX132_RANGE_PLUS_MINUS_4G,
+    KX132_RANGE_PLUS_MINUS_8G,
+    KX132_RANGE_PLUS_MINUS_16G,
+    KX132_ACCEL_RANGES_END
+};
+
+enum kx132_acceleration_resolutions_e
+{
+    KX132_ACCEL_RESOLUTION_HIGH = 1,
+    KX132_ACCEL_RESOLUTION_LOW
+};
+
+#endif // KX132_ACCELEROMETER_RANGE_DEFINES
+
+
+enum acceleration_units_of_measure_e
+{
+    ACCELERATION_IN_G,
+    ACCELERATION_IN_M_PER_S_SQUARED
+};
+
+// https://en.wikipedia.org/wiki/Gravitational_acceleration
+// https://en.wikipedia.org/wiki/Standard_gravity
+#define ACCELERATION_OF_GRAVITY_AT_EARTH_MEAN_SURFACE 9.8067
+
+
+float reading_in_g(const uint32_t reading_in_dec_counts,
+                   const enum kx132_acceleration_resolutions_e resolution,
+                   const enum kx132_acceleration_ranges_e range,
+                   const enum acceleration_units_of_measure_e desired_units)
+{
+    int32_t decimal_count_max = 0;
+    int32_t decimal_count_min = 0;
+    float units_of_g_range_max = 0.0;
+    float units_of_g_range_min = 0.0;
+    float reading = 0.0;
+
+// For 16-bit, high resolution readings:
+    {
+// NEED to consider bounds check on reading to keep within unsigned 0x0000 to 0xFFFF, 16-bit range of values.
+
+        decimal_count_max = KX132_RANGE_RES_HIGH_DECIMAL_COUNTS_MAX;
+        decimal_count_min = KX132_RANGE_RES_HIGH_DECIMAL_COUNTS_MIN;
+
+        switch (range)
+        {
+            case KX132_RANGE_PLUS_MINUS_2G:
+                units_of_g_range_max = KX132_RANGE_RES_HIGH_2G_MAX;
+                units_of_g_range_min = KX132_RANGE_RES_HIGH_2G_MIN;
+                break;
+
+            case KX132_RANGE_PLUS_MINUS_4G:
+                units_of_g_range_max = KX132_RANGE_RES_HIGH_4G_MAX;
+                units_of_g_range_min = KX132_RANGE_RES_HIGH_4G_MIN;
+                break;
+
+            case KX132_RANGE_PLUS_MINUS_8G:
+                units_of_g_range_max = KX132_RANGE_RES_HIGH_8G_MAX;
+                units_of_g_range_min = KX132_RANGE_RES_HIGH_8G_MIN;
+                break;
+
+            case KX132_RANGE_PLUS_MINUS_16G:
+                units_of_g_range_max = KX132_RANGE_RES_HIGH_16G_MAX;
+                units_of_g_range_min = KX132_RANGE_RES_HIGH_16G_MIN;
+                break;
+
+            default:
+                printk("- WARNING - unsupported KX132 ");
+                return reading;
+        }
+    }
+
+// NEED to add low-res conversion code - TMH
+
+// For 8-bit, high resolution readings:
+    {
+// NEED to consider bounds check on reading to keep within unsigned 0x00 to 0xFF, 8-bit range of values.
+    }
+
+
+// Incoming reading in two's compliment needs to be scaled by a factor of
+//
+//   units of G range
+// --------------------
+// decimal counts range
+
+    reading = ( (int16_t)reading_in_dec_counts * ( (units_of_g_range_max - units_of_g_range_min) /
+                ((float)decimal_count_max - (float)decimal_count_min)
+              ) );
+
+    if ( desired_units == ACCELERATION_IN_M_PER_S_SQUARED )
+    {
+        reading *= ACCELERATION_OF_GRAVITY_AT_EARTH_MEAN_SURFACE;
+    }
+
+    return reading;
+}
+
+
+
+//----------------------------------------------------------------------
 // - SECTION - void main int main
 //----------------------------------------------------------------------
 
@@ -616,7 +768,8 @@ void main(void)
 #define SIX_BYTES (6)   // count of bytes to hold 16 bit x, y, z accel readings
     uint8_t per_addr[4] = {0, 0, 0, 0};
     uint8_t *peripheral_reg_addr_ptr = per_addr;
-    char data[40] = {0, 0, 0, 0, 0};
+    char data[SIZE_OF_SPI_TEST_DATA_BUFFER] = { 0 };
+    memset(data, 0, SIZE_OF_SPI_TEST_DATA_BUFFER);
     char *data_ptr = data;
 // ----------
 //
@@ -635,15 +788,15 @@ void main(void)
                 sensor_sample_fetch_chan(dev_kx132_1, SENSOR_CHAN_KIONIX_MANUFACTURER_ID);
                 sensor_channel_get(dev_kx132_1, SENSOR_CHAN_KIONIX_MANUFACTURER_ID, &value);
 #if 0
-                snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer %d\n",
+                snprintf(lbuf, sizeof(lbuf), "- main.c - Kionix sensor reports its manufacturer ID, as 32-bit integer %d\n",
                   value.val1);
                 printk("%s", lbuf);
-                snprintf(lbuf, sizeof(lbuf), "main.c - sensor_value.val2 holds %d\n", value.val2);
+                snprintf(lbuf, sizeof(lbuf), "- main.c - sensor_value.val2 holds %d\n", value.val2);
                 printk("%s", lbuf);
 #endif
                 data_from_sensor.as_32_bit_integer = value.val1;
 
-                printk("main.c - manufacturer id string in value.val1 as bytes:  ");
+                printk("- main.c - manufacturer id string in value.val1 as bytes:  ");
                 for ( i = 0; i < sizeof(int); i++ )
                 {
                     snprintf(lbuf, sizeof(lbuf), "0x%02X ", data_from_sensor.as_bytes[i]);
@@ -662,9 +815,11 @@ void main(void)
 
 
             {
-                printk("- INFO (demo app) - testing app side SPI read registers routine:\n");
+                per_addr[0] = KX132_MAN_ID;
+                memset(data, 0, SIZE_OF_SPI_TEST_DATA_BUFFER);
+                printk("- main.c - testing app side SPI read registers routine, requesting manu' id string . . .\n");
                 rstatus = read_registers(dev_kx132_1, peripheral_reg_addr_ptr, data_ptr, (FOUR_BYTES + 0), SPI_MSBIT_CLEARED);
-                printk("- INFO (demo app) - over SPI bus read back manufacturer id string '%s'\n\n", data);
+                printk("- main.c - over SPI bus read back manufacturer id string '%s'\n\n", data);
             }
 
 
@@ -672,35 +827,48 @@ void main(void)
             {
                 sensor_sample_fetch_chan(dev_kx132_1, SENSOR_CHAN_KIONIX_PART_ID);
                 sensor_channel_get(dev_kx132_1, SENSOR_CHAN_KIONIX_PART_ID, &value);
-                snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor reports part ID of %d\n",
+                snprintf(lbuf, sizeof(lbuf), "- main.c - Kionix sensor reports part ID of %d\n",
                   value.val1);
                 printk("%s", lbuf);
             }
 
-
-            if ( DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ )
-            {
+#ifdef DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ 
+//            if ( DEV_TEST__FETCH_ACCELEROMETER_READINGS_XYZ )
+//            {
                 sensor_sample_fetch_chan(dev_kx132_1, SENSOR_CHAN_ACCEL_XYZ);
                 sensor_channel_get(dev_kx132_1, SENSOR_CHAN_ACCEL_XYZ, &value);
-                snprintf(lbuf, sizeof(lbuf), "main.c - Kionix sensor x,y,z readings encoded:  0x%08x, 0x%08x\n\n",
+                snprintf(lbuf, sizeof(lbuf), "- main.c - Kionix sensor x,y,z readings encoded:  0x%08x, 0x%08x\n",
                   value.val1, value.val2);
                 printk("%s", lbuf);
-            }
-            else
+
+                printk("- main.c - z-axis reading as 16-bit signed integer:  %d\n", (int16_t)(value.val2 & 0x0000ffff));
+                printk("\n");
+//            }
+#else
             {
                 printk("- skipping x,y,z readings fetch, to observe trigger line on o-scope\n");
             }
+#endif //
 
 
-#ifdef DEV_TEST__XYZ_READINGS_VIA_DIRECT_SPI_API_CALLS
+#ifdef DEV_TEST__XYZ_READINGS_VIA_DIRECT_SPI_API_CALL
             per_addr[0] = KX132_XOUT_L;
             rstatus = read_registers(dev_kx132_1, peripheral_reg_addr_ptr, data_ptr, (SIX_BYTES + 0), SPI_MSBIT_CLEARED);
             snprintf(lbuf, sizeof(lbuf), "main.c - x,y,z readings from local SPI read dev routine:  0x%04x, 0x%04x, 0x%04x\n",
               (data[0]+(data[1]<<8)), (data[2]+(data[3]<<8)), (data[4]+(data[5]<<8)));
             printk("%s", lbuf);
 
+            printk("- DEV 1207 - reading of z-axis acceleration in g:  %3.2f m/s^2\n",
+              (reading_in_g(data[4] + (data[5] << 8), KX132_ACCEL_RESOLUTION_HIGH, KX132_RANGE_PLUS_MINUS_2G,
+               ACCELERATION_IN_M_PER_S_SQUARED))
+            );
+            printk("\n\n");
+#endif
+
+#ifdef DEV_TEST__XYZ_READINGS_VIA_SEPARATE_REGISTER_READS
             x_y_z_readings_via_individual_register_reads(dev_kx132_1);
 #endif
+
         }
         else 
         {
