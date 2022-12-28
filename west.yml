@@ -13,8 +13,7 @@ manifest:
     # Kionix driver work repository, name of remote repository followed by name of local dir into which to clone:
     - name: zephyr-driver-work-v2
       path: kionix-drivers
-#      revision: main
-      revision: a7fd3a0
+      revision: main
       url: https://github.com/tedhavelka/zephyr-driver-work-v2
 
   self:
